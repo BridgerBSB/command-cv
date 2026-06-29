@@ -73,6 +73,30 @@ Outputs land in `output/` (gitignored).
 5. **Report** — `render_strike_zone_view` → the Strike-Zone View PNG.
 6. **Profile** — `src/profile.py` appends the row for session-over-session trends.
 
+## Annotate → train → apply (the click-tool workflow)
+
+For real clips, label the catcher's mitt, then train the detector to auto-find it.
+
+```bash
+# 1. (optional) pick the setup + catch frames
+python scripts/contact_sheet.py --clip "ogando_ff_1.mp4" --start 78 --end 124 --step 3 --crop
+
+# 2. annotate: scrub (a/d), click mitt center+edge, s=setup  c=catch  t=Trackman  w=write
+python scripts/annotate_tool.py --clip "ogando_ff_1.mp4" --hand R
+#    -> data/annotations/ogando_ff_1.json + YOLO samples in data/yolo/
+
+# 3. real numbers for everything annotated so far
+python scripts/methodb_batch.py        # -> output/command_profile_b.csv + rollup
+
+# 4. train the mitt detector once enough clips are labeled
+pip install ultralytics
+python scripts/train_yolo.py --epochs 100
+#    -> data/yolo/runs/mitt/weights/best.pt  (wire into src/detect.py YoloDetector)
+```
+
+`data/` is local (gitignored): clips aren't in the repo, annotations + training
+images regenerate from them.
+
 ## Known caveats (read before any coach-facing use)
 
 - **plate_x sign + arm/glove label** sit behind one documented constant flagged
