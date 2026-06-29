@@ -22,6 +22,55 @@ INK = "#1B2330"
 PANEL = "#F7F8FB"
 
 
+def render_frame_overlay(
+    image_path: str,
+    glove_px: tuple[float, float],
+    out_path: str,
+    zone_px: list[tuple[float, float]] | None = None,
+    actual_px: tuple[float, float] | None = None,
+    label: str = "",
+    dpi: int = 110,
+) -> str:
+    """Draw the reticle-on-glove overlay on the source broadcast frame.
+
+    Recreates the reference input image: a crosshair locked on the catcher's
+    glove (intended target). Optionally overlays the strike-zone quad and the
+    actual pitch location (if its pixel position is known). Pure matplotlib —
+    reads the image with `plt.imread` (no cv2).
+    """
+    img = plt.imread(image_path)
+    h, w = img.shape[0], img.shape[1]
+    fig = plt.figure(figsize=(w / dpi, h / dpi), dpi=dpi)
+    ax = fig.add_axes([0, 0, 1, 1])
+    ax.imshow(img)
+    ax.set_xlim(0, w); ax.set_ylim(h, 0)
+    ax.axis("off")
+
+    if zone_px:
+        xs = [p[0] for p in zone_px] + [zone_px[0][0]]
+        ys = [p[1] for p in zone_px] + [zone_px[0][1]]
+        ax.plot(xs, ys, color=GOLD, lw=2.0, alpha=0.9)
+
+    # Glove reticle (intended target): orange crosshair-in-ring, like cv image.jpg
+    gx, gy = glove_px
+    r = max(w, h) * 0.022
+    ax.add_artist(plt.Circle((gx, gy), r, fill=False, ec=ORANGE, lw=2.6))
+    ax.plot([gx - r * 1.7, gx + r * 1.7], [gy, gy], color=ORANGE, lw=2.0)
+    ax.plot([gx, gx], [gy - r * 1.7, gy + r * 1.7], color=ORANGE, lw=2.0)
+
+    if actual_px is not None:
+        ax.scatter([actual_px[0]], [actual_px[1]], s=120, c=NAVY,
+                   edgecolors="white", lw=1.4, zorder=5)
+
+    if label:
+        ax.text(12, 26, label, color="white", fontsize=13, fontweight="bold",
+                bbox=dict(boxstyle="round,pad=0.3", fc=NAVY, ec="none", alpha=0.85))
+
+    fig.savefig(out_path, dpi=dpi)
+    plt.close(fig)
+    return out_path
+
+
 def render_strike_zone_view(
     miss: MissResult,
     zone: StrikeZone,
