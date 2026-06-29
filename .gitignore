@@ -1,4 +1,5 @@
 output/
+data/          # local clips' annotations + derived YOLO images (regenerated from clips)
 *.mp4
 *.mov
 *.avi
