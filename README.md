@@ -4,10 +4,21 @@ Quantify pitcher **command** by measuring how far a pitch missed the catcher's
 intended target — recreating the LinkedIn tool by Lucas Baquero. Turns "intent
 into measurable data" instead of the eye test.
 
-> **Key idea:** we do NOT track the ball in video. The **catcher's glove**
-> (intended target) comes from **computer vision** on one frame; the **actual**
-> pitch location comes from **Trackman / Hawk-Eye** (`plate_x` / `plate_z`). The
-> miss is the vector between them, in real inches + a direction.
+> **Key idea:** we do NOT track the ball in video. The miss is the gap between
+> where the catcher set the target and where the pitch actually ended up.
+
+## Two methods (pick by camera angle)
+
+- **Method A — Trackman (center-field camera).** intended = glove (CV on the
+  setup frame); actual = Trackman `plate_x`/`plate_z`; calibrate the frame to the
+  plate plane via a homography. Best when the strike-zone plane faces the lens.
+  Modules: `geometry.py` + `calibration.py` + `pipeline.py`; feed = `ingest/statsapi.py`.
+- **Method B — glove-size scale (side / down-the-line camera, e.g. GC2 clips).**
+  intended = mitt at the **setup** frame; actual = mitt at the **catch** frame;
+  miss = their displacement scaled to inches by the mitt's real ~12" size (the
+  "size of the glove" idea). No Trackman, no plate homography, immune to the
+  oblique angle. Modules: `glove_track.py` + `miss_methodb.py`; run `methodb_pitch.py`.
+  Verified on a real GC2 Ogando clip: **7.2 in arm-side/up** off a low target.
 
 See `docs/2026-06-29-command-cv-miss-distance-design.md` for the full design.
 
