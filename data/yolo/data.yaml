@@ -1,5 +1,0 @@
-path: C:\Users\Owner\bsb-resources\command-cv\data\yolo
-train: images/train
-val: images/val
-nc: 1
-names: ['mitt']
