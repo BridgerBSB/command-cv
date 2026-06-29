@@ -23,7 +23,7 @@ PANEL = "#F7F8FB"
 
 
 def render_frame_overlay(
-    image_path: str,
+    image,
     glove_px: tuple[float, float],
     out_path: str,
     zone_px: list[tuple[float, float]] | None = None,
@@ -35,10 +35,10 @@ def render_frame_overlay(
 
     Recreates the reference input image: a crosshair locked on the catcher's
     glove (intended target). Optionally overlays the strike-zone quad and the
-    actual pitch location (if its pixel position is known). Pure matplotlib —
-    reads the image with `plt.imread` (no cv2).
+    actual pitch location (if its pixel position is known). `image` may be a file
+    path or an already-decoded RGB ndarray (e.g. a frame from src.video).
     """
-    img = plt.imread(image_path)
+    img = plt.imread(image) if isinstance(image, str) else image
     h, w = img.shape[0], img.shape[1]
     fig = plt.figure(figsize=(w / dpi, h / dpi), dpi=dpi)
     ax = fig.add_axes([0, 0, 1, 1])

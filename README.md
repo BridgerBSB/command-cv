@@ -22,8 +22,10 @@ See `docs/2026-06-29-command-cv-miss-distance-design.md` for the full design.
 | Pipeline orchestrator | ✅ built |
 | **Stats API ingest (actual loc + video `playId`)** | ✅ **live-verified** (261 pitches, game 814841) |
 | Detection interface (glove/plate/zone) | ✅ interface + manual backend; YOLO backend stubbed |
-| **Trained glove/plate detector** | ⬜ TODO — needs labeled MiLB frames |
-| Video clip fetch from `playId` (Film Room entitlement) | ⬜ open question |
+| **Provided-video path** (decode clip → flash frame → annotate → report) | ✅ built + tested end-to-end (synthetic clip) |
+| Click-to-annotate / labeling tool | ✅ `scripts/annotate_clip.py` |
+| **Trained glove/plate detector** | ⬜ TODO — needs labeled real frames |
+| Video clip fetch from `playId` | ⬜ **needs MLB key** — `/guids` `/analytics` return 401; `/content` has no free MiLB clip |
 
 ## Quick start
 
@@ -33,6 +35,17 @@ python -m pytest -q                              # 7 tests
 python scripts/render_synthetic_report.py        # synthetic Strike-Zone View
 python scripts/demo_statsapi_report.py 814841 0   # REAL pitch from Stats API
 python -m src.ingest.statsapi 814841              # dump tracked pitches + playIds
+
+# Provided-video path (the "feed a clip" workflow):
+python scripts/make_test_clip.py                  # synth clip + coords for smoke test
+python scripts/clip_to_report.py --clip output/test_clip.mp4 \
+    --coords output/test_clip_coords.json --frame 20 \
+    --plate-x 0.45 --plate-z 1.85 --sz-top 3.6 --sz-bot 1.55 --hand R \
+    --pitcher "Test" --pitch-id SMOKE1
+# For a REAL clip: annotate the flash frame by clicking, then report:
+python scripts/annotate_clip.py --clip mypitch.mp4 --frame 120 --out coords.json
+python scripts/clip_to_report.py --clip mypitch.mp4 --coords coords.json --frame 120 \
+    --game 814841 --play-id <GUID>     # pulls the matching Trackman row
 ```
 Outputs land in `output/` (gitignored).
 

@@ -2,10 +2,11 @@
 numpy>=1.26
 matplotlib>=3.8
 
-# Computer-vision detection backend — needed only to detect glove/plate in real
-# video frames (stages 1-2). The engine + Stats API ingest run without these.
-# opencv-python>=4.9
-# ultralytics>=8.2        # trained YOLO glove/plate/zone detector (planned)
+# Video decode for the provided-clip path (extract the glove-flash frame).
+opencv-python-headless>=4.9   # use opencv-python instead if you want GUI windows
+
+# Trained detection backend — auto-locate glove/plate/zone (replaces manual clicks).
+# ultralytics>=8.2            # YOLO glove/plate/zone detector (planned)
 
 # Testing
 pytest>=8.0
