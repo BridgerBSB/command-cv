@@ -8,7 +8,8 @@ mitt detector.
 
 Controls (focus the image window):
   a / d        prev / next frame            A / D      jump back / fwd 10
-  left-click   1st = mitt center, 2nd = mitt edge (radius -> square box)
+  left-click   click the LEFT edge of the mitt, then the RIGHT edge
+               (the two clicks set the glove's center AND its size)
   s            lock current box+frame as SETUP target
   c            lock current box+frame as CATCH
   t            type Trackman pX pZ szTop szBot in the console (optional, Method A)
@@ -91,14 +92,17 @@ class Annotator:
         if e.xdata is None:
             return
         if self.click_center is None:
+            # first click = LEFT edge of the mitt
             self.click_center = (e.xdata, e.ydata)
-            print(f"  center ({e.xdata:.0f},{e.ydata:.0f}) — now click the mitt edge")
+            print(f"  left edge ({e.xdata:.0f},{e.ydata:.0f}) — now click the RIGHT edge")
         else:
-            cx, cy = self.click_center
-            r = ((e.xdata - cx) ** 2 + (e.ydata - cy) ** 2) ** 0.5
+            lx, ly = self.click_center
+            cx, cy = (lx + e.xdata) / 2.0, (ly + e.ydata) / 2.0   # center = midpoint
+            r = ((e.xdata - lx) ** 2 + (e.ydata - ly) ** 2) ** 0.5 / 2.0
             self.cur_box = Box.from_center_radius(cx, cy, max(r, 6))
             self.click_center = None
-            print(f"  box r={r:.0f}px — press 's' (setup) or 'c' (catch)")
+            print(f"  glove center=({cx:.0f},{cy:.0f}) size={2*r:.0f}px — "
+                  f"press 's' (setup) or 'c' (catch)")
             self.draw()
 
     def on_key(self, e):
