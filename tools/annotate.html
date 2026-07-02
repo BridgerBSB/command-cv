@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<title>Command CV — Glove Annotator (batch)</title>
+<style>
+  :root { --navy:#002D62; --orange:#EB6E1F; }
+  * { box-sizing: border-box; }
+  body { margin:0; font-family: Segoe UI, Roboto, Helvetica, Arial, sans-serif; background:#0f1115; color:#e8e8e8; }
+  header { background:var(--navy); padding:10px 16px; display:flex; align-items:center; gap:14px; }
+  header h1 { font-size:16px; margin:0; color:#fff; }
+  header .hint { font-size:12px; color:#bcd; }
+  #wrap { display:flex; gap:16px; padding:16px; align-items:flex-start; }
+  #left { flex:0 0 auto; }
+  #right { flex:1 1 auto; min-width:300px; max-width:420px; }
+  #stage { position:relative; background:#000; line-height:0; border:1px solid #333; }
+  canvas { display:block; max-width:860px; cursor:crosshair; }
+  .row { margin:8px 0; }
+  input[type=text] { background:#1b1f26; border:1px solid #3a4250; color:#e8e8e8; padding:6px 8px; border-radius:4px; width:110px; }
+  input[type=range] { width:100%; }
+  button { background:var(--orange); color:#111; border:0; padding:8px 12px; border-radius:5px; font-weight:600; cursor:pointer; font-size:13px; }
+  button.sec { background:#2a3140; color:#dfe6ee; }
+  button.nav { background:#1b2330; color:#cfe; padding:6px 10px; }
+  button:disabled { opacity:.4; cursor:not-allowed; }
+  .grid { display:grid; grid-template-columns:auto auto; gap:6px 10px; align-items:center; }
+  .tag { display:inline-block; padding:2px 8px; border-radius:10px; font-size:11px; font-weight:700; }
+  .ok { background:#1e5631; color:#b8f0c6; }
+  .no { background:#4a2020; color:#f0b8b8; }
+  .frameno { font-size:22px; font-weight:800; color:var(--orange); }
+  .mono { font-family: Consolas, monospace; font-size:12px; color:#9fb0c0; }
+  .box { border:1px solid #333; border-radius:6px; padding:10px 12px; margin-bottom:12px; background:#141821; }
+  .box h3 { margin:0 0 8px; font-size:13px; color:#cfe; }
+  kbd { background:#222; border:1px solid #444; border-radius:3px; padding:1px 5px; font-size:11px; }
+  #queue { max-height:200px; overflow:auto; border:1px solid #2a3140; border-radius:5px; }
+  .qitem { padding:6px 10px; font-size:12px; cursor:pointer; display:flex; justify-content:space-between; border-bottom:1px solid #20262f; }
+  .qitem:hover { background:#1b2330; }
+  .qitem.cur { background:#243247; color:#fff; }
+  .qitem .st { font-weight:700; }
+  #progress { font-size:13px; font-weight:700; color:#cfe; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Command CV — Glove Annotator (batch)</h1>
+  <span class="hint">Pick ALL clips at once · drag a box on the mitt · <kbd>&larr;</kbd>/<kbd>&rarr;</kbd> step, <kbd>Shift</kbd>×10 · nothing leaves your machine</span>
+</header>
+
+<div id="wrap">
+  <div id="left">
+    <div id="stage"><canvas id="cv" width="1280" height="720"></canvas></div>
+    <div class="row"><input type="range" id="scrub" min="0" max="0" value="0" step="1"/></div>
+    <div class="row">
+      <span class="frameno" id="frameLabel">frame 0 / 0</span>
+      <span class="mono" id="dims"></span>
+    </div>
+    <div class="row">
+      <button class="nav" id="prev" disabled>&larr; prev clip</button>
+      <button class="nav" id="next" disabled>next clip &rarr;</button>
+      <span class="mono" id="curName"></span>
+    </div>
+  </div>
+
+  <div id="right">
+    <div class="box">
+      <h3>1 · Load ALL clips at once</h3>
+      <input type="file" id="file" accept="video/mp4,video/*" multiple/>
+      <div class="mono" id="loadMsg" style="margin-top:6px">Ctrl/Shift-select every .mp4 in the folder.</div>
+      <div id="queue" style="margin-top:8px"></div>
+      <div class="row"><span id="progress">0 / 0 annotated</span></div>
+    </div>
+
+    <div class="box">
+      <h3>2 · Metadata (this clip)</h3>
+      <div class="grid">
+        <label>pitcher</label><input type="text" id="pitcher"/>
+        <label>pitch_type</label><input type="text" id="ptype"/>
+        <label>hand (R/L)</label><input type="text" id="hand" value="R"/>
+      </div>
+    </div>
+
+    <div class="box">
+      <h3>3 · Tag setup + catch</h3>
+      <div class="mono" style="margin-bottom:8px">Scrub to SETTLED mitt, drag a tight box, lock Setup. Scrub to CATCH, re-drag, lock Catch.</div>
+      <div class="row"><button id="setSetup" class="sec" disabled>Lock SETUP (target)</button> <span id="setupTag" class="tag no">setup: none</span></div>
+      <div class="row">
+        <button id="setCatch" class="sec" disabled>Lock CATCH (received)</button>
+        <button id="setContact" class="sec" disabled>Lock CONTACT (hit)</button>
+        <span id="catchTag" class="tag no">actual: none</span>
+      </div>
+      <div class="mono" style="margin-top:4px">Take / whiff → the mitt receives it → use <b>CATCH</b>. Contact (foul / BIP) → box the ball where the bat meets it → use <b>CONTACT</b>. Same miss math either way; the tag just records which.</div>
+    </div>
+
+    <div class="box">
+      <h3>4 · Export ALL</h3>
+      <button id="download" disabled>Download batch JSON (all clips)</button>
+      <div class="mono" style="margin-top:8px">
+        Saves <b>command_cv_batch.json</b> to Downloads, then run once:<br>
+        <span style="color:#cfe">python scripts/ingest_annotation.py &lt;that json&gt; --clips-dir "&lt;clips folder&gt;"</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+const FPS = 30;
+const video = document.createElement('video');
+video.muted = true; video.playsInline = true; video.preload = 'auto';
+
+const cv = document.getElementById('cv'), ctx = cv.getContext('2d');
+const scrub = document.getElementById('scrub');
+const frameLabel = document.getElementById('frameLabel'), dims = document.getElementById('dims');
+const loadMsg = document.getElementById('loadMsg'), curName = document.getElementById('curName');
+const $ = id => document.getElementById(id);
+
+let queue = [];         // File[]
+let qi = -1;            // current clip index
+let ann = {};           // stem -> {clip, pitcher, ptype, hand, setup, catch}
+let nFrames = 0, curFrame = 0, seeking = false, pending = null;
+let box = null, drag = null;
+
+$('file').addEventListener('change', e => {
+  const files = [...e.target.files].filter(f => /\.(mp4|mov|webm|mkv)$/i.test(f.name));
+  if(!files.length) return;
+  queue = files.sort((a,b)=>a.name.localeCompare(b.name));
+  files.forEach(f => { const s = f.name.replace(/\.[^.]+$/,''); if(!ann[s]){
+    const p = s.split('_'); ann[s] = {clip:f.name, pitcher:p[0]||s, ptype:p[1]||'', hand:'R', setup:null, catch:null}; }});
+  renderQueue();
+  loadClip(0);
+  $('prev').disabled = $('next').disabled = queue.length<2;
+});
+
+function stemOf(i){ return queue[i].name.replace(/\.[^.]+$/,''); }
+
+function renderQueue(){
+  const q = $('queue'); q.innerHTML='';
+  queue.forEach((f,i) => {
+    const s = f.name.replace(/\.[^.]+$/,'');
+    const done = ann[s] && ann[s].setup && ann[s].catch;
+    const d = document.createElement('div');
+    d.className = 'qitem' + (i===qi?' cur':'');
+    d.innerHTML = `<span>${s}</span><span class="st" style="color:${done?'#8f8':'#c88'}">${done?'✅':'⬜'}</span>`;
+    d.onclick = () => loadClip(i);
+    q.appendChild(d);
+  });
+  const done = queue.filter((f)=>{const s=f.name.replace(/\.[^.]+$/,''); return ann[s]&&ann[s].setup&&ann[s].catch;}).length;
+  $('progress').textContent = `${done} / ${queue.length} annotated`;
+  $('download').disabled = done===0;
+}
+
+function loadClip(i){
+  qi = i; box = null; drag = null;
+  const f = queue[i], s = stemOf(i), a = ann[s];
+  $('pitcher').value = a.pitcher; $('ptype').value = a.ptype; $('hand').value = a.hand;
+  curName.textContent = s;
+  restoreTags(a);
+  loadMsg.textContent = 'loading '+f.name+' ...';
+  video.src = URL.createObjectURL(f);
+  renderQueue();
+}
+
+video.addEventListener('loadedmetadata', () => {
+  cv.width = video.videoWidth; cv.height = video.videoHeight;
+  nFrames = Math.max(1, Math.round(video.duration * FPS));
+  scrub.max = nFrames-1; scrub.value = 0;
+  dims.textContent = `${video.videoWidth}×${video.videoHeight} · ${nFrames} frames`;
+  loadMsg.textContent = 'loaded. scrub + drag a box.';
+  $('setSetup').disabled = $('setCatch').disabled = $('setContact').disabled = false;
+  gotoFrame(Math.floor(nFrames/2));
+});
+
+function gotoFrame(i){
+  curFrame = Math.max(0, Math.min(nFrames-1, i));
+  scrub.value = curFrame; frameLabel.textContent = `frame ${curFrame} / ${nFrames-1}`;
+  const t = (curFrame+0.5)/FPS;
+  if(seeking){ pending = curFrame; return; }
+  seeking = true; video.currentTime = t;
+}
+video.addEventListener('seeked', () => { draw(); seeking=false; if(pending!==null){const p=pending;pending=null;gotoFrame(p);} });
+
+function draw(){
+  ctx.drawImage(video,0,0,cv.width,cv.height);
+  const b = drag ? {cx:(drag.x0+drag.x1)/2,cy:(drag.y0+drag.y1)/2,w:Math.abs(drag.x1-drag.x0),h:Math.abs(drag.y1-drag.y0)} : box;
+  if(b){ ctx.lineWidth=Math.max(2,cv.width/500); ctx.strokeStyle='#EB6E1F';
+    ctx.strokeRect(b.cx-b.w/2,b.cy-b.h/2,b.w,b.h);
+    ctx.fillStyle='#EB6E1F'; ctx.beginPath(); ctx.arc(b.cx,b.cy,ctx.lineWidth*1.5,0,7); ctx.fill(); }
+}
+function toNative(e){ const r=cv.getBoundingClientRect(); return {x:(e.clientX-r.left)*(cv.width/r.width), y:(e.clientY-r.top)*(cv.height/r.height)}; }
+cv.addEventListener('mousedown', e => { const p=toNative(e); drag={x0:p.x,y0:p.y,x1:p.x,y1:p.y}; });
+cv.addEventListener('mousemove', e => { if(!drag) return; const p=toNative(e); drag.x1=p.x; drag.y1=p.y; draw(); });
+window.addEventListener('mouseup', () => { if(!drag) return; const w=Math.abs(drag.x1-drag.x0),h=Math.abs(drag.y1-drag.y0);
+  if(w>4&&h>4) box={cx:(drag.x0+drag.x1)/2,cy:(drag.y0+drag.y1)/2,w,h}; drag=null; draw(); });
+
+scrub.addEventListener('input', () => gotoFrame(parseInt(scrub.value,10)));
+window.addEventListener('keydown', e => {
+  if(['INPUT','TEXTAREA'].includes(e.target.tagName)) return;
+  const step = e.shiftKey?10:1;
+  if(e.key==='ArrowRight'){ gotoFrame(curFrame+step); e.preventDefault(); }
+  if(e.key==='ArrowLeft'){  gotoFrame(curFrame-step); e.preventDefault(); }
+});
+$('prev').onclick = () => { if(qi>0) loadClip(qi-1); };
+$('next').onclick = () => { if(qi<queue.length-1) loadClip(qi+1); };
+
+function restoreTags(a){
+  if(a.setup){ $('setupTag').className='tag ok'; $('setupTag').textContent=`setup: f${a.setup.frame} (${a.setup.cx},${a.setup.cy})`; }
+  else { $('setupTag').className='tag no'; $('setupTag').textContent='setup: none'; }
+  if(a.catch){ $('catchTag').className='tag ok'; $('catchTag').textContent=`${a.ekind||'catch'}: f${a.catch.frame} (${a.catch.cx},${a.catch.cy})`; }
+  else { $('catchTag').className='tag no'; $('catchTag').textContent='actual: none'; }
+}
+function lock(which, kind){
+  if(qi<0){ return; }
+  if(!box){ alert('Drag a box first — the mitt (setup/catch) or the ball at contact.'); return; }
+  const a = ann[stemOf(qi)];
+  a.pitcher=$('pitcher').value; a.ptype=$('ptype').value; a.hand=($('hand').value||'R').toUpperCase();
+  const rec = {frame:curFrame, cx:Math.round(box.cx), cy:Math.round(box.cy), w:Math.round(box.w), h:Math.round(box.h)};
+  a[which] = rec;
+  if(which==='catch') a.ekind = kind || 'catch';
+  restoreTags(a); renderQueue();
+}
+$('setSetup').onclick = () => lock('setup');
+$('setCatch').onclick = () => lock('catch','catch');
+$('setContact').onclick = () => lock('catch','contact');
+['pitcher','ptype','hand'].forEach(id => $(id).addEventListener('input', () => {
+  if(qi<0) return; const a=ann[stemOf(qi)]; a.pitcher=$('pitcher').value; a.ptype=$('ptype').value; a.hand=($('hand').value||'R').toUpperCase();
+}));
+
+$('download').onclick = () => {
+  const out = [];
+  queue.forEach(f => { const s=f.name.replace(/\.[^.]+$/,''); const a=ann[s];
+    if(a && a.setup && a.catch) out.push({clip:f.name, stem:s, pitcher:a.pitcher||s, pitch_type:a.ptype||'', hand:a.hand||'R', setup:a.setup, catch:a.catch, endpoint_kind:a.ekind||'catch', trackman:{}}); });
+  if(!out.length){ alert('Lock setup + catch on at least one clip first.'); return; }
+  const blob = new Blob([JSON.stringify(out,null,2)], {type:'application/json'});
+  const a = document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='command_cv_batch.json'; a.click();
+};
+</script>
+</body>
+</html>

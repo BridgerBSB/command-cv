@@ -18,9 +18,9 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from src.miss_methodb import GlovePx, compute_miss_b
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-FIELDS = ["stem", "pitcher", "pitch_type", "hand", "setup_frame", "catch_frame",
-          "miss_in", "horiz_in", "vert_in", "horiz_label", "vert_label",
-          "scale_in_per_px"]
+FIELDS = ["stem", "pitcher", "pitch_type", "hand", "endpoint_kind",
+          "setup_frame", "catch_frame", "miss_in", "horiz_in", "vert_in",
+          "horiz_label", "vert_label", "scale_in_per_px"]
 
 
 def _gp(d):
@@ -46,6 +46,7 @@ def main():
         rows.append({
             "stem": ann["stem"], "pitcher": ann["pitcher"],
             "pitch_type": ann["pitch_type"], "hand": ann.get("hand", "R"),
+            "endpoint_kind": ann.get("endpoint_kind", "catch"),
             "setup_frame": ann["setup"]["frame"], "catch_frame": ann["catch"]["frame"],
             "miss_in": miss.miss_in, "horiz_in": miss.horiz_in, "vert_in": miss.vert_in,
             "horiz_label": miss.horiz_label, "vert_label": miss.vert_label,
@@ -59,12 +60,13 @@ def main():
         w.writeheader()
         w.writerows(rows)
 
-    print(f"{'pitch':18s} {'type':5s} {'miss':>6s}  direction")
-    print("-" * 50)
+    print(f"{'pitch':18s} {'type':5s} {'via':8s} {'miss':>6s}  direction")
+    print("-" * 58)
     for r in rows:
         where = "/".join(x for x in (r["horiz_label"], r["vert_label"])
                          if x not in ("on-line", "level")) or "on target"
-        print(f"{r['stem']:18s} {r['pitch_type']:5s} {r['miss_in']:5.1f}in  {where}")
+        print(f"{r['stem']:18s} {r['pitch_type']:5s} {r['endpoint_kind']:8s} "
+              f"{r['miss_in']:5.1f}in  {where}")
 
     # per-pitcher rollup (full precision; round only here at display)
     by = {}
