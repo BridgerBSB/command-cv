@@ -49,7 +49,8 @@ _ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__
 
 # MLB pitch-type description -> short code used in clip names (ogando_ff_1.mp4).
 _ABBR = {
-    "four-seam fastball": "ff", "fastball": "ff", "sinker": "si", "two-seam fastball": "ft",
+    "four-seam fastball": "ff", "four-seam fb": "ff", "fastball": "ff", "sinker": "si",
+    "two-seam fastball": "ft", "two-seam fb": "ft",
     "cutter": "fc", "slider": "sl", "curveball": "cu", "knuckle curve": "kc",
     "changeup": "ch", "split-finger": "fs", "splitter": "fs", "sweeper": "st",
     "slurve": "sv", "screwball": "sc", "knuckleball": "kn", "eephus": "ep",
