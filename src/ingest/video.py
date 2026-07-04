@@ -67,8 +67,18 @@ _AUTH_MSG = (
 )
 
 
-def _headers(cookie: str | None, bearer: str | None) -> dict:
-    h = {"User-Agent": "Mozilla/5.0", "Accept": "application/json"}
+_BROWSER_UA = ("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
+               "(KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36")
+
+
+def _api_headers(cookie: str | None, bearer: str | None) -> dict:
+    """Headers for the statsapi analytics endpoint (Okta-gated -> Bearer/Cookie).
+
+    Bearer = the Okta `access_token` from the statsapi.mlb.com login redirect
+    (`...#access_token=<jwt>&token_type=Bearer&expires_in=3600`). Expires in
+    1 hour -> re-login to refresh. See docs/2026-07-03-statsapi-video-auth.md.
+    """
+    h = {"User-Agent": _BROWSER_UA, "Accept": "application/json"}
     cookie = cookie or os.environ.get("MLB_STATS_COOKIE")
     bearer = bearer or os.environ.get("MLB_STATS_BEARER")
     if cookie:
@@ -78,10 +88,21 @@ def _headers(cookie: str | None, bearer: str | None) -> dict:
     return h
 
 
+def _cdn_headers() -> dict:
+    """Headers for the sporty-clips CDN .mp4 download.
+
+    The clip URLs are NOT Okta-gated -- Cloudflare just blocks non-browser
+    user-agents (a default UA gets a 403 'Attention Required' page). A real
+    browser UA + Referer returns the mp4. No Bearer needed here (verified
+    Jul 3 2026)."""
+    return {"User-Agent": _BROWSER_UA, "Accept": "*/*",
+            "Referer": "https://statsapi.mlb.com/"}
+
+
 def fetch_play_analytics(game_pk: int, guid: str, *, cookie=None, bearer=None) -> dict:
     """GET the analytics(video) payload for one playId. Raises AuthError on 401/403."""
     url = ANALYTICS_URL.format(game_pk=game_pk, guid=guid)
-    req = urllib.request.Request(url, headers=_headers(cookie, bearer))
+    req = urllib.request.Request(url, headers=_api_headers(cookie, bearer))
     try:
         with urllib.request.urlopen(req, timeout=_TIMEOUT) as r:
             return json.loads(r.read().decode("utf-8"))
@@ -91,13 +112,56 @@ def fetch_play_analytics(game_pk: int, guid: str, *, cookie=None, bearer=None) -
         raise
 
 
-def extract_video_urls(payload: dict) -> list[str]:
-    """Recursively pull .mp4 URLs out of the analytics(video) JSON.
+# Preferred camera angles for CV command work, best-first. CENTERFIELD =
+# pitcher->catcher axis, the ideal angle for the plate-plane homography AND
+# glove tracking. High/mid home + broadcast next; batter/pitcher side views last
+# (oblique -> weak horizontal axis, the Ogando down-the-line problem).
+_ANGLE_PREF = ("CENTERFIELD", "HIGH_HOME", "MID_HOME", "BROADCAST",
+               "ALTERNATE_BROADCAST", "PITCHCAST",
+               "3B_PITCHER_SIDEVIEW", "1B_PITCHER_SIDEVIEW",
+               "3B_BATTER_SIDEVIEW", "1B_BATTER_SIDEVIEW")
 
-    Schema-defensive: once we can see a real authenticated response we can pin the
-    exact path (likely analytics.video[].playbacks[].url). Until then, walk the
-    tree for any http(s) .mp4 and de-dupe, best-resolution-first heuristic.
+
+def extract_video_urls(payload: dict, angle: str | None = None) -> list[str]:
+    """Pull .mp4 URLs from analytics(video) JSON, ordered best-first for CV.
+
+    Real schema (pinned Jul 3 2026 from a live authed response):
+        payload["video"]["playbackGroups"][i]
+            ["mediaSourceType"]                       -> angle name (CENTERFIELD, ...)
+            ["playbackRenditions"][j]["playbackUrl"]  -> .mp4 url
+            ["playbackRenditions"][j]["rank"]         -> lower = higher priority
+
+    `angle` optionally forces a single mediaSourceType to the front (e.g.
+    "CENTERFIELD"). Falls back to a defensive tree-walk if the schema changes.
     """
+    groups = (payload.get("video") or {}).get("playbackGroups") or []
+    pairs: list[tuple[str, str, int]] = []
+    for g in groups:
+        src = g.get("mediaSourceType") or "UNKNOWN"
+        for r in (g.get("playbackRenditions") or []):
+            u = r.get("playbackUrl")
+            if u and u.lower().endswith(".mp4"):
+                pairs.append((src, u, r.get("rank", 999)))
+    if not pairs:
+        return _walk_for_mp4(payload)          # schema-defensive fallback
+
+    pref = ((angle,) if angle else ()) + _ANGLE_PREF
+
+    def _key(p: tuple[str, str, int]) -> tuple[int, int]:
+        src, _u, rank = p
+        return (pref.index(src) if src in pref else len(pref), rank)
+
+    pairs.sort(key=_key)
+    seen, out = set(), []
+    for _src, u, _rank in pairs:
+        if u not in seen:
+            seen.add(u)
+            out.append(u)
+    return out
+
+
+def _walk_for_mp4(payload: dict) -> list[str]:
+    """Fallback: recursively pull any http(s) .mp4 out of the JSON, higher-res first."""
     urls: list[str] = []
 
     def walk(o):
@@ -111,7 +175,6 @@ def extract_video_urls(payload: dict) -> list[str]:
             urls.append(o)
 
     walk(payload)
-    # de-dupe preserving order; prefer URLs that look higher-res
     seen, out = set(), []
     for u in sorted(urls, key=lambda x: (-_res_hint(x), x)):
         if u not in seen:
@@ -130,8 +193,9 @@ def _abbr(desc: str) -> str:
 
 
 def download(url: str, dest: str, *, cookie=None, bearer=None) -> str:
+    # sporty-clips CDN is Cloudflare-gated (browser UA), NOT Okta-gated.
     os.makedirs(os.path.dirname(dest), exist_ok=True)
-    req = urllib.request.Request(url, headers=_headers(cookie, bearer))
+    req = urllib.request.Request(url, headers=_cdn_headers())
     with urllib.request.urlopen(req, timeout=_TIMEOUT) as r, open(dest, "wb") as f:
         while True:
             chunk = r.read(1 << 16)
@@ -142,7 +206,7 @@ def download(url: str, dest: str, *, cookie=None, bearer=None) -> str:
 
 
 def pull_game_clips(game_pk: int, out_dir: str | None = None, *, limit=None,
-                    calls=None, cookie=None, bearer=None) -> list[dict]:
+                    calls=None, cookie=None, bearer=None, angle=None) -> list[dict]:
     """Fetch every tracked pitch's clip for a game into `out_dir` (default data/clips).
 
     `calls` optionally filters by umpire-call substring(s), e.g. ["strike","ball"]
@@ -168,7 +232,7 @@ def pull_game_clips(game_pk: int, out_dir: str | None = None, *, limit=None,
         counters[key] = counters.get(key, 0) + 1
         stem = f"{key}_{counters[key]}"
         payload = fetch_play_analytics(game_pk, pr.play_id, cookie=cookie, bearer=bearer)
-        urls = extract_video_urls(payload)
+        urls = extract_video_urls(payload, angle=angle)
         if not urls:
             rows.append({"stem": stem, "play_id": pr.play_id, "status": "no-video-url"})
             continue
@@ -190,20 +254,28 @@ def main():
                         "for takes, 'play,foul' for contact). default: pull everything")
     p.add_argument("--cookie", default=None)
     p.add_argument("--bearer", default=None)
+    p.add_argument("--angle", default="CENTERFIELD",
+                   help="preferred mediaSourceType (default CENTERFIELD, best for CV). "
+                        "Others: HIGH_HOME, BROADCAST, 3B_PITCHER_SIDEVIEW, ...")
     p.add_argument("--probe", metavar="GUID", default=None,
-                   help="dump the raw analytics(video) JSON for ONE playId and exit "
-                        "(use to pin the real video schema once auth works)")
+                   help="dump the analytics(video) angles for ONE playId and exit")
     a = p.parse_args()
 
     try:
         if a.probe:
             payload = fetch_play_analytics(a.game_pk, a.probe, cookie=a.cookie, bearer=a.bearer)
-            print(json.dumps(payload, indent=2)[:4000])
-            print("\nvideo urls found:", extract_video_urls(payload))
+            groups = (payload.get("video") or {}).get("playbackGroups") or []
+            print(f"angles available ({len(groups)}):")
+            for g in groups:
+                for r in (g.get("playbackRenditions") or []):
+                    print(f"  rank {r.get('rank'):>3}  {g.get('mediaSourceType'):<22} {r.get('playbackUrl')}")
+            print("\nordered best-first (angle=%s):" % a.angle)
+            for u in extract_video_urls(payload, angle=a.angle):
+                print("  " + u)
             return
         calls = [c.strip() for c in a.calls.split(",")] if a.calls else None
         rows = pull_game_clips(a.game_pk, a.out, limit=a.limit, calls=calls,
-                               cookie=a.cookie, bearer=a.bearer)
+                               cookie=a.cookie, bearer=a.bearer, angle=a.angle)
         ok = sum(1 for r in rows if r["status"] == "ok")
         for r in rows:
             print(f"  {r['status']:14s} {r['stem']}")
