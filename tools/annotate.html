@@ -75,6 +75,11 @@
         <label>pitcher</label><input type="text" id="pitcher"/>
         <label>pitch_type</label><input type="text" id="ptype"/>
         <label>hand (R/L)</label><input type="text" id="hand" value="R"/>
+        <label>fps</label><input type="text" id="fps" value="60"/>
+      </div>
+      <div class="mono" style="margin-top:6px;color:#f0b8b8">
+        fps MUST match the clip. API-pulled clips = <b>60</b>. Old GC2 zip clips = <b>30</b>.
+        Wrong fps → ingest extracts the wrong frame.
       </div>
     </div>
 
@@ -102,7 +107,7 @@
 </div>
 
 <script>
-const FPS = 30;
+const _fps = () => { const v = parseFloat(document.getElementById('fps').value); return (v > 0 && v < 1000) ? v : 60; };
 const video = document.createElement('video');
 video.muted = true; video.playsInline = true; video.preload = 'auto';
 
@@ -160,7 +165,7 @@ function loadClip(i){
 
 video.addEventListener('loadedmetadata', () => {
   cv.width = video.videoWidth; cv.height = video.videoHeight;
-  nFrames = Math.max(1, Math.round(video.duration * FPS));
+  nFrames = Math.max(1, Math.round(video.duration * _fps()));
   scrub.max = nFrames-1; scrub.value = 0;
   dims.textContent = `${video.videoWidth}×${video.videoHeight} · ${nFrames} frames`;
   loadMsg.textContent = 'loaded. scrub + drag a box.';
@@ -171,7 +176,7 @@ video.addEventListener('loadedmetadata', () => {
 function gotoFrame(i){
   curFrame = Math.max(0, Math.min(nFrames-1, i));
   scrub.value = curFrame; frameLabel.textContent = `frame ${curFrame} / ${nFrames-1}`;
-  const t = (curFrame+0.5)/FPS;
+  const t = (curFrame+0.5)/_fps();
   if(seeking){ pending = curFrame; return; }
   seeking = true; video.currentTime = t;
 }
@@ -222,6 +227,13 @@ $('setContact').onclick = () => lock('catch','contact');
 ['pitcher','ptype','hand'].forEach(id => $(id).addEventListener('input', () => {
   if(qi<0) return; const a=ann[stemOf(qi)]; a.pitcher=$('pitcher').value; a.ptype=$('ptype').value; a.hand=($('hand').value||'R').toUpperCase();
 }));
+$('fps').addEventListener('input', () => {
+  if(!video.duration) return;
+  nFrames = Math.max(1, Math.round(video.duration * _fps()));
+  scrub.max = nFrames-1;
+  dims.textContent = `${video.videoWidth}×${video.videoHeight} · ${nFrames} frames`;
+  gotoFrame(Math.min(curFrame, nFrames-1));
+});
 
 $('download').onclick = () => {
   const out = [];
