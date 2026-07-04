@@ -80,7 +80,7 @@ def pitcher_pitches_from_feed(game_pk: int, mlbam: int) -> tuple[str, list[dict]
 def pitch_truth(payload: dict) -> dict:
     """Model-A ground truth from the authed analytics payload: plate crossing
     location (x,z) + strike-zone box. Present at A+ even when feed pX/pZ is empty."""
-    play = (payload.get("metaData", {}).get("stat", {}).get("play", {}) or {})
+    play = (((payload.get("metaData") or {}).get("stat") or {}).get("play") or {})
     pd = play.get("pitchData", {}) or {}
     loc = ((((payload.get("ballSegments", {}) or {}).get("pitchSegment", {}) or {})
             .get("trajectoryData", {}) or {}).get("location") or {})
@@ -115,7 +115,8 @@ def game_pks_for_pitcher(mlbam: int, season: int, sport_ids) -> list[tuple[str, 
                f"?stats=gameLog&group=pitching&season={season}&sportId={sid}")
         try:
             d = _get_json(url)
-        except Exception:
+        except Exception as e:
+            print(f"  WARN: gameLog sportId={sid} failed ({e}) — that level's games are SKIPPED")
             continue
         for st in d.get("stats", []):
             for sp in st.get("splits", []):
@@ -134,7 +135,7 @@ def _load_manifest(path: str) -> tuple[list[dict], set, dict]:
                 rows.append(row)
                 if row.get("play_id"):
                     seen.add(row["play_id"])
-                ab = row["stem"].rsplit("_", 1)[0].split("_", 1)[-1]  # <name>_<ab>_<n>
+                ab = row["stem"].rsplit("_", 1)[0].rsplit("_", 1)[-1]  # <name>_<ab>_<n> (name may contain _)
                 counts[ab] = max(counts.get(ab, 0), int(row["stem"].rsplit("_", 1)[-1]))
     return rows, seen, counts
 
@@ -198,6 +199,8 @@ def main() -> None:
     n_new, n_clips, n_auth_stop = 0, 0, False
     try:
         for gp, date, p in sel:
+            if p["play_id"] in seen_play:   # dup game_pk (manual --games or gameLog overlap)
+                continue
             try:
                 payload = fetch_play_analytics(gp, p["play_id"], bearer=a.bearer)
             except AuthError:
