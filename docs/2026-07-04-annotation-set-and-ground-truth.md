@@ -105,18 +105,54 @@ pitches that have both.
 
 ---
 
-## Next steps (in order)
+## UPDATE Jul 5 2026 — detector trained + calibration VALIDATED
 
-1. **Train YOLOv8 mitt detector** on the 98 labeled crops
-   (`scripts/train_yolo.py`, pretrained `yolov8n.pt`, CPU) → auto-locate the
-   glove instead of clicking. Reference: BaseballCV pre-trained `glove_tracking`
-   is a fallback if from-scratch transfer is weak.
-2. **Zone-homography calibration** — pixel→inches from plate width (17") +
-   sz_top/sz_bot; validate CV miss vs `plate_x`/`plate_z` on pitches with both.
-3. **Finish Langford pull** (30→50; re-grab Okta token, hand=L) + annotate.
-4. **Verify plate_x sign** on one known DB pitch (work laptop).
-5. Auto-apply YOLO to all ~1,108 season pitches (Ogando 437 + Langford 671) →
-   Zac audits.
+### YOLOv8 mitt detector — DONE
+`scripts/train_yolo.py` on the 98 crops (pretrained yolov8n, CPU, 60 epochs) →
+**mAP50 0.85, P 0.93** (`data/yolo/runs/mitt/weights/best.pt`, gitignored).
+Render-verified: finds the glove across 6 different games/stadiums. BaseballCV
+pretrained `glove_tracking` (glove/homeplate/baseball/rubber) tested — glove
+transfers (0.5-0.8, validates ours); **homeplate weak on the A+ behind-pitcher
+angle (0.26-0.37, occluded)** → per-frame plate-as-reference NOT viable here.
+
+### Calibration — pixel→inches, per-game affine, VALIDATED
+The zone-homography plan is replaced by a **per-game affine** fit (the plate is
+occluded so we anchor on the pitches themselves). Each game = fixed camera; fit
+`catch-glove-pixel → Trackman plate_x/plate_z` (affine, 6 DOF, robust for few
+points, `src/calibration.py::solve_affine`). Apply to the setup-glove pixel →
+intended target in plate-world feet → command miss vs actual.
+
+**Leave-one-out validated** (`scripts/calibrate_report.py`): predicts a held-out
+pitch's Trackman location from video within **median 4.2in / RMSE 6.5in** on the
+6 games with ≥5 clips. Calibrated command misses = **median 11.4in** (realistic),
+the old glove-relative 60-72in garbage GONE.
+
+**LIMITATION driving the next step:** only 5-7 clips/game (13 games, mixed
+home/away = different cameras). The affine fit is starved for points; error is
+sample-size-dominated, not method-dominated. More points/game → tighter.
+
+## Next steps — the chain (Jul 5 2026)
+
+**① TIGHTEN (current).** Pull ONE full game (all ~30 pitches, not the sampled
+subset) → auto-detect the catch-glove on each with the trained YOLO → ~30
+calibration correspondences for that camera → sub-4in calibration. Puller is
+ready: `pull_pitcher_clips.py --games <gamePk>` (no `--sample` = full game).
+The new piece = auto-catch-glove detection (find the catch frame via ball
+arrival + glove box there); validated by matching auto vs Zac's 49 hand labels
+BEFORE trusting it on unlabeled full-game pitches. BLOCKER: fresh Okta token
+for the pull (Zac).
+
+**② SCALE.** Auto-run the detector on all ~1,108 season pitches (Ogando 437 +
+Langford 671) → per-pitcher command profile (avg miss, by pitch type, up/down +
+arm/glove tendencies).
+
+**③ TRUST.** Verify `plate_x` sign on one known DB pitch (work laptop) — fixes
+only the arm/glove-side WORD; magnitude already exact.
+
+**④ SHIP.** Surface in an Arm Farm tab — command miss per pitcher, click-to-video,
+next to stuff grades.
+
+**Also open:** finish Langford pull (30→50, hand=L) + annotate.
 
 ---
 
