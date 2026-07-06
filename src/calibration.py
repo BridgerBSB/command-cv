@@ -60,6 +60,40 @@ def solve_homography(
     return Homography(H=H, H_inv=np.linalg.inv(H))
 
 
+@dataclass
+class Affine:
+    """A pixel -> world (ft) affine map: world = A @ [px, py, 1].
+
+    Affine (6 DOF: scale, rotation, shear, translation) is more robust than a
+    full projective homography (8 DOF) when only a handful of correspondences
+    are available, at the cost of not modeling perspective foreshortening. For
+    a narrow region of the frame (the receive area) over a fixed camera it is a
+    good approximation.
+    """
+    A: np.ndarray          # 2x3, maps [px, py, 1] -> (x_ft, z_ft)
+
+    def pixel_to_world(self, px: float, py: float) -> tuple[float, float]:
+        v = self.A @ np.array([px, py, 1.0])
+        return float(v[0]), float(v[1])
+
+
+def solve_affine(image_pts: np.ndarray | list, world_pts: np.ndarray | list) -> Affine:
+    """Least-squares affine mapping image px -> world ft.
+
+    image_pts / world_pts: matching (N>=3, 2) arrays. world is (x_ft, z_ft).
+    Solves world = A @ [px, py, 1] in the least-squares sense (over-determined
+    for N>3), so more correspondences reduce noise instead of over-fitting.
+    """
+    src = np.asarray(image_pts, dtype=float)
+    dst = np.asarray(world_pts, dtype=float)
+    if src.shape[0] < 3 or src.shape != dst.shape:
+        raise ValueError("need >=3 matching image/world point pairs")
+    # [px, py, 1] design matrix; solve for the 3x2 coefficient block, transpose to 2x3.
+    M = np.hstack([src, np.ones((src.shape[0], 1))])   # (N, 3)
+    coef, *_ = np.linalg.lstsq(M, dst, rcond=None)      # (3, 2)
+    return Affine(A=coef.T)                              # (2, 3)
+
+
 def home_plate_world_points() -> list[tuple[float, float]]:
     """Canonical world (x_ft, z_ft) of the home-plate front edge, at z=0.
 
