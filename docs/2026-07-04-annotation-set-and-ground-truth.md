@@ -131,6 +131,24 @@ the old glove-relative 60-72in garbage GONE.
 home/away = different cameras). The affine fit is starved for points; error is
 sample-size-dominated, not method-dominated. More points/game → tighter.
 
+## ① TIGHTEN — DONE Jul 8 2026 (hands-off, CPU, no GPU, no clicking)
+
+Pulled the full 60-pitch game 822515 (Asheville home vs Greenville, all BROADCAST)
+with Zac's Okta bearer, then `scripts/tighten.py --game 822515`:
+- Auto-detected setup+catch on 58/60 (our fast mitt model, `src/auto_glove.py`).
+- **`solve_affine_ransac` kept 20 consensus inliers, rejected 38 noisy auto-catches.**
+- **TIGHTENED LOO: median 3.9in / RMSE 5.3in** — beats the 4.2in hand-label baseline,
+  fully automatic. Proves the catch is effectively solved on CPU via RANSAC salvage
+  (we don't need a perfect per-pitch catch, just enough consensus points).
+
+**First automatic command profile (Ogando, game 822515, n=58):** overall median
+**14.9in**. Per pitch type: Sinker 14.0in, FF 13.6in, Cutter 13.7in, Slider 17.9in,
+Curveball 21.5in — FB commanded tighter than breaking balls (baseball-sensible).
+Precision caveat: ~4in calibration noise → command TENDENCIES, not to-the-inch;
+relative ordering is robust. Direction (arm/glove-side) still pending plate_x sign.
+
+Runner: `run_tighten.ps1 -GamePk <pk>` (pull + tighten in one command).
+
 ## Next steps — the chain (Jul 5 2026)
 
 **① TIGHTEN (current).** Pull ONE full game (all ~30 pitches, not the sampled
