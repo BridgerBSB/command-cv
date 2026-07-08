@@ -94,6 +94,42 @@ def solve_affine(image_pts: np.ndarray | list, world_pts: np.ndarray | list) -> 
     return Affine(A=coef.T)                              # (2, 3)
 
 
+def solve_affine_ransac(image_pts, world_pts, thresh_in: float = 7.0,
+                        n_iter: int = 300, seed: int = 7):
+    """Robust affine via RANSAC — rejects outlier correspondences.
+
+    Auto-detected catch gloves are ~half clean + some catastrophic misses. A
+    plain least-squares fit is dragged by the bad ones; RANSAC samples minimal
+    3-point fits, scores each by how many points land within `thresh_in` INCHES,
+    keeps the largest consensus, and refits on those inliers only.
+
+    Returns (Affine, inlier_mask). inlier_mask is a bool array over the inputs.
+    """
+    src = np.asarray(image_pts, dtype=float)
+    dst = np.asarray(world_pts, dtype=float)
+    n = src.shape[0]
+    if n < 3:
+        raise ValueError("need >=3 points")
+    rng = np.random.default_rng(seed)
+    thresh_ft = thresh_in / 12.0
+    best_mask, best_count = None, -1
+    for _ in range(n_iter):
+        idx = rng.choice(n, size=3, replace=False)
+        try:
+            aff = solve_affine(src[idx], dst[idx])
+        except Exception:
+            continue
+        M = np.hstack([src, np.ones((n, 1))])
+        pred = (aff.A @ M.T).T                       # (n, 2) world ft
+        err = np.hypot(*(pred - dst).T)
+        mask = err <= thresh_ft
+        if mask.sum() > best_count:
+            best_count, best_mask = int(mask.sum()), mask
+    if best_mask is None or best_count < 3:
+        return solve_affine(src, dst), np.ones(n, dtype=bool)
+    return solve_affine(src[best_mask], dst[best_mask]), best_mask
+
+
 def home_plate_world_points() -> list[tuple[float, float]]:
     """Canonical world (x_ft, z_ft) of the home-plate front edge, at z=0.
 
