@@ -24,15 +24,16 @@ DEFAULT_SZ_TOP_FT = 3.5
 DEFAULT_SZ_BOT_FT = 1.5
 
 # ---- arm-side / glove-side label convention --------------------------------
-# Horizontal sign of "arm-side" in CATCHER-view x for each pitcher hand.
-# A RHP's arm is on the first-base side; from the catcher's view that is one
-# side of plate-center. The exact mapping to the sign of Trackman plate_x must
-# be confirmed against ONE known pitch on the work laptop (DB access).
-# Magnitude of the miss is exact regardless; only the L/R *word* depends on this.
-# VERIFY: validate against a known RHP arm-side miss before any coach-facing use.
+# Sign of "arm-side" in the plate_x frame, per pitcher hand.
+# CONFIRMED Jul 9 2026 via a physical anchor: Ogando clip si_12 is a Hit-By-Pitch
+# with plate_x = -2.15 that struck a RIGHT-handed batter. A RHB stands on the
+# 3B side, so NEGATIVE plate_x = 3B side. A RHP's arm-side run goes toward the
+# 3B side / the RHB, so RHP arm-side = negative plate_x -> sign -1.0 (LHP mirrors).
+# horiz = actual_x - intended_x (below) is in this same plate_x frame, so an
+# arm-side miss for a RHP has horiz < 0, and (horiz * -1.0) > 0 -> "arm-side".
 _ARM_SIDE_X_SIGN = {
-    "R": +1.0,   # RHP: arm-side assumed +x in catcher view  (VERIFY)
-    "L": -1.0,   # LHP: mirror                                 (VERIFY)
+    "R": -1.0,   # RHP: arm-side = 3B side = negative plate_x (si_12 HBP-on-RHB)
+    "L": +1.0,   # LHP: mirror = 1B side = positive plate_x
 }
 
 
