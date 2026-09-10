@@ -21,6 +21,8 @@ Usage:
       --bearer "$(cat data/.mlb_token)"
   # options: --season 2026  --sport-ids 13,12,11,14,16  --angle CENTERFIELD
   #          --games 821922,822246  --max-games N  --out <dir>
+  # backfill the 9-param trajectory onto an existing manifest (no clips):
+  python scripts/pull_pitcher_clips.py --name Ogando --mlbam 808010       --backfill-truth --bearer "$(cat data/.mlb_token)"
 """
 from __future__ import annotations
 
@@ -40,9 +42,21 @@ _ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 _UA = {"User-Agent": ("Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
                       "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0 Safari/537.36")}
 _FEED = "https://statsapi.mlb.com/api/v1.1/game/{gp}/feed/live"
+# 9-param trajectory (feet, t seconds from release): axis = c0 + c1*t + c2*t^2.
+# From the authed payload's ballSegments.pitchSegment.trajectoryData
+# .trajectoryPolynomial{X,Y,Z}; the plate crossing `location` is this polynomial
+# evaluated at zoneTime (verified to 1e-13 on Ogando 821922, Sep 10 2026).
+# This is the input the pinhole camera solve needs (OpenCommand phase 1) --
+# the public feed's x0..az are STRIPPED for A+ games after the fact, so the
+# authed endpoint is the only durable source.
+_TRAJ_COLS = ["traj_x0", "traj_x1", "traj_x2",
+              "traj_y0", "traj_y1", "traj_y2",
+              "traj_z0", "traj_z1", "traj_z2",
+              "t_start", "t_end", "zone_time",
+              "rel_x", "rel_y", "rel_z"]
 _MANIFEST_COLS = ["stem", "game_pk", "date", "play_id", "pitch_type", "hand",
                   "plate_x", "plate_z", "sz_top", "sz_bot", "call", "angle",
-                  "clip_downloaded", "cf_url"]
+                  "clip_downloaded", "cf_url"] + _TRAJ_COLS
 
 
 def _get_json(url: str) -> dict:
@@ -82,9 +96,10 @@ def pitch_truth(payload: dict) -> dict:
     location (x,z) + strike-zone box. Present at A+ even when feed pX/pZ is empty."""
     play = (((payload.get("metaData") or {}).get("stat") or {}).get("play") or {})
     pd = play.get("pitchData", {}) or {}
-    loc = ((((payload.get("ballSegments", {}) or {}).get("pitchSegment", {}) or {})
-            .get("trajectoryData", {}) or {}).get("location") or {})
-    return {
+    seg = ((payload.get("ballSegments", {}) or {}).get("pitchSegment", {}) or {})
+    traj = seg.get("trajectoryData", {}) or {}
+    loc = traj.get("location") or {}
+    out = {
         "plate_x": loc.get("x"),          # plate crossing horiz (VERIFY sign vs catcher view)
         "plate_z": loc.get("z"),          # plate crossing height
         "sz_top": pd.get("strikeZoneTop"),
@@ -93,6 +108,55 @@ def pitch_truth(payload: dict) -> dict:
         "pitch_type": ((play.get("details", {}) or {}).get("type", {}) or {}).get("description", ""),
         "hand": ((play.get("details", {}) or {}).get("pitchHand", {}) or {}).get("code", ""),
     }
+    out.update(trajectory_truth(traj, seg.get("releaseData", {}) or {}))
+    return out
+
+
+def trajectory_truth(traj: dict, rel: dict) -> dict:
+    """The 9-param flight polynomial + timing + release point, flattened to
+    `_TRAJ_COLS`. Missing pieces come back as None (never a fake 0)."""
+    out: dict = {k: None for k in _TRAJ_COLS}
+    for axis in "xyz":
+        coefs = traj.get(f"trajectoryPolynomial{axis.upper()}") or []
+        for i in range(3):
+            if i < len(coefs):
+                out[f"traj_{axis}{i}"] = coefs[i]
+    tv = traj.get("validTimeInterval") or []
+    if len(tv) == 2:
+        out["t_start"], out["t_end"] = tv
+    out["zone_time"] = traj.get("zoneTime")
+    rp = rel.get("releasePosition") or {}
+    out["rel_x"], out["rel_y"], out["rel_z"] = rp.get("x"), rp.get("y"), rp.get("z")
+    return out
+
+
+def backfill_truth(manifest_path: str, bearer: str | None) -> None:
+    """Re-fetch the analytics payload for every manifest row missing the
+    trajectory and fill `_TRAJ_COLS` in place. No clip download. Stops cleanly
+    on token expiry; re-run to resume (already-filled rows are skipped)."""
+    rows, _, _ = _load_manifest(manifest_path)
+    todo = [r for r in rows if r.get("play_id") and not r.get("traj_x0")]
+    print(f"{manifest_path}: {len(rows)} rows, {len(todo)} need trajectory")
+    n_ok = n_missing = 0
+    try:
+        for r in todo:
+            payload = fetch_play_analytics(int(r["game_pk"]), r["play_id"], bearer=bearer)
+            tr = pitch_truth(payload)
+            r.update({k: tr[k] for k in _TRAJ_COLS})
+            if tr["traj_x0"] is None:
+                n_missing += 1
+            else:
+                n_ok += 1
+    except AuthError as e:
+        print(f"\nAUTH: {e}\n-> token expired. Refresh data/.mlb_token and re-run; it resumes.")
+    finally:
+        with open(manifest_path, "w", newline="") as f:
+            w = csv.DictWriter(f, fieldnames=_MANIFEST_COLS)
+            w.writeheader()
+            w.writerows(rows)
+    filled = sum(1 for r in rows if r.get("traj_x0") not in (None, ""))
+    print(f"filled {n_ok} this run ({n_missing} pitches have NO trajectory in the payload); "
+          f"manifest now {filled}/{len(rows)} rows with trajectory")
 
 
 def best_video(payload: dict, angle: str):
@@ -155,12 +219,19 @@ def main() -> None:
                         "Omit = pull ALL.")
     p.add_argument("--out", default=None)
     p.add_argument("--bearer", default=None, help="Okta access_token (or set MLB_STATS_BEARER)")
+    p.add_argument("--backfill-truth", action="store_true",
+                   help="only re-fetch truth for existing manifest rows missing the "
+                        "9-param trajectory (no clips, no new rows), then exit")
     a = p.parse_args()
 
     name = a.name.strip().lower()
     out_dir = a.out or os.path.join(_ROOT, "data", "clips", f"{name}_{a.season}")
     os.makedirs(out_dir, exist_ok=True)
     manifest_path = os.path.join(out_dir, f"{name}_{a.season}_manifest.csv")
+
+    if a.backfill_truth:
+        backfill_truth(manifest_path, a.bearer)
+        return
 
     if a.games:
         games = [("", int(g)) for g in a.games.split(",")]
@@ -227,6 +298,7 @@ def main() -> None:
                 "sz_top": truth.get("sz_top"), "sz_bot": truth.get("sz_bot"),
                 "call": p["call"], "angle": angle_used,
                 "clip_downloaded": got, "cf_url": cf_url,
+                **{k: truth.get(k) for k in _TRAJ_COLS},
             })
             seen_play.add(p["play_id"])
             n_new += 1
