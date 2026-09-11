@@ -68,8 +68,64 @@ same file, so it is the source, not our download.
    through f of about 16,000 px is about 57 px; their boxes in this game measure 52
    to 58 px wide.
 
-## Next: step 2b
+## Step 2b: the ball can be found with no detector at all
 
-Swap THEIR ball detections for OURS on the same 289 clips, keep everything else,
-and see whether ball at plate stays near 0.40 in. That isolates our detector as the
-only change. Then swap the box for a box-free anchor, which is the A+ problem.
+`scripts/ball_clock_align.py`. The camera pose and the trajectory are both known, so
+the ball's pixel path is known up to ONE unknown: which frame of the clip the pitch
+crosses the plate. Slide that offset and score how strongly a small bright moving
+object sits on the predicted path.
+
+**40 clips, game 824821:**
+
+| | |
+|---|---:|
+| score, median | 165.0 |
+| baseline (median over all offsets), median | 9.6 |
+| score / baseline | 17.3x |
+| plate-crossing frame | 201 to 212 |
+| beats MIRRORED path | 40 / 40 |
+| beats TIME-REVERSED path | 39 / 39 scored (1 not scorable) |
+
+Rendered check (`output/ball_path_check_824821.png`): the predicted circle sits on
+the ball in all 15 panels, 3 pitches x 5 frames, from 16 frames out to the crossing.
+
+### Two wrong versions first, and why they were wrong
+
+1. **Blob detector + fit.** Found 568 candidate runs on the first clip and its best
+   fit to the true trajectory was 12.7 px. It detects players and crowd, not the ball.
+2. **Raw frame-difference along the path.** REJECTED by its own control: a DIFFERENT
+   pitch's trajectory scored as well as the right one (median 8.55 vs 12.16; on one
+   clip the wrong trajectory won 18.75 to 4.12). The score rewarded any path crossing
+   busy pixels.
+
+The fix was a score that can only respond to a small bright object: white top-hat
+(keeps blobs smaller than the kernel), local contrast against a ring around the point,
+and the MEDIAN over the run so most of the flight must agree.
+
+### The control matters more than the score
+
+"Another pitch from the same game" is a WEAK control: pitches trace nearly the same
+screen path, so it does not separate. The controls that work are physically
+impossible: the same path MIRRORED left-right, and the same path REVERSED in time.
+Both keep speed, length and pixel scale, so only the path differs.
+
+One nuance worth keeping: a control can be **unscorable**, because a mirrored or
+reversed path can leave the frame and never collect enough sample points. The first
+summary counted that NaN as a loss and printed "39/40" on a run where nothing actually
+lost (clip `09fad439`, CU). The script now prints the denominator and says how many
+were not scorable.
+
+### Why this matters beyond MLB
+
+At the winning offset the projected ball position on every flight frame is a LABEL
+with no hand annotation: 800 labels from 40 clips, `output/ball_labels_824821.csv`.
+That is the training set for a real ball detector, which is what A+ needs, where there
+is no trajectory to lean on and no drawn box to calibrate against.
+
+## Next
+
+- Train a ball detector on the auto-labels, then re-run the camera solve with OUR
+  detections replacing theirs and see whether ball-at-plate holds near 0.40 in.
+- Then the A+ problem: no box, so the per-clip camera fix needs the ball run alone
+  (step 1 showed the A+ camera is static during flight, which is what makes that
+  possible) or the HawkEye fielder positions as anchors.
