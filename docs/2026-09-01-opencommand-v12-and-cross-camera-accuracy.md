@@ -273,20 +273,34 @@ then the problem is us and not the data. That is why MLB video comes before A+.
 
 ### 4a. Step 1 answered (Sep 11 2026): no box, and the camera holds still in flight
 
-Measured on the 55 hand-labeled Ogando A+ clips, 2026, at least 5 parks
-(Asheville, Greensboro, Winston-Salem, Wilmington, one more). Reproduce with
+Measured on the 55 hand-labeled Ogando A+ clips, 2026: 13 games, **7 ballparks**
+per the public game feed's `gameData.venue` (HomeTrust Park 27 clips, Truist
+Stadium 7, First National Bank Field 7, Frawley Stadium 6, Fluor Field 4,
+AdventHealth Stadium 2, Bowling Green Ballpark 2). An earlier draft said "at least
+5" off wall signage; the feed is the source. Reproduce with
 `scripts/probe_aplus_camera.py --sheet out.png`.
 
 - **No drawn zone box.** None in mid-clip frames across 4 games, and none at the
   catch frame on the 6 clips rendered. Phase 2 as written does not port. Confirmed.
+- **Only 43 of the 55 labels are usable here.** 12 share a filename with a Jun 29
+  GC2-zip clip in `data/clips/`, and `ingest_annotation.py` resolves clips by bare
+  filename with that folder as a fallback, so it read the zip clip. Proven by
+  comparing the training image ingest saved for each label against the API clip:
+  43 match exactly (diff 0.00), 12 do not (diff 34 to 62). The first pass of this
+  probe used all 55; `ogando_cu_3`'s "catch" frame on the API clip shows the
+  pitcher still in his set. `probe_aplus_camera.py` now refuses unverified labels.
 - **The camera does not move during the flight.** Window = catch minus 30 frames
-  through the catch. Background feature tracking, scorebugs masked out:
-  translation median **0.52 px**, p90 0.97, max **1.46 px** (about 0.4 in at glove
-  depth); zoom change median 0.06%, max 0.24%. An unmasked run agreed within 0.76 px, so a
-  static scorebug is not holding the number down.
-- **Whole-frame phase correlation is the wrong instrument here.** It read up to
-  307 px on the same clips because the pitcher and batter dominate it. Rendering
-  those clips showed a background that did not move.
+  through the catch, decoded in order (cv2 seeks land up to 2 frames early on
+  these clips). Background feature tracking, scorebugs masked out, 43 verified
+  labels covering all 7 ballparks: translation median **0.45 px**, p90 1.10, max
+  **1.62 px** (about 0.46 in at glove depth); zoom change median 0.055%, max 0.125%.
+- **Whole-frame phase correlation is the wrong instrument here.** Its readings
+  over 3 px all come with a correlation confidence near zero (the pitcher's body
+  sweeping the frame), and they do not reproduce: identical frames of
+  `ogando_si_17` gave a max of 199, 255 and 458 px on three runs. Where its
+  confidence is real it agrees with feature tracking.
+- **Audit pack:** `scripts/audit_step1.py` renders every image behind these two
+  claims plus a SOURCES.txt naming each input.
 
 **What it changes:** OpenCommand drops the ball from its per-clip refit because
 the broadcast camera moves mid-flight. Ours does not, so **option 1 (ball-only
