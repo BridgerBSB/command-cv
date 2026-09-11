@@ -28,10 +28,27 @@ What it can touch (NOT yet measured):
 3. `tighten.py` (the 3.9 in LOO) auto-detects on API clips and does not read the
    annotations, but it runs that detector.
 
-Fix direction: ingest should take the clip path from the manifest's directory,
-not a filename search; rename or move the zip clips so names cannot collide;
-re-ingest the 6 Jul-5 labels against `ogando_2026/`; drop or relabel the 6 Jul-2
-ones for the API set; re-run calibrate_report and compare.
+**HALF FIXED Sep 11 2026.** `scripts/ingest_annotation.py` no longer picks a clip
+silently: an explicit `--clip` / `--clips-dir` wins, and otherwise every place the
+name could live is searched and a name matching MORE THAN ONE video is REFUSED,
+naming the candidates. Each annotation now records `clip_path` / `clip_bytes` /
+`clip_frames`, so provenance is checkable instead of inferred. Frame extraction
+decodes in order rather than seeking (a seek lands 0-2 frames early; verified
+different on a real clip). Guards in `tests/test_ingest_clip_resolution.py`, proven
+against the pre-fix resolver: it picks `data/clips/ogando_ff_1.mp4` (the zip clip)
+while the new one refuses.
+
+STILL OPEN, none of it measured:
+1. Re-ingest the 6 Jul-5 labels (cu_1, fc_1..fc_3, sl_1, sl_2) with
+   `--clips-dir data/clips/ogando_2026`, after checking by eye that each box lands
+   on the glove in the API clip.
+2. Decide what to do with the 6 Jul-2 zip-clip labels (cu_3, ff_1..ff_5): they
+   describe pitches the API set does not contain. Drop them from the API pool or
+   keep them tagged to the zip clips.
+3. Re-run `calibrate_report.py` after 1 and 2 and compare the LOO median against
+   the 4.2 in on record.
+4. Rebuild the YOLO crops and decide whether the mitt detector needs a retrain
+   (up to 24 of 98 training samples paired a box with the wrong image).
 
 Related: cv2 `set(CAP_PROP_POS_FRAMES)` lands 0-2 frames EARLY on these clips
 (tested against in-order decode on 4 clips). `ingest_annotation.py`,
