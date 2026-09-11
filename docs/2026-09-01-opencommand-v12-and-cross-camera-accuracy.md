@@ -271,6 +271,32 @@ Their pinhole is at 0.35 in. If we build the pose solve on MLB video first, wher
 the box exists and the benchmark is published, and we cannot get near 0.4 in,
 then the problem is us and not the data. That is why MLB video comes before A+.
 
+### 4a. Step 1 answered (Sep 11 2026): no box, and the camera holds still in flight
+
+Measured on the 55 hand-labeled Ogando A+ clips, 2026, at least 5 parks
+(Asheville, Greensboro, Winston-Salem, Wilmington, one more). Reproduce with
+`scripts/probe_aplus_camera.py --sheet out.png`.
+
+- **No drawn zone box.** None in mid-clip frames across 4 games, and none at the
+  catch frame on the 6 clips rendered. Phase 2 as written does not port. Confirmed.
+- **The camera does not move during the flight.** Window = catch minus 30 frames
+  through the catch. Background feature tracking, scorebugs masked out:
+  translation median **0.52 px**, p90 0.97, max **1.46 px** (about 0.4 in at glove
+  depth); zoom change median 0.06%, max 0.24%. An unmasked run agreed within 0.76 px, so a
+  static scorebug is not holding the number down.
+- **Whole-frame phase correlation is the wrong instrument here.** It read up to
+  307 px on the same clips because the pitcher and batter dominate it. Rendering
+  those clips showed a background that did not move.
+
+**What it changes:** OpenCommand drops the ball from its per-clip refit because
+the broadcast camera moves mid-flight. Ours does not, so **option 1 (ball-only
+per-clip refit) is open at A+**, and it becomes the first thing to try when we
+port. What this probe did NOT measure: movement BETWEEN pitches (the per-pitch
+PTZ), which is what makes a per-clip refit necessary in the first place, and
+whether we can detect the ~16 ball points per flight that section 3b says the
+solve needs. Also note the A+ angle is behind the pitcher and off-center, not
+dead-center CF, and it differs park to park.
+
 ---
 
 ## 5. Open items this raises
