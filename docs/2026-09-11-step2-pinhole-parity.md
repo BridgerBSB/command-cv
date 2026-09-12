@@ -122,10 +122,40 @@ with no hand annotation: 800 labels from 40 clips, `output/ball_labels_824821.cs
 That is the training set for a real ball detector, which is what A+ needs, where there
 is no trajectory to lean on and no drawn box to calibrate against.
 
+## A+ sample sizes, whatever anchor wins (Sep 12 2026)
+
+Any per-game camera solve needs enough clips from that one camera. What we hold per
+game, counting only OUR pitcher's pitches:
+
+| pitcher | pitches | games | clips per game |
+|---|---:|---:|---|
+| Ogando | 149 | 13 | 60, 33, 23, 7, 6, 6, 5, 3, 2, 1, 1, 1, 1 |
+| Langford | 32 | 11 | 4, 4, 4, 3, 3, 3, 3, 3, 2, 1 (one game 0 on disk) |
+
+Three Ogando games clear 20 clips; Langford clears none. That looks bleak and it is the
+wrong number to design around. **The camera does not care who is pitching**, so a per-game
+solve uses EVERY pitch in the game. From the public feed, those same A+ games carry:
+
+| game | date | venue | our pitches | pitches in the game |
+|---|---|---|---:|---:|
+| 822515 | 2026-04-25 | HomeTrust Park | 60 | 362 |
+| 822246 | 2026-04-12 | First National Bank Field | 33 | 322 |
+| 821922 | 2026-04-04 | AdventHealth Stadium | 23 | 280 |
+| 821780 | 2026-04-19 | Truist Stadium | 7 | 340 |
+| 821847 | 2026-05-02 | Frawley Stadium | 6 | 295 |
+| 822512 | 2026-05-07 | HomeTrust Park | 6 | 283 |
+
+Every one of them has a `playId`, so a game-scoped pull yields 280-362 clips per camera,
+which is five times the 59 the MLB joint solve is being tested on. `pull_pitcher_clips.py`
+is pitcher-scoped, so this needs a game-scoped puller (the MLB one used this session lives
+in the scratchpad) plus one token paste per game. A 5-clip game is not the constraint.
+
 ## Next
 
+- Settle whether the box can be dropped (`scripts/ablate_no_box.py`, running): per-clip
+  ball-only is already disproven as degenerate, so the live question is whether ONE
+  camera position fitted jointly across many clips replaces the box.
 - Train a ball detector on the auto-labels, then re-run the camera solve with OUR
   detections replacing theirs and see whether ball-at-plate holds near 0.40 in.
-- Then the A+ problem: no box, so the per-clip camera fix needs the ball run alone
-  (step 1 showed the A+ camera is static during flight, which is what makes that
-  possible) or the HawkEye fielder positions as anchors.
+- Then A+: no box at all, so it is the joint solve above, or the HawkEye fielder
+  positions as anchors, or the plate itself.
