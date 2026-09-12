@@ -67,6 +67,15 @@ same file, so it is the source, not our download.
 2. **Their scale checks out against their own model.** A 17 in plate at 400 ft
    through f of about 16,000 px is about 57 px; their boxes in this game measure 52
    to 58 px wide.
+3. **Same footage, different clock (Sep 12 2026).** Their ball pixels sit 117 px from
+   our projected path if you assume their `frame_idx` counts from the plate crossing,
+   which reads like a different feed. Sweep the offset instead and the residual drops to
+   **0.9 to 1.5 px at about -0.4 s**, i.e. their frame zero is near release. So their
+   video is the same camera and framing as ours, with the zone graphic burned in, and
+   their detections and boxes can be used against our clips once the clock is aligned.
+   No angle MLB serves us carries the graphic: checked BROADCAST, CENTERFIELD, HIGH_HOME
+   and PITCHCAST end to end. `ALTERNATE_BROADCAST` is the one sporty-clips feed not yet
+   pulled and is the last candidate.
 
 ## Step 2b: the ball can be found with no detector at all
 
