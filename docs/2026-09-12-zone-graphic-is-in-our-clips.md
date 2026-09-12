@@ -68,8 +68,43 @@ box pixels, per edge:
 Sub-pixel on all eight edges. **Read this for what it is:** these poses come from
 `parity_opencommand_824821.csv`, the BOX-ASSISTED solve, which was fitted with those
 four corners at weight 3. Agreeing with an input you were given is consistency, not
-independent confirmation. The blind version of this picture needs the
-`NOBOX_JOINT` pose from `ablate_no_box.py`, which never sees the box. Not yet run.
+independent confirmation.
+
+## The blind version - RUN, and it holds (same day)
+
+`scripts/zone_blind.py`. The pose here comes from `ablate_no_box.fit_joint`: ONE
+shared camera position fitted across 59 clips from ball pixels ALONE (297 params,
+2468 residuals), each clip keeping its own pan/tilt/roll/f/t0. **No box anywhere in
+the fit**, so the drawn box is a genuinely held-out object.
+
+| | Cx | Cz |
+|---|---:|---:|
+| box-assisted game solve | -14.040 | 32.552 |
+| **blind joint solve** | **-13.697** | **33.138** |
+
+Off by 0.34 ft and 0.59 ft - reproducing the Sep 11 ablation exactly.
+
+| play | blind vs drawn box, max edge | quad skew |
+|---|---:|---:|
+| 00f695d8 | 0.628 in | 0.65 / 0.88 px |
+| 018f0e61 | 1.954 in | 3.03 / 2.20 px |
+| 01dde385 | 0.842 in | 1.34 / 0.89 px |
+
+Median max-edge 0.842 in, worst 1.954 in, at ~0.30 in/px.
+
+**The important part is that it got WORSE.** The box-assisted render agreed to
+0.1-0.3 px; this one disagrees by 0.5-6.5 px. That is the expected direction and it
+is the evidence the test is real - a blind fit returning the same sub-pixel number
+would have meant the box had leaked into it. It also sits where the Sep 11 ablation
+put `NOBOX_JOINT` (0.665 / 0.600 in on held-out corners), which is the independent
+check on this check. In `output/zone_blind.png` the row-2 clip is visibly offset,
+which is the 1.954 in case showing itself rather than being averaged away.
+
+**SKEW, and what OpenCommand's format throws away.** Our zone is a true projected
+quadrilateral; their stored box is four scalars (`x_left`, `y_top`, `x_right`,
+`y_bottom`) and so is axis-aligned by construction. The measured non-rectangularity
+is 0.65 to 3.03 px - real, and unrepresentable in their format. Anything comparing
+against their stored box inherits that as a floor.
 
 ## What this changes, and what it does not
 
