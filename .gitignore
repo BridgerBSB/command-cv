@@ -9,3 +9,6 @@ weights/
 __pycache__/
 *.pyc
 .pytest_cache/
+
+# ultralytics writes here on every train; weights are large and rebuildable
+runs/
