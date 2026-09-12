@@ -43,6 +43,15 @@ import parity_opencommand_pose as par  # noqa: E402
 
 CROP, OVERLAP = 320, 80
 IN_PER_PX = 0.30          # a 17 in zone spans ~57 px in this feed
+TOPK = 5                  # see THE TOP-1 TRAP below
+
+# THE TOP-1 TRAP. The first version of this script scored only the highest-confidence
+# detection per frame, and reported 167-308 px median error - which reads as "the
+# detector cannot see the ball". detect_diagnose.py then showed the ball IS detected in
+# 2 of 3 frames, ranked #3, at 40.0 px and 15.5 px from truth. A ball found within 16 px
+# but ranked third produced the SAME table row as a 167 px miss, so the metric turned a
+# RANKING problem (fixable with epochs) into what looked like a BLINDNESS problem (not).
+# Report best-of-top-K beside top-1 or the number lies in a way that changes the decision.
 
 
 def tiles(W, H):
@@ -70,6 +79,30 @@ def detect_tiled(model, frame, conf):
     return best
 
 
+def detect_tiled_topk(model, frame, conf, k=TOPK):
+    """Top-k across overlapping native-resolution windows, ranked by confidence.
+
+    Tiling's failure is specifically a RANKING one: the true ball competes against a
+    false positive from every OTHER window, so top-1 across ~15-20 windows is far more
+    exposed than top-1 on a single pass. That is the stated reason tile mode scored
+    29% against full-frame's 48%. Reporting top-k here is what actually tests it.
+    """
+    H, W = frame.shape[:2]
+    wins = tiles(W, H)
+    batch = [frame[y:y + CROP, x:x + CROP] for x, y in wins]
+    res = model.predict(batch, imgsz=CROP, conf=conf, verbose=False)
+    cand = []
+    for (x0, y0), r in zip(wins, res):
+        if r.boxes is None or len(r.boxes) == 0:
+            continue
+        c = r.boxes.conf.cpu().numpy()
+        b = r.boxes.xywh.cpu().numpy()
+        for j in range(len(c)):
+            cand.append((b[j][0] + x0, b[j][1] + y0, float(c[j])))
+    cand.sort(key=lambda t: -t[2])
+    return cand[:k]
+
+
 def detect_full(model, frame, conf):
     r = model.predict(frame, imgsz=1280, conf=conf, verbose=False)[0]
     if r.boxes is None or len(r.boxes) == 0:
@@ -78,6 +111,16 @@ def detect_full(model, frame, conf):
     b = r.boxes.xywh.cpu().numpy()
     j = int(c.argmax())
     return (b[j][0], b[j][1], float(c[j]))
+
+
+def detect_full_topk(model, frame, conf, k=TOPK):
+    """Top-k detections, highest confidence first. See the TOP-1 TRAP below."""
+    r = model.predict(frame, imgsz=1280, conf=conf, verbose=False)[0]
+    if r.boxes is None or len(r.boxes) == 0:
+        return []
+    c = r.boxes.conf.cpu().numpy()
+    b = r.boxes.xywh.cpu().numpy()
+    return [(b[j][0], b[j][1], float(c[j])) for j in np.argsort(-c)[:k]]
 
 
 def main():
@@ -133,27 +176,37 @@ def main():
         cap.release()
 
         for m in modes:
-            fn = detect_tiled if m == "tile" else detect_full
+            fn = detect_tiled_topk if m == "tile" else detect_full_topk
             for fi, fr in frames.items():
-                d = fn(model, fr, a.conf)
+                ds = fn(model, fr, a.conf)
                 ox, oy = want[fi]
-                if d is None:
-                    out[m].append((pid, fi, np.nan, np.nan))
-                else:
-                    out[m].append((pid, fi, float(np.hypot(d[0] - ox, d[1] - oy)), d[2]))
+                if not ds:
+                    out[m].append((pid, fi, np.nan, np.nan, np.nan, np.nan))
+                    continue
+                dist = [float(np.hypot(x - ox, y - oy)) for x, y, _ in ds]
+                # top-1 is what the old version reported; best-of-K and the RANK of the
+                # closest detection are what reveal a found-but-outranked ball
+                best_i = int(np.argmin(dist))
+                out[m].append((pid, fi, dist[0], dist[best_i], float(best_i + 1), ds[0][2]))
         print(f"  {pid[:8]}  {len(frames)} frames", flush=True)
 
-    print(f"\n{'mode':6} {'frames':>7} {'found%':>7} {'err px med':>11} {'err px p90':>11} "
-          f"{'err in med':>11} {'conf med':>9}")
+    print(f"\n{'mode':6} {'frames':>7} {'found%':>7} {'top1 px':>9} {'bestK px':>9} "
+          f"{'bestK in':>9} {'med rank':>9} {'conf med':>9}")
     for m in modes:
-        d = pd.DataFrame(out[m], columns=["play", "frame", "err", "conf"])
-        f = d.err.notna()
+        d = pd.DataFrame(out[m], columns=["play", "frame", "err1", "errk", "rank", "conf"])
+        f = d.err1.notna()
         if not f.any():
             print(f"{m:6} {len(d):7} {0.0:6.1f}%   NOTHING DETECTED")
             continue
-        print(f"{m:6} {len(d):7} {100*f.mean():6.1f}% {d.err[f].median():11.2f} "
-              f"{d.err[f].quantile(.9):11.2f} {d.err[f].median()*IN_PER_PX:11.3f} "
-              f"{d.conf[f].median():9.3f}")
+        # d['rank'] not d.rank - DataFrame.rank is a METHOD, and d.rank would silently
+        # hand back the bound method rather than the column
+        print(f"{m:6} {len(d):7} {100*f.mean():6.1f}% {d.err1[f].median():9.2f} "
+              f"{d.errk[f].median():9.2f} {d.errk[f].median()*IN_PER_PX:9.3f} "
+              f"{d['rank'][f].median():9.1f} {d.conf[f].median():9.3f}")
+    print(f"\ntop1 vs bestK is the whole point (K={TOPK}). If bestK is far smaller than top1,")
+    print("the detector SEES the ball and ranks it badly - a ranking problem, which more")
+    print("epochs fix. If they are close and both large, it genuinely cannot find the ball.")
+    print("med rank says where the closest detection sat: 1.0 = correctly ranked first.")
 
     print("\nRead found% FIRST: a small error on few frames is worse than a modest error on")
     print("most of them - the joint solve needs >=8 points per clip to fit anything.")
