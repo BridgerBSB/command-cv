@@ -57,7 +57,13 @@ same file, so it is the source, not our download.
 ## Two things learned on the way that change the plan
 
 1. **The zone box is a drawn broadcast graphic, and our copy of the video does not
-   have it.** OpenCommand's README: broadcasts draw the zone "(17in width,
+   have it.** **[CORRECTED Sep 12 2026 - THIS IS WRONG. The graphic IS in our
+   BROADCAST clips, including in `c4958213` itself, from frame 0. A per-frame sweep
+   of 6 clips found it on 100% of live plate-camera frames; the frames without it
+   are replays and other camera shots inside the same clip. See
+   `2026-09-12-zone-graphic-is-in-our-clips.md`. The claim below about CENTERFIELD /
+   HIGH_HOME / PITCHCAST was NOT re-checked - only BROADCAST clips are on disk.]**
+   OpenCommand's README: broadcasts draw the zone "(17in width,
    sz_top/sz_bot)", read "at a snapshot pre-pitch", and "sometimes broadcasts don't
    draw a strikezone box". Frames 0 to 240 of our BROADCAST clip for play
    `c4958213` show no graphic, yet their box lands exactly on the zone in front of
