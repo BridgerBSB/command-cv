@@ -37,11 +37,26 @@ def main():
     ap.add_argument("--fraction", type=float, default=1.0, help="<1 to trial on part of the set")
     ap.add_argument("--name", default="ball")
     ap.add_argument("--device", default="cpu")
+    ap.add_argument("--resume", action="store_true",
+                    help="continue from last.pt of --name. This box's memory watchdog kills "
+                         "long runs (it took one at epoch 3/30), and ultralytics writes last.pt "
+                         "every epoch, so a kill should cost ONE epoch and not the run. Wrap "
+                         "this in a restart loop and it grinds forward on its own.")
     a = ap.parse_args()
     assert os.path.exists(a.data), f"no dataset: {a.data} (run build_ball_dataset.py first)"
     from ultralytics import YOLO
 
     out = os.path.join(ROOT, "data", "yolo_ball_runs")
+    last = os.path.join(out, a.name, "weights", "last.pt")
+    if a.resume and os.path.exists(last):
+        # NOTE: resume restores the ORIGINAL run's args (batch, epochs, imgsz) by design, so
+        # you cannot shrink the footprint here - that choice is made on the FRESH start.
+        print(f"resuming from {last}", flush=True)
+        r = YOLO(last).train(resume=True)
+        print(f"\nweights: {os.path.join(str(r.save_dir), 'weights', 'best.pt')}")
+        return
+    if a.resume:
+        print(f"--resume given but no {last}; starting fresh", flush=True)
     m = YOLO(a.model)
     r = m.train(data=os.path.abspath(a.data), epochs=a.epochs, imgsz=a.imgsz, batch=a.batch,
                 fraction=a.fraction, device=a.device, workers=0, project=out, name=a.name,
