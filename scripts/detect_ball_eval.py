@@ -97,7 +97,11 @@ def main():
 
     from ultralytics import YOLO
     model = YOLO(a.weights)
-    model.to(a.device)
+    # ultralytics takes device="0"; torch's .to() does NOT - it wants "cuda:0" and raises
+    # RuntimeError: Invalid device string: '0'. Normalise before handing it to torch.
+    dev = f"cuda:{a.device}" if str(a.device).isdigit() else a.device
+    model.to(dev)
+    print(f"device: {dev}")
 
     clips = par.load_clips(a.game)
     todo = []
