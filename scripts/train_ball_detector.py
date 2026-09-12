@@ -37,6 +37,11 @@ def main():
     ap.add_argument("--fraction", type=float, default=1.0, help="<1 to trial on part of the set")
     ap.add_argument("--name", default="ball")
     ap.add_argument("--device", default="cpu")
+    ap.add_argument("--no-amp", action="store_true",
+                    help="skip the Automatic Mixed Precision check. That check allocates a CUDA "
+                         "workspace and runs an inference probe at STARTUP, and on this box it is "
+                         "where the 4th watchdog kill landed - before a single epoch ran. Trading "
+                         "some speed for a process that survives startup is worth it here.")
     ap.add_argument("--resume", action="store_true",
                     help="continue from last.pt of --name. This box's memory watchdog kills "
                          "long runs (it took one at epoch 3/30), and ultralytics writes last.pt "
@@ -48,11 +53,14 @@ def main():
 
     out = os.path.join(ROOT, "data", "yolo_ball_runs")
     last = os.path.join(out, a.name, "weights", "last.pt")
+    amp = not a.no_amp
     if a.resume and os.path.exists(last):
-        # NOTE: resume restores the ORIGINAL run's args (batch, epochs, imgsz) by design, so
-        # you cannot shrink the footprint here - that choice is made on the FRESH start.
-        print(f"resuming from {last}", flush=True)
-        r = YOLO(last).train(resume=True)
+        # NOTE: resume restores the ORIGINAL run's args (batch, epochs, imgsz) from the
+        # CHECKPOINT by design - amp=True included. So amp must be passed EXPLICITLY here or
+        # --no-amp is silently ignored on exactly the path that needs it: the 4th watchdog
+        # kill landed during the AMP check on a resume, before a single epoch ran.
+        print(f"resuming from {last}  (amp={amp})", flush=True)
+        r = YOLO(last).train(resume=True, amp=amp)
         print(f"\nweights: {os.path.join(str(r.save_dir), 'weights', 'best.pt')}")
         return
     if a.resume:
@@ -60,7 +68,7 @@ def main():
     m = YOLO(a.model)
     r = m.train(data=os.path.abspath(a.data), epochs=a.epochs, imgsz=a.imgsz, batch=a.batch,
                 fraction=a.fraction, device=a.device, workers=0, project=out, name=a.name,
-                exist_ok=True, plots=True, val=True,
+                exist_ok=True, plots=True, val=True, amp=amp,
                 # the ball is a small, roughly round, colour-stable object: geometric warping
                 # helps, colour jitter and mosaic mostly do not
                 mosaic=0.0, mixup=0.0, erasing=0.0, hsv_s=0.3, hsv_v=0.3,
