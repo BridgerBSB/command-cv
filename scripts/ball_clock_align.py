@@ -156,8 +156,7 @@ def main():
             row["reversed"] = scan(r, lambda d: traj(T - d), m, fps, lo, hi)[0]
         rows.append(row)
         if a.labels and np.isfinite(f0):
-            labels += [dict(play_id=pid, frame_idx=fi, x=x, y=y, diameter_px=dia)
-                       for fi, x, y, dia in ball_pixels(r, p, f0, fps)]
+            labels.append((pid, f0, ball_pixels(r, p, f0, fps)))
         print(row, flush=True)
     d = pd.DataFrame(rows)
     print(f"\nclips {len(d)} | score median {d.score.median():.1f} | baseline median {d.baseline.median():.1f} "
@@ -175,8 +174,23 @@ def main():
                   + (f"  ({int((~ok).sum())} not scorable: path leaves the frame)" if (~ok).any() else ""))
             assert ok.sum() == 0 or wins >= 0.9 * ok.sum(), f"{name} control not separated - score is not specific"
     if a.labels:
-        pd.DataFrame(labels).to_csv(a.labels, index=False)
-        print(f"{len(labels)} ball-pixel labels over {d.plate_frame.notna().sum()} clips -> {a.labels}")
+        # Clips from one game are cut the same way, so the plate crossing lands in a tight frame
+        # band: 277 of 280 inside 198-215 on game 824821. The three strays (231, 224, 290) are
+        # alignments that locked onto the wrong thing, and their labels would be boxes drawn on
+        # empty grass. Gate on distance from the game's OWN median rather than a hardcoded band,
+        # so a differently-cut camera calibrates itself.
+        PLATE_FRAME_TOL = 10
+        med = float(np.median([f0 for _, f0, _ in labels]))
+        keep = [(pid, f0, px) for pid, f0, px in labels if abs(f0 - med) <= PLATE_FRAME_TOL]
+        dropped = [(pid, f0) for pid, f0, _ in labels if abs(f0 - med) > PLATE_FRAME_TOL]
+        flat = [dict(play_id=pid, frame_idx=fi, x=x, y=y, diameter_px=dia)
+                for pid, _, px in keep for fi, x, y, dia in px]
+        pd.DataFrame(flat).to_csv(a.labels, index=False)
+        print(f"{len(flat)} ball-pixel labels over {len(keep)} clips -> {a.labels}")
+        if dropped:
+            print(f"  dropped {len(dropped)} clips whose plate frame is >{PLATE_FRAME_TOL} frames "
+                  f"from the game median {med:.0f}: "
+                  + ", ".join(f"{p[:8]}@{f:.0f}" for p, f in dropped))
     if a.render:
         tiles = []
         for pid in [r["play_id"] for r in rows[:3]]:
