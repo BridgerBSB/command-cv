@@ -150,12 +150,59 @@ which is five times the 59 the MLB joint solve is being tested on. `pull_pitcher
 is pitcher-scoped, so this needs a game-scoped puller (the MLB one used this session lives
 in the scratchpad) plus one token paste per game. A 5-clip game is not the constraint.
 
-## Next
+## Step 2c: the box CAN be dropped, if the camera is solved across many clips at once
 
-- Settle whether the box can be dropped (`scripts/ablate_no_box.py`, running): per-clip
-  ball-only is already disproven as degenerate, so the live question is whether ONE
-  camera position fitted jointly across many clips replaces the box.
-- Train a ball detector on the auto-labels, then re-run the camera solve with OUR
-  detections replacing theirs and see whether ball-at-plate holds near 0.40 in.
-- Then A+: no box at all, so it is the joint solve above, or the HawkEye fielder
-  positions as anchors, or the plate itself.
+`scripts/ablate_no_box.py`, 59 clips of game 824821, OpenCommand's ball detections
+throughout so the DETECTOR is never the variable. Every variant is scored on the zone-box
+corners (a known-position object the no-box fits never see) and on how far it disagrees
+with the box pose about a fixed pixel at the catcher's setup depth, which is where the
+miss is read.
+
+| variant | ball@plate abs X, Z (in) | BOX CORNERS abs X, Z (in) | glove-plane gap (in) |
+|---|---|---|---:|
+| BOX (published shape) | 0.387, 0.355 | 0.051, 0.046 | 0 (reference) |
+| NOBOX, per clip | 0.167, 0.183 | **18.4, 29.7** | **42.6** |
+| NOBOX_C (C from box votes, aim from ball) | 0.214, 0.321 | 0.485, 0.500 | 0.69 |
+| **NOBOX_JOINT (no box anywhere)** | 0.120, 0.230 | **0.665, 0.600** | **1.08** |
+
+Camera position: the joint ball-only solve lands at Cx -13.70, Cz 33.14 against the
+box-assisted Cx -14.04, Cz 32.55. **Off by 0.34 ft and 0.59 ft with no box at all.**
+
+**Two things this settles.**
+
+1. **Per-clip ball-only is dead**, and would have looked like the winner on the naive
+   metric. It posts the BEST ball-at-plate number in the table (0.167 in) while missing
+   the zone corners by up to 30 inches and disagreeing with the real camera by 42 in at
+   the glove plane. Its camera scatters 17 ft in X and 37 ft in Z and rails at a solver
+   bound on 21 of 59 clips. A 7-parameter fit to ~21 points buys the ball path and
+   nothing else.
+2. **One camera position fitted jointly across many clips replaces the box**, at a cost
+   of about an inch at the plane where command is measured. Against miss distances of 8
+   to 16 inches that is a real but acceptable tax, and it is far below the 3.9 in our
+   old affine calibration carries.
+
+Caveats, none of them small: this used OpenCommand's ball detections, and ours will be
+worse; the glove-plane gap is measured against the box pose, which is a good reference
+but not ground truth; `Cy` is pinned at 400 ft, which is an MLB centre-field number and
+must be re-checked for the closer, behind-the-pitcher A+ camera; and A+ has to be tested
+on its own footage, not inferred from this.
+
+## Next
+The box question is closed, so the path to A+ is now concrete:
+
+1. **Train a ball detector on the auto-labels** (step 2b, 800 labels per 40 clips, free).
+   Then re-run the joint solve with OUR detections replacing OpenCommand's, still at MLB,
+   still scored on held-out box corners. That isolates the detector as the only change and
+   says what our own vision costs us on top of the 1.08 in the joint solve already costs.
+2. **Game-scoped pull at A+.** The joint solve needs many clips from one camera, and at A+
+   only a game-scoped pull provides them (280-362 pitches per game vs our pitcher's 5-60).
+   `pull_pitcher_clips.py` is pitcher-scoped; the game-scoped puller used for MLB this
+   session is still in the scratchpad and needs promoting. One token paste per game.
+3. **Re-check the pinned camera distance for A+.** `Cy = 400 ft` is an MLB centre-field
+   number. The Asheville camera is behind the pitcher and closer, so the pin that is
+   harmless at MLB may not be, and it needs its own degeneracy check before any A+ number
+   is believed.
+4. **Only then the miss itself:** glove detection at setup gives the target, the joint-solve
+   camera turns those pixels into inches at the setup plane, and the actual stays
+   `plate_x`/`plate_z` from tracking. That is the original Model A, with a ruler that now
+   survives its own controls.
