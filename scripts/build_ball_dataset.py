@@ -50,19 +50,33 @@ def _write(split, name, img, boxes, out):
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--labels", required=True)
-    ap.add_argument("--clips", required=True)
+    ap.add_argument("--labels", required=True, action="append",
+                    help="labels CSV; repeat with a matching --clips per game")
+    ap.add_argument("--clips", required=True, action="append",
+                    help="clips dir for the preceding --labels")
     ap.add_argument("--out", default="data/yolo_ball")
     ap.add_argument("--val-frac", type=float, default=0.2)
     ap.add_argument("--angle", default="BROADCAST")
     ap.add_argument("--seed", type=int, default=0)
     a = ap.parse_args()
+    assert len(a.labels) == len(a.clips), "one --clips per --labels"
     rng = random.Random(a.seed)
-    lab = pd.read_csv(a.labels)
-    key = "game_pk" if "game_pk" in lab.columns and lab.game_pk.nunique() > 1 else "play_id"
+    parts = []
+    for lp, cp in zip(a.labels, a.clips):
+        d = pd.read_csv(lp)
+        # the game is the split unit, and the clips dir names it (data/clips/mlb_<pk>)
+        d["game_pk"] = os.path.basename(os.path.normpath(cp)).replace("mlb_", "")
+        d["_clips"] = cp
+        parts.append(d)
+    lab = pd.concat(parts, ignore_index=True)
+    key = "game_pk" if lab.game_pk.nunique() > 1 else "play_id"
     if key == "play_id":
         print("WARNING: one game only, so train/val split is by play_id. Both sides share a camera "
               "and a stadium, so the val score will be optimistic. Re-split once more games land.")
+    else:
+        print(f"splitting by GAME across {lab.game_pk.nunique()} games: "
+              f"{', '.join(sorted(lab.game_pk.unique()))} - val is a camera and a park the model "
+              f"never trained on, which is the honest test")
     groups = sorted(lab[key].unique())
     rng.shuffle(groups)
     n_val = max(1, int(len(groups) * a.val_frac))
@@ -73,7 +87,7 @@ def main():
     counts = {"train": 0, "val": 0, "neg": 0, "skipped": 0}
     n = 0
     for pid, g in lab.groupby("play_id"):
-        clip = os.path.join(a.clips, f"{pid}_{a.angle}.mp4")
+        clip = os.path.join(g["_clips"].iloc[0], f"{pid}_{a.angle}.mp4")
         if not os.path.exists(clip):
             counts["skipped"] += len(g)
             continue
