@@ -63,9 +63,36 @@ def main():
     assert os.path.isdir(clips_dir), clips_dir
 
     pbp = pd.read_csv(os.path.join(OC, f"pbp_info_{SEASON}_{a.game}.csv")).set_index("play_id")
-    poses = pd.read_csv(os.path.join(ROOT, "output", f"parity_opencommand_{a.game}.csv")).set_index("play_id")
-    labels = pd.read_csv(os.path.join(ROOT, "output", f"ball_labels_{a.game}.csv"))
+
+    # POSE SOURCE DIFFERS BY GAME. 824821 has output/parity_opencommand_<g>.csv - our
+    # solve merged against OpenCommand's, so every column is suffixed _us / _oc. The
+    # other four games have only data/opencommand/poses_<g>.csv, with BARE names.
+    # Normalise to bare so everything downstream is uniform.
+    par_csv = os.path.join(ROOT, "output", f"parity_opencommand_{a.game}.csv")
+    oc_csv = os.path.join(OC, f"poses_{a.game}.csv")
+    if os.path.exists(par_csv):
+        poses = pd.read_csv(par_csv).set_index("play_id").rename(
+            columns={f"{c}_us": c for c in ("Cx", "Cz", "pan", "tilt", "roll", "f_px")})
+        src = "parity (our own solve)"
+    elif os.path.exists(oc_csv):
+        poses = pd.read_csv(oc_csv).set_index("play_id")
+        src = "opencommand published poses"
+    else:
+        raise SystemExit(f"no pose file for game {a.game}: tried\n  {par_csv}\n  {oc_csv}")
+    missing = [c for c in ("Cx", "Cz", "pan", "tilt", "roll", "f_px") if c not in poses.columns]
+    assert not missing, f"pose file missing {missing}; has {list(poses.columns)}"
+
+    # Ball labels exist ONLY for games we ran ball_clock_align on (824821, 824259,
+    # 824341). Miami 823850 and Anaheim 824018 were never labelled - and this sweep does
+    # not need them, since plate_fr is reporting only. An empty frame with the right
+    # columns keeps the downstream plate_fr logic working unchanged.
+    lab_csv = os.path.join(ROOT, "output", f"ball_labels_{a.game}.csv")
+    labels = (pd.read_csv(lab_csv) if os.path.exists(lab_csv)
+              else pd.DataFrame(columns=["play_id", "frame_idx"]))
     zy = ph.zone_y(SEASON)
+    park = poses.park.iloc[0] if "park" in poses.columns and len(poses) else "?"
+    print(f"game {a.game} ({park}): {len(poses)} poses from {src}; "
+          f"labels {'present' if len(labels) else 'NONE - plate_fr reads -1'}")
 
     # always include the doc's play first, if we hold a pose for it
     ids = [p for p in poses.index if str(p).startswith(DOC_PLAY)]
@@ -85,8 +112,10 @@ def main():
         top, bot = float(p.sz_top_ref), float(p.sz_bot_ref)
         corners = np.array([[-17 / 24, zy, top], [17 / 24, zy, top],
                             [17 / 24, zy, bot], [-17 / 24, zy, bot]])
-        C = np.array([r.Cx_us, ph.CY_FT, r.Cz_us])
-        q = ph.project(C, r.pan_us, r.tilt_us, r.roll_us, r.f_px_us, corners)
+        # bare names: the loader above renames the parity CSV's _us suffixes away, so
+        # both pose sources look identical here
+        C = np.array([r.Cx, ph.CY_FT, r.Cz])
+        q = ph.project(C, r.pan, r.tilt, r.roll, r.f_px, corners)
 
         cap = cv2.VideoCapture(clip)
         scores, frames = [], []
