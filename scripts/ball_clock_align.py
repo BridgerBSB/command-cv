@@ -45,19 +45,25 @@ PLATE_FRONT = 17 / 12
 
 
 def motion_stack(clip, lo=WIN_LO, hi=WIN_HI):
-    """Frame-to-frame difference, top-hatted so only small bright objects survive."""
+    """Frame-to-frame difference, top-hatted so only small bright objects survive.
+
+    Streams: only the previous frame and the diffs inside [lo, hi) are held. The first version
+    kept every decoded frame AND the diffs, about 500 MB per clip, which is what got a
+    concurrent training run OOM-killed (Sep 12 2026). Diffs alone are ~170 MB."""
     cap = cv2.VideoCapture(clip)
-    fr = []
+    fps = cap.get(cv2.CAP_PROP_FPS) or 59.94
+    m, prev, i, n = {}, None, 0, 0
     while True:
         ok, f = cap.read()
         if not ok:
             break
-        fr.append(cv2.cvtColor(f, cv2.COLOR_BGR2GRAY))
-    hi = min(hi, len(fr) - 1)
-    fps = cap.get(cv2.CAP_PROP_FPS) or 59.94
-    m = {i: cv2.morphologyEx(cv2.absdiff(fr[i], fr[i - 1]), cv2.MORPH_TOPHAT, TOPHAT_K)
-         for i in range(lo, hi)}
-    return m, fps, lo, hi, len(fr)
+        g = cv2.cvtColor(f, cv2.COLOR_BGR2GRAY)
+        if lo <= i < hi and prev is not None:
+            m[i] = cv2.morphologyEx(cv2.absdiff(g, prev), cv2.MORPH_TOPHAT, TOPHAT_K)
+        prev = g          # one frame, 0.9 MB; the diffs are what cost memory
+        i = n = i + 1
+    cap.release()
+    return m, fps, lo, min(hi, n - 1), n
 
 
 def local_contrast(img, x, y, r_in=4, r_out=18):
