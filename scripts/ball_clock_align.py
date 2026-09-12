@@ -96,14 +96,26 @@ def scan(pose_row, points_at, m, fps, lo, hi):
     return best[0], best[1], float(np.median([o[0] for o in out]))
 
 
+BALL_DIAMETER_FT = 2.9 / 12
+
+
 def ball_pixels(pose_row, p, f0, fps):
-    """(frame_idx, x, y) for the flight at the winning offset: the free training labels."""
+    """(frame_idx, x, y, diameter_px) for the flight at the winning offset: the free labels.
+
+    A detector needs a BOX, not a point, so the ball's apparent size comes from the same
+    geometry: a 2.9 in ball at depth d along the optical axis subtends f * (2.9/12) / d
+    pixels. It grows as the ball approaches, which a fixed-size box would get wrong."""
     C = np.array([pose_row.Cx, ph.CY_FT, pose_row.Cz])
     args = (C, pose_row.pan, pose_row.tilt, pose_row.roll, pose_row.f_px)
     traj = ph.statcast_traj(p)
     idx = np.arange(-int(FLIGHT_S * fps), 1)
-    px = ph.project(*args, traj(plate_time(p) + idx / fps))
-    return [(int(f0 + i), float(x), float(y)) for i, (x, y) in zip(idx, px)]
+    world = traj(plate_time(p) + idx / fps)
+    px = ph.project(*args, world)
+    fwd = ph.camera(C, pose_row.pan, pose_row.tilt, pose_row.roll)[2]
+    depth = (world - C) @ fwd
+    dia = pose_row.f_px * BALL_DIAMETER_FT / depth
+    return [(int(f0 + i), float(x), float(y), float(d))
+            for i, (x, y), d in zip(idx, px, dia)]
 
 
 def load_inputs(game, poses_csv):
@@ -144,7 +156,8 @@ def main():
             row["reversed"] = scan(r, lambda d: traj(T - d), m, fps, lo, hi)[0]
         rows.append(row)
         if a.labels and np.isfinite(f0):
-            labels += [dict(play_id=pid, frame_idx=fi, x=x, y=y) for fi, x, y in ball_pixels(r, p, f0, fps)]
+            labels += [dict(play_id=pid, frame_idx=fi, x=x, y=y, diameter_px=dia)
+                       for fi, x, y, dia in ball_pixels(r, p, f0, fps)]
         print(row, flush=True)
     d = pd.DataFrame(rows)
     print(f"\nclips {len(d)} | score median {d.score.median():.1f} | baseline median {d.baseline.median():.1f} "
