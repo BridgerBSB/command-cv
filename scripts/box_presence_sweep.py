@@ -38,6 +38,9 @@ OC = os.path.join(ROOT, "data", "opencommand")
 SEASON = 2026
 DOC_PLAY = "c4958213"          # the play the doc concluded "no graphic" from
 HI = 8.0                       # border brighter than neighbours by this = drawn line
+STRIP_KEEP = 400               # --strip: frames retained at once. The long clips here run
+                               # 1602-1678 frames, and holding all of them as 1280x720x3
+                               # is ~4.4 GB - an instant watchdog kill on this box.
 
 
 def box_masks(q, shape):
@@ -128,7 +131,16 @@ def main():
                 ring, neigh = box_masks(q, f.shape)
             g = cv2.cvtColor(f, cv2.COLOR_BGR2GRAY).astype(np.float32)
             scores.append(float(g[ring].mean() - g[neigh].mean()))
-            frames.append(f if a.strip else None)
+            # MEMORY: only the handful of indices in `picks` below are ever rendered, so
+            # retaining every decoded frame is pure waste - and on the long clips in this
+            # set (1602 and 1678 frames) it is ~4.4 GB of 1280x720x3, which on this box
+            # means an instant watchdog kill. Keep a bounded ring and index into it.
+            if a.strip:
+                frames.append(f)
+                if len(frames) > STRIP_KEEP:
+                    frames[len(frames) - 1 - STRIP_KEEP] = None   # drop the old pixels
+            else:
+                frames.append(None)
         cap.release()
         if not scores:
             continue

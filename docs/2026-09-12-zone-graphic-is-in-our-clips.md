@@ -124,12 +124,43 @@ against their stored box inherits that as a floor.
 - It is a free, per-pitch, known-world-position calibration target on every MLB clip -
   useful for validating the detector and the camera solve at scale.
 
-## Scope of this correction - what was NOT re-checked
+## Scope - now FIVE parks, five broadcasters (extended same day)
 
-Only **BROADCAST** was tested, because only BROADCAST clips exist on this machine:
-all 289 in `data/clips/mlb_824821`, and every other game dir likewise. The doc's
-claim about CENTERFIELD, HIGH_HOME and PITCHCAST is neither confirmed nor refuted
-here. One game (824821, Camden Yards), six clips swept.
+The first pass covered one game, and that was the stated weakness. `box_presence_sweep.py`
+now reads `data/opencommand/poses_<game>.csv` as well as the parity CSV, so the other
+four games are testable. Five clips swept per game:
+
+| game | park | peak score | hi% range |
+|---|---|---:|---|
+| 824821 | BAL Camden | 37-51 | 33-100% |
+| 824259 | DET Comerica | 47-66 | 27-100% |
+| 824341 | COL Coors | 51-55 | 22-80% |
+| 823850 | MIA loanDepot | 59-63 | 17-100% |
+| 824018 | LAA Angel Stadium | 52-60 | 21-92% |
+
+**Every clip at every park carries it**, with peaks at the four new parks equal to or
+higher than Camden's. So this is not a MASN quirk - it is systematic across MLB
+broadcasts.
+
+The varying hi% is the same replay explanation, and it is self-consistent: hi% tracks
+INVERSELY with clip length, which is what you expect if the graphic is on during the
+live plate camera and long clips carry more replay. The two longest clips in the set
+(`034a4e69` 1602 frames, `02a8477d` 1678 frames) score 21.7% and 20.9%; clips of
+396-456 frames score 100%.
+
+**Verified by eye, not only by score** (`output/zone_zoom_COL.png`,
+`output/zone_zoom_MIA.png`): the untouched RAW panel shows the white rectangle at
+Coors Field and at loanDepot Park - a day game and a night game, different
+broadcasters - and our projected quad lands on it to 0.1-0.3 px on all eight edges.
+The MIA render also exercises the no-labels path (`using clip midpoint`, frames 213
+and 184), which is correct because the zone is world-fixed and the camera is static in
+flight: the frame choice changes the picture, not the quad.
+
+### Still NOT re-checked
+
+Only **BROADCAST** was tested, because only BROADCAST clips exist on this machine. The
+Sep 11 claim about CENTERFIELD, HIGH_HOME and PITCHCAST is neither confirmed nor
+refuted.
 
 ## The lesson worth keeping
 

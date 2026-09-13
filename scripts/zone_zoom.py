@@ -51,11 +51,34 @@ def main():
     assert os.path.isdir(clips_dir), clips_dir
 
     pbp = pd.read_csv(os.path.join(OC, f"pbp_info_{SEASON}_{a.game}.csv")).set_index("play_id")
-    poses = pd.read_csv(os.path.join(ROOT, "output", f"parity_opencommand_{a.game}.csv")).set_index("play_id")
-    labels = pd.read_csv(os.path.join(ROOT, "output", f"ball_labels_{a.game}.csv"))
+    # POSE SOURCE DIFFERS BY GAME, same as box_presence_sweep.py: 824821 has the parity
+    # CSV (columns suffixed _us/_oc), the other four have only poses_<game>.csv with bare
+    # names. Normalise to bare so everything below is uniform.
+    par_csv = os.path.join(ROOT, "output", f"parity_opencommand_{a.game}.csv")
+    oc_csv = os.path.join(OC, f"poses_{a.game}.csv")
+    if os.path.exists(par_csv):
+        poses = pd.read_csv(par_csv).set_index("play_id").rename(
+            columns={f"{c}_us": c for c in ("Cx", "Cz", "pan", "tilt", "roll", "f_px")})
+    elif os.path.exists(oc_csv):
+        poses = pd.read_csv(oc_csv).set_index("play_id")
+    else:
+        raise SystemExit(f"no pose file for game {a.game}: tried\n  {par_csv}\n  {oc_csv}")
+    missing = [c for c in ("Cx", "Cz", "pan", "tilt", "roll", "f_px") if c not in poses.columns]
+    assert not missing, f"pose file missing {missing}; has {list(poses.columns)}"
+
+    # Ball labels exist only for games ball_clock_align was run on (824821/824259/
+    # 824341). Miami 823850 and Anaheim 824018 have NONE - and the old code required a
+    # non-empty `lab` per clip, so those games would silently skip EVERY clip and die on
+    # the assert with no explanation. Fall back to the clip's midpoint frame instead.
+    lab_csv = os.path.join(ROOT, "output", f"ball_labels_{a.game}.csv")
+    labels = (pd.read_csv(lab_csv) if os.path.exists(lab_csv)
+              else pd.DataFrame(columns=["play_id", "frame_idx"]))
     zt = pd.read_csv(os.path.join(OC, f"strikezone_tracking_{SEASON}.csv.gz"))
     zt = zt[zt.game_pk == a.game].set_index("play_id")
     zy = ph.zone_y(SEASON)
+    park = poses.park.iloc[0] if "park" in poses.columns and len(poses) else "?"
+    print(f"game {a.game} ({park}): {len(poses)} poses, "
+          f"labels {'present' if len(labels) else 'NONE - using clip midpoint'}")
 
     rows_out = []
     done = 0
@@ -67,10 +90,18 @@ def main():
             continue
         clip = os.path.join(clips_dir, f"{pid}_BROADCAST.mp4")
         lab = labels[labels.play_id == pid]
-        if not os.path.exists(clip) or lab.empty:
+        if not os.path.exists(clip):
             continue
-        fi = int(lab.frame_idx.max())
+        # With labels, use the last labelled frame (the plate crossing). WITHOUT them -
+        # Miami and Anaheim - fall back to the clip's midpoint, which is what the comment
+        # above promises. The zone is world-fixed and the camera is static in flight, so
+        # the projected quad does not depend on which frame we pick; only the picture does.
         cap = cv2.VideoCapture(clip)
+        if not lab.empty:
+            fi = int(lab.frame_idx.max())
+        else:
+            n_fr = int(cap.get(cv2.CAP_PROP_FRAME_COUNT) or 0)
+            fi = n_fr // 2 if n_fr else 200
         frame, i = None, 0
         while True:
             ok, f = cap.read()
@@ -88,8 +119,9 @@ def main():
         top, bot = float(p.sz_top_ref), float(p.sz_bot_ref)
         corners = np.array([[-17 / 24, zy, top], [17 / 24, zy, top],
                             [17 / 24, zy, bot], [-17 / 24, zy, bot]])
-        C = np.array([r.Cx_us, ph.CY_FT, r.Cz_us])
-        q = ph.project(C, r.pan_us, r.tilt_us, r.roll_us, r.f_px_us, corners)
+        # bare names: the loader normalises the parity CSV's _us suffixes away
+        C = np.array([r.Cx, ph.CY_FT, r.Cz])
+        q = ph.project(C, r.pan, r.tilt, r.roll, r.f_px, corners)
 
         cx, cy = int(q[:, 0].mean()), int(q[:, 1].mean())
         x0 = max(0, min(cx - PAD, ph.W - 2 * PAD))
