@@ -19,6 +19,13 @@ detection that is nearly right but ranked 4th is visible - that would mean the
 detector CAN see the ball and is merely scoring it poorly, which is a different
 and much more fixable problem than not seeing it.
 
+WHICH FRAMES THIS READS (fixed Sep 13 2026). OpenCommand's frame_idx is RELATIVE TO
+RELEASE; our clip is indexed from 0. This script used to read our video at their number
+and so drew "truth" on a frame three seconds before the pitch, where there is no ball to
+find. Every conclusion drawn from its earlier output - including "the ball is detected
+and ranked #3" - was read off the wrong picture. scripts/oc_frame_map.py does the
+mapping and verifies it.
+
     python scripts/detect_diagnose.py --weights data/yolo_ball_runs/ball_3park_b8/weights/best.pt
 """
 import argparse
@@ -32,6 +39,7 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, ROOT)
 sys.path.insert(0, os.path.join(ROOT, "scripts"))
 import parity_opencommand_pose as par  # noqa: E402
+import oc_frame_map as ofm  # noqa: E402
 
 TOPK = 5
 
@@ -59,10 +67,12 @@ def main():
     print(f"device: {dev}  weights: {os.path.basename(a.weights)}")
 
     clips = par.load_clips(a.game)
+    shifts = ofm.build_shifts(a.game, clips)
+    ofm.verify_shifts(a.game, clips, shifts)
     todo = []
     for c in clips:
         runs = par.candidate_runs(c)
-        if runs and len(runs[0]) >= 10 and os.path.exists(
+        if runs and len(runs[0]) >= 10 and c["play_id"] in shifts and os.path.exists(
                 os.path.join(clips_dir, f"{c['play_id']}_BROADCAST.mp4")):
             todo.append((c, runs[0]))
         if len(todo) >= a.clips:
@@ -75,7 +85,8 @@ def main():
         # take frames from the MIDDLE of the flight, where the ball is clearly airborne
         mid = seg.iloc[len(seg) // 2: len(seg) // 2 + a.per_clip]
         cap = cv2.VideoCapture(os.path.join(clips_dir, f"{pid}_BROADCAST.mp4"))
-        want = {int(r.frame_idx): (r.baseball_center_x, r.baseball_center_y)
+        s = shifts[pid]      # release-relative -> our clip's own index
+        want = {int(r.frame_idx) + s: (r.baseball_center_x, r.baseball_center_y)
                 for r in mid.itertuples()}
         frames, i, hi = {}, 0, max(want)
         while i <= hi:

@@ -26,6 +26,14 @@ REPORTED, and read them in this order:
   err px      euclidean distance to OpenCommand's detection, median and p90.
   err in      the same at ~0.30 in/px, so it is comparable to every other number here.
 
+WHICH FRAMES THIS READS (fixed Sep 13 2026 - every number this script printed before
+that date is VOID). OpenCommand's frame_idx is RELATIVE TO RELEASE, spanning about
+-28..+30. Our clip is indexed from 0 and the pitch crosses the plate around frame 205.
+This script used to read our video at THEIR number, so it scored the detector on frames
+0-30 - the pitcher still standing on the mound, three seconds before release - against a
+mid-flight ball position. That, and not the detector, produced the 44-308 px errors.
+scripts/oc_frame_map.py holds the mapping and verifies it two independent ways.
+
     python scripts/detect_ball_eval.py --weights data/yolo_ball_runs/ball_3park_gpu/weights/best.pt
 """
 import argparse
@@ -40,6 +48,7 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, ROOT)
 sys.path.insert(0, os.path.join(ROOT, "scripts"))
 import parity_opencommand_pose as par  # noqa: E402
+import oc_frame_map as ofm  # noqa: E402
 
 CROP, OVERLAP = 320, 80
 IN_PER_PX = 0.30          # a 17 in zone spans ~57 px in this feed
@@ -147,10 +156,15 @@ def main():
     print(f"device: {dev}")
 
     clips = par.load_clips(a.game)
+    # Place OC's release-relative frames in our clip, and prove the placement before
+    # trusting it. A play with no shift is SKIPPED rather than defaulted to 0 - a
+    # silent fallback here is exactly the defect this map exists to fix.
+    shifts = ofm.build_shifts(a.game, clips)
+    ofm.verify_shifts(a.game, clips, shifts)
     todo = []
     for c in clips:
         runs = par.candidate_runs(c)
-        if runs and len(runs[0]) >= 10 and os.path.exists(
+        if runs and len(runs[0]) >= 10 and c["play_id"] in shifts and os.path.exists(
                 os.path.join(clips_dir, f"{c['play_id']}_BROADCAST.mp4")):
             todo.append((c, runs[0]))
         if len(todo) >= a.clips:
@@ -163,7 +177,8 @@ def main():
     for c, seg in todo:
         pid = c["play_id"]
         cap = cv2.VideoCapture(os.path.join(clips_dir, f"{pid}_BROADCAST.mp4"))
-        want = {int(r.frame_idx): (r.baseball_center_x, r.baseball_center_y)
+        s = shifts[pid]      # release-relative -> our clip's own index
+        want = {int(r.frame_idx) + s: (r.baseball_center_x, r.baseball_center_y)
                 for r in seg.itertuples()}
         frames, i, hi = {}, 0, max(want)
         while i <= hi:

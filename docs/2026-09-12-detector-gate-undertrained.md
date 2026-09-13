@@ -1,5 +1,24 @@
 # The detector gate: failed, and the reason is undertraining, not a broken dataset
 
+> **SUPERSEDED Sep 13 2026 - THE MEASUREMENTS BELOW ARE VOID.** Every number in this
+> document was collected on the WRONG FRAMES. OpenCommand's `frame_idx` is relative to
+> RELEASE; `detect_ball_eval.py` and `detect_diagnose.py` used it as an index into our
+> own clip, so they read frames 0-30 - the pitcher still standing on the mound, three
+> seconds before the pitch - and graded those detections against a mid-flight ball
+> position. There was no ball in any frame either script looked at.
+>
+> Re-run on the corrected frames, the same weights give **97.7% found and 3.8-4.5 px
+> top-1** where this page records 29-48% and 167-308 px. The conclusions drawn here -
+> "undertrained", "the real gate is not runnable", "tiling amplifies false positives",
+> "confidence 0.02-0.20 means not converged" - do not survive, and the epoch-7
+> rank-#3 evidence was read off the wrong picture too.
+>
+> What DOES survive is the metric lesson: top-1 alone could not separate a ranking
+> failure from a blindness failure, and that is why `.claude/rules/metric-must-separate-failure-modes.md`
+> exists. It simply was not the defect here.
+>
+> See **`docs/2026-09-13-the-gate-was-reading-the-wrong-frames.md`**.
+
 Sep 12 2026. Training reached **epoch 8 of 30** across five watchdog kills on this
 box, best `mAP50 0.101` at epoch 7. The cheap pixel gate
 (`scripts/detect_ball_eval.py`) was then run on those weights, before spending a
