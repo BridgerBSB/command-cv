@@ -140,27 +140,40 @@ evaluation - **only the pixel coordinates differ**, and every function is import
 Detections are taken **top-1 by confidence**, never best-of-K: at solve time there is no
 truth to choose with, and picking by distance would use the answer to select the input.
 
-First run, 12 clips, box-assisted game camera Cx -14.044 Cz 32.646:
+Run on **59 clips** - the same 59 the Sep 12 blind-zone result used, so the two are
+directly comparable. Box-assisted game camera Cx -14.040 Cz 32.552.
 
 | arm | joint camera | off box-assisted | box corners \|x\|,\|z\| in | glove-plane gap in |
 |---|---|---|---|---|
-| OC detections | -13.797 / 33.334 | 0.25 / 0.69 ft | 0.584 / 0.806 | 1.182 |
-| **OUR detections** | -14.322 / 32.628 | **0.28 / 0.02 ft** | **1.341 / 1.467** | **1.156** |
+| OC detections | -13.697 / 33.138 | 0.34 / 0.59 ft | 0.665 / 0.600 | 1.075 |
+| **OUR detections** | -13.984 / 32.697 | **0.06 / 0.15 ft** | **0.982 / 1.005** | **1.056** |
 
-Our arm supplied 20-31 points per clip, within 0-3 of OC's on every clip.
+**The OC arm reproduces the Sep 12 blind-zone run exactly** - camera -13.697 / 33.138,
+off 0.34 / 0.59 ft, against a box-assisted -14.040 / 32.552. Those are the published
+figures to the digit. That is the harness validating itself against a known result before
+its other arm is read, and it is the reason the comparison can be trusted at all.
+
+Our arm supplied 18-30 points per clip, within 0-3 of OC's on all 59.
 
 **Box corners is the evaluation that cannot be gamed** - neither no-box arm ever sees the
-box, so those 4 corners are a held-out object at a known world position. Ours lands about
-1.4 in, roughly twice OC's 0.6-0.8 in but the same order. The glove-plane gap, which is
-the plane the miss is actually read at, is 1.156 in against OC's 1.182 in.
+box, so those 4 corners are a held-out object at a known world position. Ours lands at
+about 1.0 in against OC's 0.6-0.7 in. The glove-plane gap, the plane the miss is actually
+read at, is 1.056 in against OC's 1.075 in.
+
+An earlier 12-clip smoke run gave the same picture (ours 0.28 / 0.02 ft off, corners
+1.34 / 1.47 in, gap 1.156 in), so the result is not an artefact of the clip count.
+
+**This is the measurement A+ was blocked on.** A camera solved from our own detections,
+with no drawn box anywhere in the fit, lands where the box-assisted one does.
 
 ## What it does NOT claim
 
-- **12 clips is a smoke run.** The 60-clip run comparable to the Sep 12 blind-zone
-  result (59 clips, 0.84 in median) is what settles the number.
-- **Our camera landing closer in Cz than OC's own arm (0.02 vs 0.69 ft) is not a claim
-  of superiority.** On 12 clips that is well inside noise, and our arm is plainly worse
-  on the held-out corners.
+- **Our camera landing closer to the box-assisted solve than OC's own arm (0.06 / 0.15
+  vs 0.34 / 0.59 ft) is NOT a claim of being better than OpenCommand.** The evaluation
+  that cannot be gamed - held-out box corners - is *worse* for us, 0.98 / 1.01 in against
+  their 0.67 / 0.60 in. The fair reading is that our detections support a camera about as
+  good as theirs, not a better one. Camera position on one game is also a single draw.
+- **One game, one park, one broadcast camera.** 824821 only.
 - **0.79-0.83 in is not comparable to OpenCommand's 0.4 in figure.** Ours is a screen
   distance between two detections; theirs is a ball-at-plate error after a camera solve.
   Treating them as one quantity would repeat in miniature the exact mistake this document
