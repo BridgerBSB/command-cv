@@ -60,6 +60,37 @@ found within 16 px but ranked third" are the same row in that table. Any future
 detector metric here should report best-of-top-K distance alongside top-1, or it will
 keep confusing a ranking problem with a blindness problem.
 
+## UPDATE at epoch 13 (same day): epochs worked, and the ranking hypothesis is now obsolete
+
+Re-ran the gate on epoch-13 weights, with the fixed best-of-top-K metric:
+
+| mode | found% | top1 px | bestK px | bestK in | med rank | conf med |
+|---|---:|---:|---:|---:|---:|---:|
+| tile | **61.9%** | 54.64 | 45.71 | 13.7 | **1.0** | 0.198 |
+| full | 45.8% | 43.98 | 37.41 | 11.2 | 2.0 | 0.195 |
+
+Against the epoch-7 numbers above: **top-1 error 167 px -> 44 px, and tile's found%
+29.0% -> 61.9%**. Nine epochs did a great deal. The reason that improvement was
+invisible in training is that `mAP50` sat flat in a 0.08-0.12 band the whole time -
+mAP at fixed IoU thresholds is a poor proxy for the thing we actually care about,
+which is pixel distance to a ~16 px ball.
+
+**The ranking diagnosis is now OBSOLETE, not confirmed.** `bestK` (37-46 px) is only
+marginally below `top1` (44-55 px), and tile's `med rank` is **1.0** - the closest
+detection is already ranked first. The ball is no longer being outranked; what remains
+is genuine localisation imprecision. The diagnosis was right at epoch 7 and has been
+overtaken, which is a better outcome than being wrong but is not the same thing.
+
+**Tiling now BEATS full-frame** (61.9% vs 45.8%), reversing epoch 7 exactly as the
+stated mechanism predicted: tiling only lost because weak confidence let a false
+positive from some other window outrank the true ball, and once confidence separated,
+the extra windows started helping. That is the hypothesis surviving a test it could
+have failed.
+
+**Still not good enough for the real gate.** 44 px is ~13 inches against OpenCommand's
+0.4 in. Feeding those points into the joint camera solve would still produce a
+confidently wrong camera. Closer, not there.
+
 ## What this does and does not block
 
 **Does not block anything shipped.** The blind camera result (`08c2b3a9`,
