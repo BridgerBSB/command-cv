@@ -5,8 +5,11 @@ Visuals for each step go to `C:\Users\Owner\Desktop\command-cv-progress\`.
 
 | # | Date | What | Status | Evidence |
 |---|---|---|---|---|
-| 12 | 09-14 | Separate the pitch from the return throw by DIRECTION | OPEN | next step |
-| 11 | 09-14 | `ogando_ch_1` yields 0 tracks over its whole clip - unexplained | OPEN | need to find its flight window first |
+| 15 | 09-14 | A+ feeds differ a LOT park to park. `cu_2` (Winston-Salem) is a wide side view, `ch_1` (Greensboro) is a tight zoom. "A+ is a side view" was only ever true of cu_2 | DONE | `05_ch1_corridor.png` |
+| 14 | 09-14 | `ch_1`: ball IS visible, detector fires 6-10x/frame ALL on the catcher's shin guard, never the ball. Leading cause = SCALE (trained on ~11-20px balls, this shot is zoomed in). UNVERIFIED | OPEN | `05_ch1_corridor.png` |
+| 13 | 09-14 | PITCH = FIRST ball flight in the clip (Zac's rule, camera-independent). Tracker now picks f188-204 on the whole cu_2 clip; 5 distinct events listed in time order | DONE | `04_events_pitch_picked.png` |
+| 12 | 09-14 | ~~Separate pitch from throw by direction~~ superseded by #13 - first-flight is simpler and needs no per-camera knowledge | DONE | |
+| 11 | 09-14 | `ogando_ch_1` yields 0 tracks over its whole clip | EXPLAINED by #14 | |
 | 10 | 09-14 | RETRACTED "camera pan carried a wall light". Camera is static (0.15 px/fr median). It is a REAL second baseball = the catcher's return throw | WRONG->fixed | `1be409dd` |
 | 9 | 09-14 | Tracker v4: top-K chains, break on direction reversal, score sub-chains. Recovers the known pitch f188-204 ranked #1 in a flight window; picks the return throw over the whole clip | DONE (partial) | scratchpad, not promoted |
 | 8 | 09-13 | Tracker v1/v2/v3 all failed validation, each for a different reason | DONE (recorded) | `e29a03c8` |
