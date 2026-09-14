@@ -176,6 +176,36 @@ Route 1 (global fit over many clips) stays the principled endpoint and gets easi
 tracks are reliable. Route 3 (hand-label a few A+ flights) is now only needed if top-K
 tracking proves insufficient.
 
+### The top-K tracker was attempted and does NOT work yet - validation red twice
+
+Built with `ogando_cu_2` as a validation case, because its answer is known (f188-204). It
+never recovered it, so nothing it says about any other clip has been read.
+
+**v1** seeded chains from every detection, shared a global `used` set, and ranked by step
+slope. It put chains at f168-181 on top - straightness 0.28-0.57, confidence 0.11-0.14,
+i.e. jitter. Two defects: ranking by slope *rewards* a chain that hops between unrelated
+detections, since hopping makes steps grow fastest; and the shared `used` set let an
+earlier junk chain **consume the ball's detections** so the real track could never form.
+
+**v2** dropped the shared set, added a straightness filter (>= 0.85, justified by the
+physics of a ~0.25 s flight rather than by the known answer), and ranked by
+length x straightness with slope demoted to a filter. On `cu_2`: 221 tracks -> 25 after
+the step floor -> **1** after straightness. That survivor is **f209-215**, straightness
+0.971 - the **return throw**, not the pitch.
+
+**Diagnosis, not yet fixed.** The ball's own path is straight enough to pass: net
+displacement ~107 px over a path length of ~114 px, straightness ~0.94. So the chain is
+almost certainly **over-extending past the catch** into the return throw that begins
+around f210, and the merged path bends below the threshold. The fix is to terminate a
+chain when direction reverses or the object stops, and to score **sub-chains** rather than
+only maximal ones.
+
+**Deliberately not tuned further.** Adjusting a scorer until it selects the answer already
+known for one clip is fitting to that clip, which is the failure
+`.claude/rules/grep-guard-criteria.md` exists to prevent. `ogando_ch_1` reported 0
+surviving tracks in both versions; with validation red that number means nothing and no
+claim is made from it.
+
 ## What NOT to do
 
 - **Don't** retry "detections that move" - the camera moves more than the ball.
