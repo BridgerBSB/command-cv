@@ -44,19 +44,28 @@ looked in the flight window.
 
 ## The three criteria that failed, and why
 
-### 1. "A detection that MOVES is the ball" - defeated by the camera
+### 1. "A detection that MOVES is the ball" - defeated by a SECOND BALL
 
-The 18-frame run above is a **stationary white object near the left wall**, carried across
-the frame by a camera pan. Its trace gives it away: x runs 316 -> 7 (right to left),
-step ~15 px/frame **decelerating to 1-5 px/frame**, coming to rest at the frame edge as
-the pan stops. A pitch does not decelerate to a halt at the edge of frame.
+> **CORRECTED Sep 14 2026.** This section originally said the 18-frame run was a
+> stationary wall light carried by a camera pan. **That was wrong**, and it was asserted
+> in a commit message too. Sparse-feature flow measured over the whole clip puts camera
+> motion at a median of **0.15 px/frame** (p90 1.58, max 6.72) - the camera is essentially
+> static. Subtracting it changes the track's step from 15.1 to 15.1 px/frame, i.e. not at
+> all. The object is genuinely moving.
 
-Worse, the direction is wrong. This is a side view, so the pitch travels **left to right**;
-the artefact ran right to left.
+The 18-frame run is a **real baseball**, just not the pitched one: x runs 316 -> 7 (right
+to left), decelerating, ~300 px net, ending near the mound. That is the catcher's
+**return throw**. The first probe's crops showed an unmistakable baseball, which should
+have been the clue - I attributed real motion to the camera without measuring the camera.
 
-> Apparent motion at A+ is dominated by the CAMERA. "Does it move?" cannot separate a
-> ball from a wall light - the same two-causes-one-number trap as the frames bug, in a
-> new costume.
+So the actual difficulty is that **a clip contains more than one moving baseball**, and
+the return throw is longer and straighter than the pitch, so any length-and-smoothness
+ranking prefers it.
+
+> "Does it move?" cannot separate the pitch from the return throw. What does is
+> DIRECTION: the pitch runs pitcher -> catcher (left to right here, x 600 -> 641), the
+> return throw runs catcher -> pitcher (right to left, x 316 -> 7). Timing and the
+> accelerate-vs-decelerate signature agree with it.
 
 ### 2. "Find the window where the camera is quiet" - defeated by the players
 
