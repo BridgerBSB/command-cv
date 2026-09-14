@@ -1,12 +1,21 @@
-# A+ transfer, stage 1: the detector sees baseballs, but we cannot yet say which one is the pitch
+# A+ transfer: the detector DOES track the pitch; a stationary false positive outranks it
 
 Sep 13 2026, immediately after the frame-mapping fix
 (`2026-09-13-the-gate-was-reading-the-wrong-frames.md`) unblocked the detector. A+ is the
 whole point of building it, and this is the first honest look.
 
-**Verdict: inconclusive, and the reason is a SEARCH problem, not established detector
-failure.** Three ways of isolating the pitched ball were tried and all three were invalid.
-Writing them down so the next attempt does not repeat them.
+> **RESOLVED, later the same session - read this first.** The verdict below was
+> "inconclusive", and it was wrong in the good direction. Once the *actual flight window*
+> was located (by eye, via a contact strip) the detector was found tracking the pitched
+> ball cleanly: **`ogando_cu_2` frames 188-198, confidence rising to 0.564, an
+> unmistakable baseball with visible seams**, descending into the catcher's mitt.
+> See "The answer" below. The framing that survived is the important half - this was a
+> SEARCH problem, never established detector failure. The transverse-streak hypothesis is
+> **falsified**: the A+ ball is a compact round blob, exactly what the model trained on.
+
+**Original verdict (superseded): inconclusive, and the reason is a SEARCH problem, not
+established detector failure.** Three ways of isolating the pitched ball were tried and
+all three were invalid. Writing them down so the next attempt does not repeat them.
 
 ## What does transfer
 
@@ -21,9 +30,17 @@ pixel scale carries over and no re-scaling is needed.
 
 ## What does not
 
-**In 3 Ogando clips, the pitched ball was never tracked.** Two of the three produced no
-sustained moving run at all, while still firing on 203-315 frames each - i.e. a large
-number of stationary false positives.
+**Top-1 does not hold the ball.** Each clip carries a stationary high-confidence
+attractor that claims top-1 on most frames - on `ogando_cu_2` a crowd object at
+(826.5, 236.5), conf 0.25-0.35, holding top-1 on ~35 of 56 flight-window frames with a
+per-frame step of 0.1-1.9 px; on `ogando_ch_1` something on the catcher's gear at
+(800-804, 462-464), flat to 0.0-1.0 px across 55 consecutive frames.
+
+That is what fragments the real track, and it is why the first three searches failed.
+
+~~In 3 Ogando clips, the pitched ball was never tracked.~~ **WRONG - superseded by "The
+answer" below.** It was never tracked *by the searches I ran*, because none of them
+looked in the flight window.
 
 ## The three criteria that failed, and why
 
@@ -81,6 +98,43 @@ streak. **This is a hypothesis.** It predicts that the pitch is genuinely not be
 detected at A+, rather than detected-but-unidentifiable - and those call for opposite next
 steps, so it must be tested before either is chosen.
 
+> **FALSIFIED the same session.** The A+ ball renders as a compact, sharply-defined round
+> blob with visible seams (`output/aplus_zoom_cu2.png`), not a streak, and the detector
+> reaches 0.564 on it. The side-view observation stands; the appearance consequence drawn
+> from it does not. Stated as a hypothesis, tested, discarded - which cost one render
+> instead of a dataset rebuild.
+
+## The answer
+
+Locating the flight window **by eye** - a contact strip at stride 10
+(`output/aplus_strip_cu2.png`) - showed the delivery at roughly f170-205 on
+`ogando_cu_2`. Every earlier search had been looking elsewhere: the "moving run" at
+f260-277 (the wall light) and the "quiet window" at f444-464 (after the play).
+
+Tracking by **nearest neighbour from a seed rather than by confidence** - so the crowd
+attractor cannot hijack it - over the detector's top-10:
+
+| frame | x | y | step px | conf |
+|---|---|---|---|---|
+| 188 | 599.9 | 348.3 | - | 0.132 |
+| 193 | 615.4 | 367.4 | 7.2 | 0.243 |
+| 195 | 622.3 | 377.9 | 6.4 | 0.543 |
+| 196 | 622.9 | 383.7 | 5.9 | **0.564** |
+| 198 | 628.1 | 397.1 | 9.0 | 0.420 |
+| 204 | 641.2 | 446.7 | 18.2 | 0.102 |
+
+Right and down, accelerating 6 -> 18 px/frame, arriving at the mitt. `output/aplus_zoom_cu2.png`
+shows a baseball inside the circle, seams visible at f191. **That is the pitch.**
+
+Confidence peaks mid-flight and collapses at both ends (0.07-0.13), which is exactly when
+the crowd attractor takes top-1 back.
+
+`ogando_ch_1` remains unresolved: top-1 is attractor-locked across f140-240, which spans
+its delivery. But **that trace records top-1 only**, so it cannot separate "not detected"
+from "detected at rank 3" - the precise trap that
+`.claude/rules/metric-must-separate-failure-modes.md` exists for. It has not been
+re-tested with top-K, and no claim is made about it.
+
 ## The chicken-and-egg that actually blocks this
 
 At MLB, labels are free because the camera pose is known (from the drawn zone box), so the
@@ -110,7 +164,17 @@ moving. At A+:
    hand-mark the ball on ~10 A+ flight frames and simply ask whether the detector fires
    there at all.
 
-Route 4 before 1-3.
+**Route 4 was run, and it answered the question: the ball is visible AND the detector fires
+on it.** So this is an identification problem, and the shape of the fix is now known:
+
+> **Build tracks from the top-K detections across frames, not from top-1.** Score
+> candidate tracks by length, smoothness and consistent acceleration, and take the best
+> one. The ball is already in the top-10 on the flight frames; it simply is not rank 1,
+> because a stationary crowd object outranks it. No retraining is implied.
+
+Route 1 (global fit over many clips) stays the principled endpoint and gets easier once
+tracks are reliable. Route 3 (hand-label a few A+ flights) is now only needed if top-K
+tracking proves insufficient.
 
 ## What NOT to do
 
