@@ -8,7 +8,10 @@ Visuals for each step go to `C:\Users\Owner\Desktop\command-cv-progress\`.
 | 17 | 09-15 | Training set is **MLB ONLY** - 3 parks (Camden/Detroit/Colorado), 15,900 crops, ZERO A-ball or AA. The held-out val split was still an MLB park | DONE | `06_scale_gap.png` |
 | 16 | 09-15 | SCALE THEORY RETRACTED. Training balls 8.5-12.3 px; cu_2's ball ~11.7 px (21 px box / 1.8), dead in range. ch_1's framing is comparable to cu_2, so its ball is in range too. I read "tighter camera" off a crop I had upscaled 3x myself | WRONG->fixed | `06_scale_gap.png` |
 | 15 | 09-14 | ~~A+ feeds differ a lot park to park; ch_1 is a tight zoom~~ framings are actually comparable | WRONG->fixed | `06_scale_gap.png` |
-| 14 | 09-14 | `ch_1`: ball IS visible, detector fires 6-10x/frame ALL on the catcher's shin guard, never the ball. Cause UNKNOWN. Candidate: harsh direct sun + hard shadows vs flat overcast in training. NOT verified | OPEN | `05_ch1_corridor.png` |
+| 20 | 09-15 | **ANSWER: the detector does not generalise to Greensboro.** Ball plainly visible beside the bat f216-219; all 7 detections sit on the catcher's shin guard at (798-814, 460-473) conf 0.15-0.21, ZERO on the ball. Not scale, not ranking, not lighting-as-such | DONE | `10_ch1_ball_ignored.jpg` |
+| 19 | 09-15 | 7 failed attempts at finding ch_1's ball by blob heuristics - every one landed on a sun glint, a kid's shirt, a helmet logo on a walking player, or the catcher's earflap. Root cause of MY failures: estimating pixel coords off downscaled composites. Fix = put a coordinate grid on a real full-res frame | DONE | `08_ch1_grid.jpg` |
+| 18 | 09-15 | ch_1's pitch arrives ~f216-219 and is BEING HIT (batter swinging). Found by eye in raw corridor crops, no detector | DONE | `09_ch1_raw_corridor.jpg` |
+| 14 | 09-14 | ~~ch_1 cause unknown, candidate lighting~~ resolved by #20 | DONE | |
 | 13 | 09-14 | PITCH = FIRST ball flight in the clip (Zac's rule, camera-independent). Tracker now picks f188-204 on the whole cu_2 clip; 5 distinct events listed in time order | DONE | `04_events_pitch_picked.png` |
 | 12 | 09-14 | ~~Separate pitch from throw by direction~~ superseded by #13 - first-flight is simpler and needs no per-camera knowledge | DONE | |
 | 11 | 09-14 | `ogando_ch_1` yields 0 tracks over its whole clip | EXPLAINED by #14 | |
