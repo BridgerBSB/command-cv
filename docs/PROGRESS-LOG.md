@@ -5,6 +5,8 @@ Visuals for each step go to `C:\Users\Owner\Desktop\command-cv-progress\`.
 
 | # | Date | What | Status | Evidence |
 |---|---|---|---|---|
+| 24 | 09-15 | Ogando's 149 clips span 13 games / many different parks and feeds (one carries a Bally Sports banner), not the 2 I had been reasoning from | DONE | `13_batch_verify.jpg` |
+| 23 | 09-15 | **BATCH HIT-RATE IS INVALID.** 16/18 "flights" found across 3 games, but every hit was exactly n=7 (the minimum) at conf 0.08-0.17 vs the verified cu_2 pitch at n=16 conf 0.26. Eyeballed 4: only 1 is plausibly a ball; the others sit on a shoe, a crowd banner and a dugout arm. The criterion accepts any 7-frame straightish moving chain and a stadium is full of those | WRONG->retracted | `13_batch_verify.jpg` |
 | 22 | 09-15 | WHY it fails is NOT settled. ch_1 ball is dimmer (peak 155 vs 209-255) and lower contrast (95 vs medians 118-206) than training - but INSIDE the training range (Detroit p10 = 34). Suggestive, not sufficient, and n=1 on the ch_1 side | OPEN | `11_ball_side_by_side.jpg` |
 | 21 | 09-15 | Ruled OUT as causes: scale (9-10 px both parks, matches training 8.5-12.3) and ranking (zero detections near the ball, not outranked) | DONE | `11_ball_side_by_side.jpg` |
 | 20 | 09-15 | **ANSWER: the detector does not generalise to Greensboro.** Ball plainly visible beside the bat f216-219; all 7 detections sit on the catcher's shin guard at (798-814, 460-473) conf 0.15-0.21, ZERO on the ball. Not scale, not ranking, not lighting-as-such | DONE | `10_ch1_ball_ignored.jpg` |
