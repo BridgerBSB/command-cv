@@ -1,0 +1,225 @@
+"""Tighten a park's pose by alternating: find ball pixels -> refit pose -> repeat.
+
+WHY A LOOP. The pieces each solve half the problem and neither is enough alone:
+  aplus_seed_tracks.py  finds ACCURATE pixels (top-hat, the ball is top-1 while unoccluded)
+                        but only on ~25% of clips, because it scans a fixed window and needs
+                        8 consecutive top-1 frames.
+  harvest_park_labels.py finds the RIGHT FRAMES on every clip (24/24, plate frame clustered
+                        at f214-231 exactly where physics says) but its pixels come from
+                        projecting a rough pose, and measured against hand-verified tracks
+                        they sit 8.60 px median out -- about one ball width.
+So: use the harvest's plate frame to WINDOW a top-hat search, take the accurate pixels that
+fall near the projected path, refit the shared pose on those, and go again. Standard ICP.
+
+THE CIRCULARITY, AND HOW IT IS BOUNDED. Selecting blobs near the current projected path and
+then fitting to them biases toward the current (wrong) pose -- ICP drift. Two guards:
+  the association gate is GENEROUS (default 30 px) relative to the ~8.6 px pose error, so
+  the true ball is inside it and the fit can be pulled off the current answer; and
+  the five HAND-VERIFIED tracks are held out of the fit entirely and scored every pass.
+That held-out error is the only number worth reading. If it does not fall, the loop is
+drifting, not converging, and the run says so.
+
+READ THE OUTPUT AS: held-out median px, per pass. Everything else is diagnostics. A falling
+train RMS with a flat or rising held-out error is the signature of drift.
+
+    python scripts/refine_park_pose.py --game 822515 --passes 3
+"""
+import argparse
+import itertools
+import os
+import sys
+
+import cv2
+import numpy as np
+import pandas as pd
+
+ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, ROOT)
+sys.path.insert(0, os.path.join(ROOT, "scripts"))
+from src import pinhole as ph  # noqa: E402
+import fit_park_pose as fpp  # noqa: E402
+import aplus_seed_tracks as ast  # noqa: E402
+
+GATE_PX = 30.0           # association radius; generous vs the ~8.6 px starting error
+MIN_TRACK = 6            # accepted pixels per clip before it joins the fit
+PRE, POST = 34, 3        # frames before / after the harvested plate frame to search
+
+
+def ball_pixels_near_path(clip_path, plate_frame, path_xy, path_frames, gate):
+    """Top-hat candidates in a window, kept when close to the projected path.
+
+    The pixels are the SEEDER's (accurate); the path only says where to look and which
+    frames. Frame indices are SEQUENTIAL DECODE throughout -- see aplus_seed_tracks.py for
+    why that convention is pinned.
+    """
+    want = {int(f): p for f, p in zip(path_frames, path_xy)}
+    lo, hi = int(plate_frame) - PRE, int(plate_frame) + POST
+    x0, x1, y0, y1 = 400, 980, 250, 440
+    cap = cv2.VideoCapture(clip_path)
+    out, prev, i = [], None, 0
+    while True:
+        ok, f = cap.read()
+        if not ok or i > hi:
+            break
+        roi = cv2.cvtColor(f, cv2.COLOR_BGR2GRAY)[y0:y1, x0:x1]
+        if lo <= i and prev is not None and i in want:
+            th = cv2.morphologyEx(cv2.absdiff(roi, prev), cv2.MORPH_TOPHAT, ast.TOPHAT_K)
+            _, bw = cv2.threshold(th, ast.THRESH, 255, cv2.THRESH_BINARY)
+            n, lab, st, ce = cv2.connectedComponentsWithStats(bw, 8)
+            px, py = want[i]
+            best = None
+            for k in range(1, n):
+                bx, by, bw_, bh, area = st[k]
+                if not (ast.MIN_AREA <= area <= ast.MAX_AREA
+                        and 3 <= bw_ <= ast.MAX_SIDE and 3 <= bh <= ast.MAX_SIDE):
+                    continue
+                cx, cy = float(ce[k][0] + x0), float(ce[k][1] + y0)
+                d = np.hypot(cx - px, cy - py)
+                if d > gate:
+                    continue
+                resp = float(th[lab == k].mean())
+                # nearest-strong: prefer response, but only among things inside the gate
+                if best is None or resp > best[0]:
+                    best = (resp, cx, cy, d)
+            if best:
+                out.append((i, best[1], best[2], best[3]))
+        prev = roi
+        i += 1
+    cap.release()
+    return out
+
+
+def fit_best(clips):
+    best = None
+    for cx, cy, cz, f0 in itertools.product([-260, -110, 110, 260], [-40, 60, 260],
+                                            [15, 35, 70], [1400, 2600]):
+        try:
+            r = fpp.fit(clips, (cx, cy, cz), f0)
+        except Exception:
+            continue
+        rms = float(np.sqrt(np.mean(r.fun ** 2)))
+        if best is None or rms < best[0]:
+            best = (rms, r.x)
+    return best
+
+
+def heldout_error(C, pan, tilt, roll, fpx, clips_by_stem, verified):
+    """Median px between the projected path and the HAND-VERIFIED pixels, per clip.
+
+    The verified tracks never enter the fit. Their t0 is refitted alone, because t0 is a
+    per-clip nuisance the camera does not determine -- refitting the camera here would
+    make this not held out.
+    """
+    from scipy.optimize import least_squares
+    errs = []
+    for stem, g in verified.groupby("stem"):
+        c = clips_by_stem.get(stem)
+        if c is None:
+            continue
+        fr = g.frame.to_numpy(float)
+        obs = g[["x", "y"]].to_numpy(float)
+
+        def res(t0):
+            t = t0[0] + fr / c["fps"]
+            return (ph.project(C, pan, tilt, roll, fpx, c["traj"](t)) - obs).ravel()
+        t00 = -float(fr[0]) / c["fps"]
+        r = least_squares(res, [t00], bounds=([t00 - 1.5], [t00 + 1.5]))
+        errs += list(np.hypot(*res(r.x).reshape(-1, 2).T))
+    return (np.median(errs), np.percentile(errs, 90), len(errs)) if errs else (np.nan,) * 3
+
+
+def main():
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--game", type=int, default=822515)
+    ap.add_argument("--dir", default=os.path.join(ROOT, "data", "clips", "ogando_2026"))
+    ap.add_argument("--passes", type=int, default=3)
+    ap.add_argument("--gate", type=float, default=GATE_PX)
+    a = ap.parse_args()
+
+    manifest = os.path.join(a.dir, os.path.basename(a.dir) + "_manifest.csv")
+    man = pd.read_csv(manifest).set_index("stem")
+    harvest = pd.read_csv(os.path.join(ROOT, "output", f"harvest_{a.game}.csv"))
+    verified = pd.read_csv(os.path.join(ROOT, "output", f"seed_tracks_{a.game}.csv"))
+    verified = verified[verified.game_pk == a.game]
+
+    # a clip dict per harvested stem, for projection and for the held-out scorer
+    by_stem = {}
+    for stem in harvest.stem.unique():
+        if stem not in man.index:
+            continue
+        row = man.loc[stem]
+        if any(pd.isna(row[k]) for k in fpp.TRAJ):
+            continue
+        by_stem[stem] = dict(stem=stem, traj=fpp.traj_fn(row), fps=59.69,
+                             zone_time=float(row["zone_time"]))
+
+    # pass 0 pose: the hand-verified seed tracks only
+    seed_clips = fpp.build(a.game, os.path.join(ROOT, "output", f"seed_tracks_{a.game}.csv"),
+                           manifest)
+    rms, x = fit_best(seed_clips)
+    C, pan, tilt, roll, fpx = x[:3], x[3], x[4], x[5], x[6]
+    med, p90, n = heldout_error(C, pan, tilt, roll, fpx, by_stem, verified)
+    print(f"pass 0  (fit on {len(seed_clips)} hand-verified clips)")
+    print(f"        train rms {rms:6.2f} px   IN-SAMPLE verified median {med:6.2f} px "
+          f"(p90 {p90:5.2f}, n={n})")
+    print(f"        camera ({C[0]:8.2f},{C[1]:8.2f},{C[2]:7.2f})  f {fpx:9.1f}")
+    print("        NOTE pass 0's verified error is IN sample -- it is a floor, not a score.\n")
+
+    for p in range(1, a.passes + 1):
+        built, kept = [], 0
+        for stem, c in by_stem.items():
+            g = harvest[harvest.stem == stem].sort_values("frame")
+            if not len(g):
+                continue
+            pts = ball_pixels_near_path(os.path.join(a.dir, stem + ".mp4"),
+                                        g.frame.max(), g[["x", "y"]].to_numpy(),
+                                        g.frame.to_numpy(), a.gate)
+            if len(pts) < MIN_TRACK:
+                continue
+            kept += 1
+            built.append(dict(stem=stem, traj=c["traj"], fps=c["fps"],
+                              fr=np.array([q[0] for q in pts], float),
+                              obs=np.array([[q[1], q[2]] for q in pts], float),
+                              zone_time=c["zone_time"]))
+        # the verified clips are EXCLUDED from the fit so the score stays held out
+        train = [b for b in built if b["stem"] not in set(verified.stem)]
+        if len(train) < 3:
+            print(f"pass {p}: only {len(train)} trainable clips, stopping")
+            break
+        rms, x = fit_best(train)
+        C, pan, tilt, roll, fpx = x[:3], x[3], x[4], x[5], x[6]
+        med, p90, n = heldout_error(C, pan, tilt, roll, fpx, by_stem, verified)
+        npts = sum(len(b["fr"]) for b in train)
+        print(f"pass {p}  associated {kept} clips, fit on {len(train)} "
+              f"({npts} px, verified clips excluded)")
+        print(f"        train rms {rms:6.2f} px   HELD-OUT verified median {med:6.2f} px "
+              f"(p90 {p90:5.2f}, n={n})")
+        print(f"        camera ({C[0]:8.2f},{C[1]:8.2f},{C[2]:7.2f})  f {fpx:9.1f}")
+        np.savez(os.path.join(ROOT, "output", f"park_pose_{a.game}_pass{p}.npz"),
+                 C=C, ang=np.array([pan, tilt, roll]), f=fpx)
+        # refresh the projected paths for the next association step
+        for b in train + [q for q in built if q["stem"] in set(verified.stem)]:
+            pass
+        idx = None
+        newrows = []
+        for stem, c in by_stem.items():
+            g = harvest[harvest.stem == stem]
+            if not len(g):
+                continue
+            fr = g.frame.to_numpy(float)
+            t = c["zone_time"] + (fr - fr.max()) / c["fps"]
+            px = ph.project(C, pan, tilt, roll, fpx, c["traj"](t))
+            for k, f in enumerate(fr):
+                newrows.append(dict(stem=stem, game_pk=a.game, frame=int(f),
+                                    x=float(px[k, 0]), y=float(px[k, 1])))
+        harvest = pd.DataFrame(newrows)
+
+    out = os.path.join(ROOT, "output", f"refined_labels_{a.game}.csv")
+    harvest.to_csv(out, index=False)
+    print(f"\n{out}")
+    print("The HELD-OUT verified median is the only number here worth reporting. "
+          "A falling\ntrain rms with a flat held-out error means the loop is drifting.")
+
+
+if __name__ == "__main__":
+    main()
