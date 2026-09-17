@@ -50,15 +50,30 @@ MIN_RUN = 5
 MAX_QUAD_RMS = 2.5
 
 
-def best_run(rows, direction):
+def best_run(rows, direction, axis="x", cross=1.8, step_lo=STEP_LO, step_hi=STEP_HI):
+    """Longest run of consecutive top-1 detections moving consistently along `axis`.
+
+    TWO CAMERA ARCHETYPES, and the gate has to know which. Measured across 7 MiLB parks:
+      SIDE VIEW (pitcher left, batter and catcher right) -- Asheville A+, Durham AAA,
+        Riders AA, Isotopes AAA. The ball sweeps across frame, so X dominates and a
+        rightward gate with |dy| <= 1.8|dx| works with no tuning at all.
+      BEHIND THE PITCHER -- Greensboro A+, Hops A+, L.P. Frans A. The ball travels AWAY
+        from the camera toward home plate, so it CLIMBS the frame: Y dominates, X barely
+        moves, and the per-frame step is smaller because the motion is largely along the
+        view axis. The side-view gate returns ZERO runs here, which is exactly what
+        happened on Hops before this was parameterised.
+    Roughly half the parks are the second kind, and they are the half where the MLB-trained
+    detector currently fails -- so they matter more, not less.
+    """
     best, cur = [], []
     for r in rows:
         if cur:
             dx, dy = r[1] - cur[-1][1], r[2] - cur[-1][2]
             dt = r[0] - cur[-1][0]
             step = np.hypot(dx, dy) / max(dt, 1)
-            ok = (dt == 1 and direction * dx > 0 and STEP_LO <= step <= STEP_HI
-                  and abs(dy) <= abs(dx) * 1.8)
+            prim, sec = (dx, dy) if axis == "x" else (dy, dx)
+            ok = (dt == 1 and direction * prim > 0 and step_lo <= step <= step_hi
+                  and abs(sec) <= abs(prim) * cross)
             if not ok:
                 if len(cur) > len(best):
                     best = cur
@@ -127,12 +142,20 @@ def main():
     ap.add_argument("--lane", default="420,980,240,470")
     ap.add_argument("--lo", type=int, default=140)
     ap.add_argument("--hi", type=int, default=280)
-    ap.add_argument("--direction", type=int, default=1, help="+1 = ball moves right")
+    ap.add_argument("--direction", type=int, default=1,
+                    help="sign of motion along --axis (+1 right for x, -1 up for y)")
+    ap.add_argument("--axis", default="x", choices=["x", "y"],
+                    help="x = SIDE view (ball sweeps across); y = BEHIND THE PITCHER "
+                         "(ball climbs toward the plate)")
+    ap.add_argument("--cross", type=float, default=1.8,
+                    help="how much the off-axis component may exceed the on-axis one")
+    ap.add_argument("--step", default=f"{STEP_LO},{STEP_HI}", help="px/frame lo,hi")
     ap.add_argument("--limit", type=int, default=60)
     a = ap.parse_args()
 
     d = a.dir if os.path.isabs(a.dir) else os.path.join(ROOT, a.dir)
     lane = tuple(int(v) for v in a.lane.split(","))
+    slo_shi = tuple(float(v) for v in a.step.split(","))
     man = os.path.join(d, os.path.basename(d) + "_manifest.csv")
     m = pd.read_csv(man)
     stems = [s for s in m.stem if os.path.exists(os.path.join(d, s + ".mp4"))][:a.limit]
@@ -140,7 +163,7 @@ def main():
     rows, kept, panels = [], 0, []
     for j, s in enumerate(stems, 1):
         raw = track_clip(os.path.join(d, s + ".mp4"), lane, a.lo, a.hi, a.direction)
-        run = best_run(raw, a.direction)
+        run = best_run(raw, a.direction, a.axis, a.cross, *slo_shi)
         if len(run) < MIN_RUN:
             continue
         rms = quad_rms(run)
