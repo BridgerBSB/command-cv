@@ -42,26 +42,50 @@ OUT_COLS = (["stem", "game_pk", "date", "venue", "play_id", "pitch_type", "hand"
              "clip_downloaded", "cf_url"] + TRAJ)
 
 
+MISMAP_MEDIAN_FT = 0.05      # 0.6 in -- an order below our label precision, far above noise
+MISMAP_MAX_FT = 0.5          # 6 in -- a real mis-map is off by FEET
+
+
 def check_provenance(rows):
-    """The polynomial evaluated at zone_time must reproduce the payload's own plate_x/z."""
-    worst_x = worst_z = 0.0
-    n = 0
+    """The polynomial evaluated at zone_time must reproduce the payload's own plate_x/z.
+
+    WHAT THIS IS FOR: catching a COLUMN MIS-MAP, where traj_z1 has landed in traj_y1 or the
+    axes are transposed. That failure is gross -- the crossing would be off by FEET.
+
+    THE THRESHOLD WAS ORIGINALLY 1e-3 ft AND THAT WAS WRONG, corrected with evidence rather
+    than to make a run pass. Across six pulled games the disagreement is BINARY PER GAME:
+
+      Isotopes / Durham / Frawley      0 rows off, max 0.000000 ft
+      Riders / Hops / L.P. Frans       ~every row off, median 0.0036-0.0046, max 0.036 ft
+
+    Same parser, same columns, different games. A mis-map on our side would be identical
+    across all six and would be measured in feet; a per-GAME pattern at 0.004 ft (0.05 in,
+    about a fourteenth of our ~2.5 px label precision) is MLB's own data -- those games'
+    reported `location` evidently comes from a slightly different computation than the
+    polynomial. So the check now separates the failure it exists to catch from numerical
+    disagreement, and PRINTS the magnitude either way so a real drift cannot hide inside a
+    pass. See .claude/rules/grep-guard-criteria.md on adjusting a criterion honestly.
+    """
+    ex, ez = [], []
     for r in rows:
         try:
             zt = float(r["zone_time"])
             px = float(r["traj_x0"]) + float(r["traj_x1"]) * zt + float(r["traj_x2"]) * zt ** 2
             pz = float(r["traj_z0"]) + float(r["traj_z1"]) * zt + float(r["traj_z2"]) * zt ** 2
-            worst_x = max(worst_x, abs(px - float(r["plate_x"])))
-            worst_z = max(worst_z, abs(pz - float(r["plate_z"])))
-            n += 1
+            ex.append(abs(px - float(r["plate_x"])))
+            ez.append(abs(pz - float(r["plate_z"])))
         except (TypeError, ValueError, KeyError):
             continue
+    n = len(ex)
     assert n, "no row had a usable trajectory + plate crossing -- columns are mis-mapped"
-    assert worst_x < 1e-3 and worst_z < 1e-3, (
+    import statistics
+    med = max(statistics.median(ex), statistics.median(ez))
+    mx = max(max(ex), max(ez))
+    assert med < MISMAP_MEDIAN_FT and mx < MISMAP_MAX_FT, (
         f"PROVENANCE FAILED: polynomial at zone_time misses the reported plate crossing by "
-        f"{worst_x:.4f} ft in x, {worst_z:.4f} ft in z over {n} rows. The columns do not mean "
-        f"what they are labelled. Do not use this pull.")
-    return n, worst_x, worst_z
+        f"median {med:.4f} ft, max {mx:.4f} ft over {n} rows. That is mis-map territory, not "
+        f"numerical noise. Do not use this pull.")
+    return n, med, mx
 
 
 def main():
@@ -75,9 +99,10 @@ def main():
     src = os.path.expanduser(a.csv)
     with open(src, newline="", encoding="utf-8") as f:
         rows = list(_csv.DictReader(f))
-    n, wx, wz = check_provenance(rows)
-    print(f"provenance OK: polynomial reproduces plate_x/plate_z on {n} rows "
-          f"(worst {wx:.6f} ft x, {wz:.6f} ft z)")
+    n, med, mx = check_provenance(rows)
+    print(f"provenance OK on {n} rows: polynomial vs reported plate crossing "
+          f"median {med:.6f} ft, max {mx:.6f} ft "
+          f"({'exact' if mx == 0 else 'within MLB data noise'})")
 
     rows = [r for r in rows if r.get("cf_url")]
     if a.max_clips:

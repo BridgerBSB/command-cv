@@ -116,7 +116,17 @@ def residual(x, clips):
     return np.concatenate(out)
 
 
-def fit(clips, c0, f0):
+def fit(clips, c0, f0, freeze_depth=False):
+    """freeze_depth pins Cy and f to their seed values.
+
+    (Cy, f) trade off almost exactly -- 55bfba19 measured a 15 ft spread in Cy moving the
+    pixel cost 0.35% -- so they are NOT identifiable from ball pixels alone. Left free, every
+    successive refit slides further along that valley: the Durham stage-3 refit walked Cy to
+    its 600 ft bound and f to 19101 px while the fit to the ball got no better. Pinning them
+    at the basin's values costs nothing real (the projection is unchanged along a degenerate
+    direction, by definition) and stops the wander. Unfreeze only once a landmark at a known
+    world position is in the fit, which is what actually breaks the tie.
+    """
     n = len(clips)
     # t0 = trajectory time at frame 0. The ball is in frame for the LAST part of the flight,
     # so t0 is about -(first tracked frame)/fps. Seed there, bound generously.
@@ -124,6 +134,9 @@ def fit(clips, c0, f0):
     x0 = list(c0) + [0.0, 0.0, 0.0, f0] + t0s
     lo = [-400, -120, 3, -1.2, -1.2, -0.6, f0 / 4] + [t - 1.5 for t in t0s]
     hi = [400, 600, 200, 1.2, 1.2, 0.6, f0 * 4] + [t + 1.5 for t in t0s]
+    if freeze_depth:
+        lo[1], hi[1] = c0[1] - 1e-6, c0[1] + 1e-6
+        lo[6], hi[6] = f0 - 1e-6, f0 + 1e-6
     xs = [40, 60, 20, 0.1, 0.1, 0.05, f0 * 0.4] + [0.05] * n
     x0 = np.clip(x0, np.array(lo) + 1e-9, np.array(hi) - 1e-9)
     r = least_squares(residual, x0, args=(clips,), bounds=(lo, hi), x_scale=xs,
@@ -138,6 +151,8 @@ def main():
     ap.add_argument("--dir", default=os.path.join(ROOT, "data", "clips", "ogando_2026"))
     ap.add_argument("--seeds", default=None)
     ap.add_argument("--render", action="store_true")
+    ap.add_argument("--coarse-clips", type=int, default=6,
+                    help="how many of the LONGEST tracks the 180-start basin search uses")
     a = ap.parse_args()
     seeds = a.seeds or os.path.join(ROOT, "output", f"seed_tracks_{a.game}.csv")
     manifest = os.path.join(a.dir, os.path.basename(a.dir) + "_manifest.csv")
@@ -147,6 +162,18 @@ def main():
     print(f"game {a.game}: {len(clips)} clips, {npts} ball points, "
           f"{2 * npts} residuals vs {7 + len(clips)} params")
 
+    # TWO STAGES, because a full multi-start over every clip does not scale. The grid is 180
+    # starts; with 5 clips that is 12 parameters per solve and finishes in minutes, but with
+    # 27 clips it is 34 parameters over 200+ points per solve and ran over half an hour
+    # without finishing. The basin does not need every clip to be found -- a handful of the
+    # LONGEST tracks locates it, and the full set then refines it from that single start.
+    # Longest-first matters: a 5-point run barely constrains a quadratic, so seeding the
+    # search with the thinnest tracks would pick the basin on the weakest evidence.
+    order = sorted(range(len(clips)), key=lambda i: -len(clips[i]["fr"]))
+    coarse = [clips[i] for i in order[:max(3, a.coarse_clips)]]
+    print(f"stage 1: basin search on the {len(coarse)} longest tracks "
+          f"({sum(len(c['fr']) for c in coarse)} points), 180 starts ...", flush=True)
+
     best, tried = None, []
     grid = itertools.product([-260, -170, -110, 110, 170, 260],   # Cx
                              [-40, 10, 60, 130, 260],            # Cy
@@ -154,7 +181,7 @@ def main():
                              [1400, 2600])                       # f seed, px
     for cx, cy, cz, f0 in grid:
         try:
-            r = fit(clips, (cx, cy, cz), f0)
+            r = fit(coarse, (cx, cy, cz), f0)
         except Exception:
             continue
         rms = float(np.sqrt(np.mean(r.fun ** 2)))
@@ -163,8 +190,47 @@ def main():
             best = (rms, cx, cy, cz, f0, r.x)
     assert best, "every start failed"
     tried.sort(key=lambda t: t[0])
+    c_rms, cx, cy, cz, f0, cxx = best
+    print(f"         basin rms {c_rms:.2f} px  C=({cxx[0]:.1f},{cxx[1]:.1f},{cxx[2]:.1f}) "
+          f"f={cxx[6]:.0f}", flush=True)
 
-    rms, cx, cy, cz, f0, x = best
+    print(f"stage 2: refining on all {len(clips)} clips from that basin ...", flush=True)
+    r = fit(clips, (cxx[0], cxx[1], cxx[2]), cxx[6])
+    rms, x = float(np.sqrt(np.mean(r.fun ** 2))), r.x
+
+    # STAGE 3 -- THE POSE ITSELF IS THE JUNK FILTER, and it is a better one than anything
+    # measured on the image. onboard_park.py knowingly lets in-window false positives through
+    # (a batting helmet, a blob on wall padding) at roughly 1 in 8, and brightness was tested
+    # and rejected as a discriminator because its distributions overlap across parks. But a
+    # false track is not a pitch, so no camera can reproject it: on Durham the helmet track
+    # came back at 60.8 px while real tracks sat at 2-10 px. That is a 6x gap on the quantity
+    # the fit already computes, and it is self-calibrating -- the cut is relative to this
+    # park's own median, never an absolute pixel threshold carried between parks.
+    def per_clip_rms(xx):
+        C_, pan_, tilt_, roll_, f_ = xx[:3], xx[3], xx[4], xx[5], xx[6]
+        out = []
+        for k, c in enumerate(clips):
+            t = xx[7 + k] + c["fr"] / c["fps"]
+            e = np.hypot(*(ph.project(C_, pan_, tilt_, roll_, f_, c["traj"](t)) - c["obs"]).T)
+            out.append(float(np.sqrt((e ** 2).mean())))
+        return np.array(out)
+
+    e0 = per_clip_rms(x)
+    cut = max(3.0 * float(np.median(e0)), 12.0)
+    good = [i for i in range(len(clips)) if e0[i] <= cut]
+    dropped = [(clips[i]["stem"], e0[i]) for i in range(len(clips)) if e0[i] > cut]
+    if dropped and len(good) >= max(3, a.coarse_clips):
+        print(f"stage 3: rejecting {len(dropped)} track(s) above {cut:.1f} px "
+              f"(3x the {np.median(e0):.1f} px median) and refitting:", flush=True)
+        for s, e in sorted(dropped, key=lambda t: -t[1]):
+            print(f"         {s:24} {e:7.1f} px")
+        clips = [clips[i] for i in good]
+        r = fit(clips, (x[0], x[1], x[2]), x[6], freeze_depth=True)
+        rms, x = float(np.sqrt(np.mean(r.fun ** 2))), r.x
+        print(f"         refit on {len(clips)} clips, rms {rms:.2f} px", flush=True)
+    elif dropped:
+        print(f"stage 3: {len(dropped)} track(s) look like junk but too few would remain; "
+              f"keeping all and relying on the robust loss", flush=True)
     C, pan, tilt, roll, fpx = x[:3], x[3], x[4], x[5], x[6]
     print(f"\nbest of {len(tried)} starts   seed C=({cx},{cy},{cz}) f={f0}")
     print(f"  ball reprojection RMS  {rms:7.3f} px")
