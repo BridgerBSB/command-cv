@@ -22,6 +22,26 @@ drifting, not converging, and the run says so.
 READ THE OUTPUT AS: held-out median px, per pass. Everything else is diagnostics. A falling
 train RMS with a flat or rising held-out error is the signature of drift.
 
+THE HELD-OUT SET IS TOO SMALL AND IT IS SELECTION-BIASED. READ THIS BEFORE QUOTING A NUMBER.
+With gate=13 this loop reports a held-out median of 2.23 px, which equals our MLB label
+quality (2.15 px vs OpenCommand's independent detections). That number is TRUE for the five
+verified clips and DOES NOT GENERALISE. Rendering the refined labels zoomed on unverified
+clips (output/refined_label_zoom.png) shows them 10-20 px off on ogando_si_12 and ogando_si_33
+and landing on empty grass on ogando_fc_7 while the ball is plainly elsewhere in the tile.
+
+The cause is the validation set, not the loop. The five verified clips are the only ones
+aplus_seed_tracks could recover, and it recovers a track exactly where the ball is MOST
+separable -- unoccluded, high contrast, ten consecutive frames as top-1. So the held-out set
+is drawn from the easy tail of the distribution it is supposed to be validating. 50 points
+from one park, one pitcher, one game.
+
+Fixing this needs MORE HAND-VERIFIED TRACKS, chosen without regard to whether the seeder
+found them -- specifically including clips it failed on. Until then, treat every number this
+script prints as a lower bound on the error, and LOOK at refined_label_zoom.png for any park
+before using its labels to train anything. Same lesson as render-and-look.md: an aggregate
+computed over a biased sample is honest about what it measured and silent about what it did
+not cover.
+
     python scripts/refine_park_pose.py --game 822515 --passes 3
 """
 import argparse
