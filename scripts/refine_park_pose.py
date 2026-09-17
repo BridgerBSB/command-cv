@@ -220,18 +220,46 @@ def main():
         # refresh the projected paths for the next association step
         for b in train + [q for q in built if q["stem"] in set(verified.stem)]:
             pass
-        idx = None
-        newrows = []
+        # PER-CLIP SUB-FRAME CLOCK. The first version wrote labels as
+        # t = zone_time + (frame - last_frame)/fps, i.e. it ASSUMED the last harvested
+        # frame is exactly the plate crossing. That frame comes from an INTEGER scan, so
+        # it is up to a frame out, and at ~8 px/frame a 1-2 frame clock error displaces
+        # every label 8-16 px ALONG THE PATH. Rendering showed exactly that on unverified
+        # clips (fc_7 ~20-25 px; ff_1 and fc_8 catching only the ball's left edge) -- a
+        # consistent ALONG-track shift, which is the signature of a clock error, because a
+        # wrong CAMERA displaces perpendicular to the path as well.
+        # So refit t0 ALONE per clip against that clip's own detected pixels with the
+        # camera frozen. Clips with too few detections keep the integer estimate and are
+        # COUNTED in the output rather than silently passed off as refined.
+        from scipy.optimize import least_squares as _ls
+        newrows, polished, kept_integer = [], 0, 0
         for stem, c in by_stem.items():
-            g = harvest[harvest.stem == stem]
+            g = harvest[harvest.stem == stem].sort_values("frame")
             if not len(g):
                 continue
             fr = g.frame.to_numpy(float)
-            t = c["zone_time"] + (fr - fr.max()) / c["fps"]
-            px = ph.project(C, pan, tilt, roll, fpx, c["traj"](t))
+            t0 = c["zone_time"] - fr.max() / c["fps"]          # integer starting estimate
+            pts = ball_pixels_near_path(os.path.join(a.dir, stem + ".mp4"),
+                                        fr.max(), g[["x", "y"]].to_numpy(), fr, a.gate)
+            if len(pts) >= MIN_TRACK:
+                ofr = np.array([q[0] for q in pts], float)
+                oobs = np.array([[q[1], q[2]] for q in pts], float)
+
+                def _res(z):
+                    tt = z[0] + ofr / c["fps"]
+                    return (ph.project(C, pan, tilt, roll, fpx, c["traj"](tt)) - oobs).ravel()
+                r = _ls(_res, [t0], bounds=([t0 - 0.12], [t0 + 0.12]))
+                t0 = float(r.x[0])
+                polished += 1
+            else:
+                kept_integer += 1
+            tt = t0 + fr / c["fps"]
+            px = ph.project(C, pan, tilt, roll, fpx, c["traj"](tt))
             for k, f in enumerate(fr):
                 newrows.append(dict(stem=stem, game_pk=a.game, frame=int(f),
                                     x=float(px[k, 0]), y=float(px[k, 1])))
+        print(f"        clock: {polished} clips refit to sub-frame, "
+              f"{kept_integer} kept the integer estimate")
         harvest = pd.DataFrame(newrows)
 
     out = os.path.join(ROOT, "output", f"refined_labels_{a.game}.csv")
