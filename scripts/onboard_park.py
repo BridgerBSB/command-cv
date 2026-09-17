@@ -70,9 +70,14 @@ def best_run(rows, direction, axis="x", cross=1.8, step_lo=STEP_LO, step_hi=STEP
         if cur:
             dx, dy = r[1] - cur[-1][1], r[2] - cur[-1][2]
             dt = r[0] - cur[-1][0]
+            # dt is 1 on a clean feed and 2 where frames are duplicated, so the gate can no
+            # longer demand consecutiveness -- it demands ADJACENT USABLE frames and divides
+            # the step by the real elapsed interval, keeping step_lo/step_hi in px per FRAME
+            # rather than px per sample. Without that a 30-in-60 fps park reads as double
+            # speed and every true track fails the upper bound.
             step = np.hypot(dx, dy) / max(dt, 1)
             prim, sec = (dx, dy) if axis == "x" else (dy, dx)
-            ok = (dt == 1 and direction * prim > 0 and step_lo <= step <= step_hi
+            ok = (1 <= dt <= 3 and direction * prim > 0 and step_lo <= step <= step_hi
                   and abs(sec) <= abs(prim) * cross)
             if not ok:
                 if len(cur) > len(best):
@@ -93,30 +98,87 @@ def quad_rms(run):
 
 
 def half_frame_correct(run):
-    """Shift each point forward by half the local displacement. See module docstring."""
+    """Shift each point forward by half of the DIFFERENCED INTERVAL's displacement.
+
+    absdiff leaves two lobes for a moving ball -- where it is and where it was -- so the
+    centroid lags the true position at frame i by half the displacement across whatever
+    interval was differenced. Measured on 106 hand-verified Asheville points: +4.71 px along
+    motion against a predicted half-step of 4.96, with no across-track component.
+
+    THE GAP MATTERS AND IS WHY EACH POINT CARRIES ITS OWN. When frames are duplicated the
+    difference is taken against frame i-2 (or further), so the lag is half of TWO frames, not
+    half of one. Scaling by the run's local per-frame velocity times that point's own
+    `dgap` keeps the correction right at any cadence; assuming 1 would silently reintroduce
+    the bias at exactly the parks this cadence work exists to unlock.
+    """
     if len(run) < 2:
         return run
     out = []
-    for k, (f, x, y) in enumerate(run):
+    for k, (f, x, y, dgap) in enumerate(run):
         j = min(k + 1, len(run) - 1)
         i0 = k if j != k else max(k - 1, 0)
-        gap = max(1.0, float(run[j][0] - run[i0][0]))
-        out.append((f, x + 0.5 * (run[j][1] - run[i0][1]) / gap,
-                    y + 0.5 * (run[j][2] - run[i0][2]) / gap))
+        span = max(1.0, float(run[j][0] - run[i0][0]))
+        vx = (run[j][1] - run[i0][1]) / span          # px per frame
+        vy = (run[j][2] - run[i0][2]) / span
+        out.append((f, x + 0.5 * dgap * vx, y + 0.5 * dgap * vy, dgap))
     return out
 
 
-def track_clip(path, lane, lo, hi, direction):
+# A frame counts as a duplicate of the reference when the whole-lane mean absolute
+# difference falls below this share of the clip's own typical inter-frame difference.
+# Relative, not absolute, deliberately: measured mean|diff| differs several-fold between a
+# night game and a day game, so an absolute floor would call a quiet clean park duplicated.
+DUP_REL = 0.25
+DUP_FLOOR = 0.08
+
+
+def track_clip(path, lane, lo, hi, direction=1):
+    """Top-1 blob per USABLE frame, differencing against the last genuinely different frame.
+
+    WHY A REFERENCE FRAME RATHER THAN A FIXED STRIDE. Some MiLB feeds carry 30 fps content in
+    a 60 fps container: L.P. Frans (827106) has 56% near-identical consecutive frames, so
+    absdiff(i, i-1) is empty on every other frame and a consecutive-frame chain gate can
+    never hold -- which is why that park and Hops produced ZERO tracks. A hard-coded stride
+    of 2 would fix those two and break on any park with a different or irregular cadence.
+    Holding a reference and advancing it only when the picture actually changes adapts to all
+    of them, and on a clean park every gap is 1 so behaviour is unchanged (verified: the
+    Asheville tracks are identical either way).
+
+    Returns (frame, x, y, dgap) -- dgap being the interval that was differenced, which
+    half_frame_correct needs.
+    """
     x0, x1, y0, y1 = lane
     cap = cv2.VideoCapture(path)
-    prev, i, rows = None, 0, []
+    frames, i = {}, 0
     while True:
         ok, f = cap.read()
         if not ok or i > hi:
             break
-        roi = cv2.cvtColor(f, cv2.COLOR_BGR2GRAY)[y0:y1, x0:x1]
-        if i >= lo and prev is not None:
-            th = cv2.morphologyEx(cv2.absdiff(roi, prev), cv2.MORPH_TOPHAT, TOPHAT_K)
+        if i >= max(0, lo - 1):
+            frames[i] = cv2.cvtColor(f, cv2.COLOR_BGR2GRAY)[y0:y1, x0:x1]
+        i += 1
+    cap.release()
+    if len(frames) < 3:
+        return [], 0.0
+
+    idx = sorted(frames)
+    mad = {}
+    for a, b in zip(idx, idx[1:]):
+        mad[b] = float(np.abs(frames[b].astype(np.int16)
+                              - frames[a].astype(np.int16)).mean())
+    typical = float(np.median([v for v in mad.values()])) or 1.0
+    dup_cut = max(DUP_FLOOR, DUP_REL * typical)
+    dup_frac = float(np.mean([v < dup_cut for v in mad.values()]))
+
+    rows, ref = [], idx[0]
+    for fr in idx[1:]:
+        cur = frames[fr]
+        d = float(np.abs(cur.astype(np.int16) - frames[ref].astype(np.int16)).mean())
+        if d < dup_cut:
+            continue                       # a duplicate: no new information, keep the ref
+        dgap = fr - ref
+        if fr >= lo:
+            th = cv2.morphologyEx(cv2.absdiff(cur, frames[ref]), cv2.MORPH_TOPHAT, TOPHAT_K)
             _, bw = cv2.threshold(th, THRESH, 255, cv2.THRESH_BINARY)
             n, lab, st, ce = cv2.connectedComponentsWithStats(bw, 8)
             c = []
@@ -128,11 +190,9 @@ def track_clip(path, lane, lo, hi, direction):
                               float(ce[k][0] + x0), float(ce[k][1] + y0)))
             c.sort(reverse=True)
             if c:
-                rows.append((i, c[0][1], c[0][2]))
-        prev = roi
-        i += 1
-    cap.release()
-    return rows
+                rows.append((fr, c[0][1], c[0][2], dgap))
+        ref = fr
+    return rows, dup_frac
 
 
 def main():
@@ -160,9 +220,10 @@ def main():
     m = pd.read_csv(man)
     stems = [s for s in m.stem if os.path.exists(os.path.join(d, s + ".mp4"))][:a.limit]
 
-    rows, kept, panels = [], 0, []
+    rows, kept, panels, dups = [], 0, [], []
     for j, s in enumerate(stems, 1):
-        raw = track_clip(os.path.join(d, s + ".mp4"), lane, a.lo, a.hi, a.direction)
+        raw, dup = track_clip(os.path.join(d, s + ".mp4"), lane, a.lo, a.hi, a.direction)
+        dups.append(dup)
         run = best_run(raw, a.direction, a.axis, a.cross, *slo_shi)
         if len(run) < MIN_RUN:
             continue
@@ -171,12 +232,13 @@ def main():
             continue
         run = half_frame_correct(run)
         kept += 1
-        for f, x, y in run:
-            rows.append(dict(stem=s, game_pk=a.game, frame=int(f), x=x, y=y))
+        for f, x, y, dg in run:
+            rows.append(dict(stem=s, game_pk=a.game, frame=int(f), x=x, y=y, dgap=int(dg)))
         if len(panels) < 8:
             panels.append((s, run))
+        gaps = sorted({int(q[3]) for q in run})
         print(f"  [{j}/{len(stems)}] {s:22} f{run[0][0]:3d}-{run[-1][0]:3d} n={len(run):2d} "
-              f"rms={rms:4.2f}", flush=True)
+              f"rms={rms:4.2f} gap={gaps}", flush=True)
 
     assert rows, "no clip produced a run -- check --lane / --lo / --hi / --direction"
     df = pd.DataFrame(rows)
@@ -191,6 +253,11 @@ def main():
     # (night) medians 246, Durham (day) 188, a known-junk scoreboard digit scores 123 and a
     # REAL ball scores 178. The distributions overlap, so any absolute cut drops true tracks
     # at dim parks. A discriminator that does not separate on the data is not a discriminator.
+    if dups:
+        note = "Differencing skipped them." if max(dups) > 0.05 else "Clean feed."
+        print()
+        print(f"frame cadence: median {100 * float(np.median(dups)):.0f}% of frames are "
+              f"duplicates of the previous one (max {100 * max(dups):.0f}%). {note}")
     mid = df.groupby("stem").frame.median()
     centre = float(mid.median())
     spread = float((mid - centre).abs().median()) or 1.0
@@ -211,7 +278,7 @@ def main():
 
     tiles = []
     for s, run in panels:
-        want = {int(f): (x, y) for f, x, y in run[:4]}
+        want = {int(q[0]): (q[1], q[2]) for q in run[:4]}
         cap = cv2.VideoCapture(os.path.join(d, s + ".mp4"))
         i, row = 0, []
         while True:
