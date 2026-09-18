@@ -158,7 +158,20 @@ def main():
         f.write(f"path: {os.path.abspath(a.out)}\ntrain: images/train\nval: images/val\n"
                 f"names:\n  0: ball\n")
     print(counts)
-    print(f"val groups ({key}): {n_val} of {len(groups)}")
+    # THE REQUESTED FRACTION IS OVER GROUPS, AND WHAT YOU GET IS OVER IMAGES. Splitting by
+    # park is the honest test, but parks are wildly unequal -- a 4-park set at --val-frac
+    # 0.25 holds out ONE park, and if the shuffle draws the smallest you get 5.6% of the
+    # labels in val, not 25%. Stating only the requested fraction would let a reader believe
+    # a number the split never produced.
+    tot = counts["train"] + counts["val"]
+    got = counts["val"] / max(1, tot)
+    print(f"val groups ({key}): {n_val} of {len(groups)} -> {counts['val']} of {tot} "
+          f"labelled images = {100 * got:.1f}% (requested {100 * a.val_frac:.0f}% of GROUPS)")
+    if abs(got - a.val_frac) > 0.1:
+        print(f"  NOTE: the val share of IMAGES is {100 * got:.1f}%, far from the "
+              f"requested group share.")
+        print("  That is what an unequal park split gives you. It is not a bug, but do "
+              "not quote the requested number.")
     print(os.path.join(a.out, "data.yaml"))
 
 
