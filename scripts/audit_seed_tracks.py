@@ -303,9 +303,12 @@ def main():
         # wrong width. Measured across the first three MiLB parks:
         #
         #   park            reproj   held-out plate   measured/pose diameter
+        #   Asheville A+     5.6 px      -               1.02   <- labels validated 2.51 px
         #   Isotopes AAA     1.9 px      lands           0.94
         #   Frawley A+       1.3 px      ~100 px off     0.95
-        #   Durham AAA       8.0 px      ~100 px off     1.39
+        #   L.P. Frans A     2.2 px      -               0.98
+        #   Durham AAA       8.0 px      ~100 px off     1.37
+        #   Riders AA        9.5 px      -               1.78
         #
         # Two independent verdicts, and they do NOT agree: Frawley's camera is unusable for
         # miss distance yet its BOXES are right, because only f/depth enters a diameter and
@@ -313,9 +316,13 @@ def main():
         # would have merged those into "Frawley and Durham are bad" and thrown away 439
         # good labels.
         #
-        # 0.94-0.95 is the expected reading for a correct pose, not 1.00: a half-max
-        # threshold on a blurred edge measures slightly inside the true rim. What matters is
-        # that it is the SAME at parks whose cameras differ wildly.
+        # A correct pose reads 0.94-1.02, not exactly 1.00: a half-max threshold on a
+        # blurred edge measures slightly inside the true rim. What matters is the GAP -- five
+        # parks land in 0.94-1.02 while the two bad ones sit at 1.37 and 1.78, and nothing
+        # falls in between. Reprojection RMS does NOT rank the parks the same way: Asheville
+        # has the WORST RMS of the good five and the BEST ratio, and is the only park whose
+        # labels have been validated against hand-verified tracks. Two checks, two orderings,
+        # which is the entire reason for keeping both.
         #
         # REPORTED, NOT ENFORCED. No sample floor and no auto-reject -- the n is printed and
         # the call is the reader's.
@@ -331,10 +338,10 @@ def main():
                 mm, mp = float(np.median(meas)), float(np.median(pose_d))
                 print(f"  size check (n={len(meas)}): measured-from-pixels {mm:.2f} px vs "
                       f"pose-derived {mp:.2f} px, ratio {mm / mp:.2f}")
-                print("    0.94-0.95 is what a correct pose reads here. Far from that means "
-                      "this park's\n    f/depth is wrong and every training box is mis-sized "
-                      "-- the labels' POSITIONS are\n    still the observed pixels and are "
-                      "unaffected.")
+                print("    0.94-1.02 is what a correct pose reads here (5 parks); the two known-bad"
+                      " ones sit at 1.37 and 1.78, with nothing in between. Far from 1.0 means"
+                      " this park's f/depth is wrong and every training box is mis-sized\n    -- the"
+                      " labels' POSITIONS are still the observed pixels and are unaffected.")
             else:
                 print("  size check: no measurable ball blobs in the sample -- "
                       "nothing to report, which is NOT a pass")

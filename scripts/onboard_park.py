@@ -132,8 +132,8 @@ DUP_REL = 0.25
 DUP_FLOOR = 0.08
 
 
-def track_clip(path, lane, lo, hi, direction=1):
-    """Top-1 blob per USABLE frame, differencing against the last genuinely different frame.
+def diff_candidates(path, lane, lo, hi):
+    """EVERY ball-shaped blob per usable frame, differenced against the last DIFFERENT frame.
 
     WHY A REFERENCE FRAME RATHER THAN A FIXED STRIDE. Some MiLB feeds carry 30 fps content in
     a 60 fps container: L.P. Frans (827106) has 56% near-identical consecutive frames, so
@@ -144,8 +144,15 @@ def track_clip(path, lane, lo, hi, direction=1):
     of them, and on a clean park every gap is 1 so behaviour is unchanged (verified: the
     Asheville tracks are identical either way).
 
-    Returns (frame, x, y, dgap) -- dgap being the interval that was differenced, which
-    half_frame_correct needs.
+    THIS IS THE ONE DIFFERENCING IMPLEMENTATION. It was extracted out of track_clip so the
+    label-snapping pass could share it instead of copying it: refine_park_pose's
+    ball_pixels_near_path carries an OLDER copy that still differences against the
+    immediately-previous frame, so it silently under-recovers at exactly the duplicate-frame
+    parks this cadence work exists to unlock. A second hand-maintained copy of a defect that
+    has already been fixed once is how the fix gets lost.
+
+    Returns (candidates, dup_frac) where candidates is
+    [(frame, dgap, [(response, x, y), ...] strongest first), ...] in full-frame coordinates.
     """
     x0, x1, y0, y1 = lane
     cap = cv2.VideoCapture(path)
@@ -170,7 +177,7 @@ def track_clip(path, lane, lo, hi, direction=1):
     dup_cut = max(DUP_FLOOR, DUP_REL * typical)
     dup_frac = float(np.mean([v < dup_cut for v in mad.values()]))
 
-    rows, ref = [], idx[0]
+    out, ref = [], idx[0]
     for fr in idx[1:]:
         cur = frames[fr]
         d = float(np.abs(cur.astype(np.int16) - frames[ref].astype(np.int16)).mean())
@@ -190,9 +197,18 @@ def track_clip(path, lane, lo, hi, direction=1):
                               float(ce[k][0] + x0), float(ce[k][1] + y0)))
             c.sort(reverse=True)
             if c:
-                rows.append((fr, c[0][1], c[0][2], dgap))
+                out.append((fr, dgap, c))
         ref = fr
-    return rows, dup_frac
+    return out, dup_frac
+
+
+def track_clip(path, lane, lo, hi, direction=1):
+    """Top-1 blob per usable frame. Returns (frame, x, y, dgap), as half_frame_correct wants.
+
+    Selection only -- all of the differencing lives in diff_candidates.
+    """
+    cands, dup_frac = diff_candidates(path, lane, lo, hi)
+    return [(fr, c[0][1], c[0][2], dgap) for fr, dgap, c in cands], dup_frac
 
 
 def main():
