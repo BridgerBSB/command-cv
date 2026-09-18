@@ -44,13 +44,22 @@ PARKS = [
     ("mlb_824018", 824018, 150, 250),   # Angel Stadium
     ("mlb_824259", 824259, 150, 250),   # Comerica
     ("mlb_824341", 824341, 150, 250),   # Coors
+    # FOUR BALLPARKS THAT WERE ALREADY ON DISK. ogando_2026 is a PITCHER dir holding 149
+    # clips from 13 games at 7 different A+ parks, so every game inside it is its own park
+    # with its own camera. detect_ball_tracks now FILTERS the manifest by --game instead of
+    # stamping it, which is what makes these reachable. Both of the first two are the
+    # behind-the-pitcher archetype that differencing could never track and the detector
+    # cracked at Hops today.
+    ("ogando_2026", 822246, 150, 250),  # Greensboro, First National Bank Field -- 33 clips
+    ("ogando_2026", 821922, 150, 250),  # Rome, AdventHealth Stadium -- 23 clips
 ]
-# DELIBERATELY ABSENT, and each for a reason that would corrupt a run rather than fail it:
-#   ogando_2026 (149 clips) and langford_2026 (30) are PITCHER dirs spanning 13 and 11 games
-#     at several different ballparks. detect_ball_tracks stamps one game_pk on every row and
-#     derives ONE consensus flight window per directory, so pointing it at a mixed-venue dir
-#     produces a wrong game_pk on most rows and a window fitted across cameras that do not
-#     share a cut convention. They need splitting by game_pk first.
+# DELIBERATELY ABSENT, and each for a reason:
+#   ogando_2026 / 822515 (60 clips, Asheville HomeTrust) is the HELD-OUT VAL PARK. Tracking
+#     it is fine for evaluation; it must never reach a training set, so it is not queued
+#     here where its labels would be one build command away from the train split.
+#   The remaining games inside the two pitcher dirs are too small for a consensus flight
+#     window to mean anything: Winston-Salem 7+3, Greenville 4+3, Bowling Green 2. Listed so
+#     the next person knows they were counted and skipped, not missed.
 #   mlb_824821 (289) and ogando_hardcases (69) predate the manifest convention -- guid-named
 #     mp4s with a sidecar .json and no <dir>_manifest.csv. 824821's labels already exist in
 #     data/yolo_ball5 from the pose path, so nothing is lost by leaving it here.

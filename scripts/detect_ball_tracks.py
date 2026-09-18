@@ -133,7 +133,35 @@ def main():
     # Without this the MLB dirs died with `'DataFrame' object has no attribute 'stem'` --
     # loud, at least, because detect_all_parks reports a per-park return code.
     import fit_park_pose as _fpp
-    cand = _fpp.manifest_stems(man)
+    man = man.assign(_stem=_fpp.manifest_stems(man))
+
+    # --game FILTERS the manifest, it does not just label the output.
+    #
+    # Two clip dirs on disk are PITCHER dirs, not park dirs: ogando_2026 holds 149 clips from
+    # 13 games and langford_2026 holds 30 from 10, across SEVEN different A+ ballparks
+    # between them. Stamping --game on every row was silently wrong there -- most rows got a
+    # game_pk they did not come from -- and, worse, the consensus flight window was being
+    # fitted across cameras that share no cut convention, so those parks were unusable and
+    # nobody could see why.
+    #
+    # Filtering makes each game inside a shared directory its own park, which is how four
+    # ballparks we ALREADY have on disk become reachable: Greensboro 37 clips, Rome 24,
+    # Winston-Salem 10, Greenville 7. Greensboro and Rome are the behind-the-pitcher
+    # archetype that differencing could never track and the detector cracked at Hops today.
+    #
+    # No-op on a single-game dir, and on a manifest with no game_pk column at all.
+    if "game_pk" in man.columns:
+        mine = man[man.game_pk.astype(str) == str(a.game)]
+        if len(mine) != len(man):
+            print("manifest holds %d games; --game %d selects %d of %d rows"
+                  % (man.game_pk.nunique(), a.game, len(mine), len(man)), flush=True)
+        assert len(mine), (
+            "game %d is not in this manifest. It holds: %s. Stamping the label on another "
+            "game's clips would put a wrong game_pk on every row."
+            % (a.game, sorted(man.game_pk.astype(str).unique())))
+        man = mine
+
+    cand = list(man["_stem"])
     stems = [s for s in cand if os.path.exists(os.path.join(d, str(s) + ".mp4"))]
     assert stems, (
         "no manifest row matched a file on disk in %s. %d rows, first candidate %r -- the "

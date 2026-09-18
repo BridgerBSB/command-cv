@@ -185,9 +185,16 @@ def main():
     # a number the split never produced.
     tot = counts["train"] + counts["val"]
     got = counts["val"] / max(1, tot)
+    # n_val only exists on the random-draw path; with --val-games the held-out set IS the
+    # named one. Reading it unconditionally crashed the summary AFTER a 40-minute build had
+    # written every image -- the work survived, but the one line that reports the split did
+    # not, which is the line you need to trust the split.
+    n_val = len(val)
+    req = ("named: " + ", ".join(sorted(val))) if a.val_games \
+        else f"requested {100 * a.val_frac:.0f}% of GROUPS"
     print(f"val groups ({key}): {n_val} of {len(groups)} -> {counts['val']} of {tot} "
-          f"labelled images = {100 * got:.1f}% (requested {100 * a.val_frac:.0f}% of GROUPS)")
-    if abs(got - a.val_frac) > 0.1:
+          f"labelled images = {100 * got:.1f}% ({req})")
+    if not a.val_games and abs(got - a.val_frac) > 0.1:
         print(f"  NOTE: the val share of IMAGES is {100 * got:.1f}%, far from the "
               f"requested group share.")
         print("  That is what an unequal park split gives you. It is not a bug, but do "
