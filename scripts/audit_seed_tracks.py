@@ -70,6 +70,42 @@ def fit_t0(clip, C, pan, tilt, roll, f):
     return float(r.x[0]), float(np.sqrt((e ** 2).mean())), e
 
 
+def measured_diameter(path, frame_i, x, y, half=16):
+    """The ball's apparent diameter read STRAIGHT FROM THE PIXELS, with no camera involved.
+
+    Threshold the crop halfway between its local background (20th percentile) and the ball's
+    own peak, take the blob nearest the labelled point, and return its equivalent-circle
+    diameter. Deliberately crude: it only has to be consistent from park to park, because it
+    is used as a RATIO against the pose-derived value, not as a measurement in its own right.
+    """
+    cap = cv2.VideoCapture(path)
+    i, fr = 0, None
+    while True:
+        ok, f = cap.read()
+        if not ok or i > frame_i:
+            break
+        if i == frame_i:
+            fr = f
+        i += 1
+    cap.release()
+    if fr is None:
+        return np.nan
+    g = cv2.cvtColor(fr, cv2.COLOR_BGR2GRAY).astype(float)
+    c = g[max(0, int(y) - half):int(y) + half, max(0, int(x) - half):int(x) + half]
+    if c.size < 100:
+        return np.nan
+    lo, hi = np.percentile(c, 20), c.max()
+    if hi - lo < 25:                      # no bright object here to measure
+        return np.nan
+    m = (c >= (lo + hi) / 2).astype(np.uint8)
+    n, lab, st, ce = cv2.connectedComponentsWithStats(m, 8)
+    if n < 2:
+        return np.nan
+    cy, cx = c.shape[0] / 2, c.shape[1] / 2
+    k = min(range(1, n), key=lambda j: (ce[j][0] - cx) ** 2 + (ce[j][1] - cy) ** 2)
+    return 2.0 * np.sqrt(st[k][4] / np.pi)
+
+
 def read_frames(path, wanted):
     """Sequential decode only -- never cap.set(POS_FRAMES).
 
@@ -146,6 +182,9 @@ def main():
     ap.add_argument("--flag", type=int, default=6, help="how many worst clips to render")
     ap.add_argument("--keep", type=int, default=6, help="how many best clips to render")
     ap.add_argument("--tag", default="")
+    ap.add_argument("--check-size", type=int, default=40,
+                    help="sample N labelled points and measure the ball from the pixels; "
+                         "0 disables")
     ap.add_argument("--write-labels", action="store_true",
                     help="emit seed_labels_<game>.csv for the tracks that pass the cut")
     a = ap.parse_args()
@@ -255,6 +294,50 @@ def main():
         print(f"\n{lp}\n  {lab.stem.nunique()} clips, {len(lab)} labelled points "
               f"({len(flagged)} flagged track(s) excluded), "
               f"ball {lab.diameter_px.min():.1f}-{lab.diameter_px.max():.1f} px")
+
+        # THE SIZE CHECK -- a SECOND failure mode the reprojection RMS cannot separate.
+        #
+        # Reprojection RMS answers "does the projected path lie on the observed path". It
+        # says nothing about SCALE, because the label is a point and a point has no size.
+        # So a pose can trace the ball perfectly and still hand every training box the
+        # wrong width. Measured across the first three MiLB parks:
+        #
+        #   park            reproj   held-out plate   measured/pose diameter
+        #   Isotopes AAA     1.9 px      lands           0.94
+        #   Frawley A+       1.3 px      ~100 px off     0.95
+        #   Durham AAA       8.0 px      ~100 px off     1.39
+        #
+        # Two independent verdicts, and they do NOT agree: Frawley's camera is unusable for
+        # miss distance yet its BOXES are right, because only f/depth enters a diameter and
+        # f/depth is determined wherever the ball actually is. Durham fails both. One number
+        # would have merged those into "Frawley and Durham are bad" and thrown away 439
+        # good labels.
+        #
+        # 0.94-0.95 is the expected reading for a correct pose, not 1.00: a half-max
+        # threshold on a blurred edge measures slightly inside the true rim. What matters is
+        # that it is the SAME at parks whose cameras differ wildly.
+        #
+        # REPORTED, NOT ENFORCED. No sample floor and no auto-reject -- the n is printed and
+        # the call is the reader's.
+        if a.check_size:
+            s = lab.sample(min(a.check_size, len(lab)), random_state=1)
+            meas, pose_d = [], []
+            for r in s.itertuples():
+                m = measured_diameter(os.path.join(d, r.stem + ".mp4"), int(r.frame), r.x, r.y)
+                if np.isfinite(m) and 3 < m < 34:
+                    meas.append(m)
+                    pose_d.append(r.diameter_px)
+            if meas:
+                mm, mp = float(np.median(meas)), float(np.median(pose_d))
+                print(f"  size check (n={len(meas)}): measured-from-pixels {mm:.2f} px vs "
+                      f"pose-derived {mp:.2f} px, ratio {mm / mp:.2f}")
+                print("    0.94-0.95 is what a correct pose reads here. Far from that means "
+                      "this park's\n    f/depth is wrong and every training box is mis-sized "
+                      "-- the labels' POSITIONS are\n    still the observed pixels and are "
+                      "unaffected.")
+            else:
+                print("  size check: no measurable ball blobs in the sample -- "
+                      "nothing to report, which is NOT a pass")
 
 
 if __name__ == "__main__":
