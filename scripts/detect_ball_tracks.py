@@ -126,7 +126,23 @@ def main():
 
     d = a.dir if os.path.isabs(a.dir) else os.path.join(ROOT, a.dir)
     man = pd.read_csv(os.path.join(d, os.path.basename(d) + "_manifest.csv"))
-    stems = [s for s in man.stem if os.path.exists(os.path.join(d, s + ".mp4"))]
+    # TWO MANIFEST SHAPES ON DISK, and the older one has no `stem` column at all. The MLB
+    # pulls (mlb_823850/824018/824259/824341) predate that convention and name their files
+    # <play_id>_<ANGLE>.mp4; the MiLB browser pulls carry an explicit `stem`. Deriving the
+    # older shape here rather than rewriting four manifests keeps the raw pulls untouched.
+    # Without this the MLB dirs died with `'DataFrame' object has no attribute 'stem'` --
+    # loud, at least, because detect_all_parks reports a per-park return code.
+    if "stem" in man.columns:
+        cand = list(man.stem)
+    else:
+        assert "play_id" in man.columns, (
+            "manifest has neither `stem` nor `play_id`: " + str(list(man.columns))[:200])
+        angles = [a.get("angle", "BROADCAST") for _i, a in man.iterrows()]
+        cand = ["%s_%s" % (p, ang or "BROADCAST") for p, ang in zip(man.play_id, angles)]
+    stems = [s for s in cand if os.path.exists(os.path.join(d, str(s) + ".mp4"))]
+    assert stems, (
+        "no manifest row matched a file on disk in %s. %d rows, first candidate %r -- the "
+        "naming convention is wrong, not the directory." % (d, len(cand), cand[:1]))
     if a.limit:
         stems = stems[:a.limit]
 
