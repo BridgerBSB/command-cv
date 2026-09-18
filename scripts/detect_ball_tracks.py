@@ -79,6 +79,19 @@ def best_chain(dets, step_lo=STEP_LO, step_hi=STEP_HI):
     return best
 
 
+def _flush(model, buf, dets, a):
+    """Run one batched predict over buffered (frame_index, image) pairs."""
+    res = model.predict([b[1] for b in buf], conf=a.conf, imgsz=a.imgsz,
+                        verbose=False, device=a.device)
+    for (fi, _), r in zip(buf, res):
+        if r.boxes is None or not len(r.boxes):
+            continue
+        xy = r.boxes.xywh.cpu().numpy()
+        cf = r.boxes.conf.cpu().numpy()
+        order = np.argsort(-cf)[:a.topk]
+        dets[fi] = [(float(xy[k, 0]), float(xy[k, 1]), float(cf[k])) for k in order]
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--dir", required=True)
@@ -89,6 +102,8 @@ def main():
     ap.add_argument("--conf", type=float, default=0.15)
     ap.add_argument("--topk", type=int, default=5)
     ap.add_argument("--imgsz", type=int, default=1280)
+    ap.add_argument("--batch", type=int, default=16,
+                    help="frames per predict call; 16 fits a 4 GB card at 1280")
     ap.add_argument("--limit", type=int, default=0)
     ap.add_argument("--device", default="0")
     ap.add_argument("--tag", default="")
@@ -106,22 +121,25 @@ def main():
     rows, kept, lens = [], 0, []
     for j, stem in enumerate(stems, 1):
         cap = cv2.VideoCapture(os.path.join(d, stem + ".mp4"))
-        dets, i = {}, 0
+        dets, i, buf = {}, 0, []
         while True:
             ok, fr = cap.read()
             if not ok or i > a.hi:
                 break
             if i >= a.lo:
-                r = model.predict(fr, conf=a.conf, imgsz=a.imgsz, verbose=False,
-                                  device=a.device)[0]
-                if r.boxes is not None and len(r.boxes):
-                    xy = r.boxes.xywh.cpu().numpy()
-                    cf = r.boxes.conf.cpu().numpy()
-                    order = np.argsort(-cf)[:a.topk]
-                    dets[i] = [(float(xy[k, 0]), float(xy[k, 1]), float(cf[k]))
-                               for k in order]
+                buf.append((i, fr))
+                # BATCHED, because one predict() per frame is dominated by per-call overhead
+                # rather than by the network: ~100 frames a clip x 600 clips is 60,000 calls.
+                # Frames are flushed in chunks instead of all held, since a full window of
+                # 1280x720x3 is ~276 MB and this box runs near its memory watchdog.
+                if len(buf) >= a.batch:
+                    _flush(model, buf, dets, a)
+                    buf = []
             i += 1
         cap.release()
+        if buf:
+            _flush(model, buf, dets, a)
+            buf = []
         chain = best_chain(dets) if len(dets) >= MIN_RUN else []
         if len(chain) < MIN_RUN:
             continue
