@@ -20,6 +20,21 @@
  * So the browser's whole job is the third row. The playIds come from the public feed and
  * the mp4s are fetched later by Python.
  *
+ * THE SESSION COOKIE ALONE IS NOT ENOUGH -- MEASURED 2026-09-18, DO NOT ASSUME OTHERWISE.
+ * A fetch to the analytics endpoint from a statsapi.mlb.com page with credentials:"include"
+ * and 66 cookies on the origin returns **401**. So this file does NOT remove the bearer from
+ * the loop; what it removes is having to move data between the browser and Python by hand.
+ * The token still has to reach it, by one of:
+ *   - land on the Okta redirect (statsapi.mlb.com/#access_token=...) with this file loaded,
+ *     which caches it in sessionStorage; or
+ *   - __CV_BEARER = "<access_token>" in the console.
+ * One token covers a lot of ground -- the authed half is JSON only and a whole game is a
+ * couple of minutes, so an hour is many games. The mp4s are fetched later by Python and need
+ * no token at all.
+ * STILL OPEN: whether the research tool can silently re-issue a token (an implicit
+ * prompt=none refresh) while its IdP session is alive. That needs the authorize URL, which
+ * is not recorded anywhere in this repo. Ask before guessing at an auth endpoint.
+ *
  * USAGE
  *   1. Sign in to the statsapi research tool in this tab.
  *   2. Paste this file into the console.
