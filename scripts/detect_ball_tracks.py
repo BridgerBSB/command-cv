@@ -165,6 +165,32 @@ def main():
 
     assert rows, "no clip produced a plausible flight -- check --lo/--hi and the weights"
     out = pd.DataFrame(rows)
+
+    # CONSENSUS FLIGHT WINDOW, ported from onboard_park for the same reason it exists there.
+    # A park's clips share a broadcast cut convention, so real plate crossings cluster hard --
+    # measured 213-220 at Isotopes, 213-223 at Frawley, 214-224 at Asheville. A chain whose
+    # END sits far outside that cluster is not a pitch.
+    #
+    # THIS IS NOT A TUNING KNOB. Rendering Riders showed its chains split cleanly in two: the
+    # ones ending near f213 are unmistakable baseballs, and the ones ending at f157-168 are
+    # dark murky blobs. The detector's own confidence does NOT separate them (junk ran
+    # 0.23-0.58, real ran 0.22-0.74) -- only WHEN the chain ends does. Derived from this
+    # park's own distribution, never carried between parks.
+    ends = out.groupby("stem").frame.max()
+    centre = float(ends.median())
+    spread = float((ends - centre).abs().median()) or 1.0
+    tol = max(12.0, 4.0 * spread)
+    keep = set(ends[(ends - centre).abs() <= tol].index)
+    dropped = sorted(set(ends.index) - keep)
+    if dropped:
+        print("")
+        print(f"consensus flight window: chains must end within +-{tol:.0f} frames "
+              f"of f{centre:.0f}")
+        print("  dropped: " + ", ".join(f"{s}@f{ends[s]:.0f}" for s in dropped[:12])
+              + (f" (+{len(dropped) - 12} more)" if len(dropped) > 12 else ""))
+        out = out[out.stem.isin(keep)]
+        kept = out.stem.nunique()
+        lens = list(out.groupby("stem").size())
     p = os.path.join(ROOT, "output", f"detect_tracks_{a.game}{a.tag}.csv")
     out.to_csv(p, index=False)
     print(f"\ngame {a.game}: {kept}/{len(stems)} clips with a flight, {len(out)} points")
