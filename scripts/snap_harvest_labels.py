@@ -90,6 +90,10 @@ def main():
                          "so the true ball is inside it and the fit is not the thing "
                          "choosing the label")
     ap.add_argument("--min-pts", type=int, default=4, help="drop a clip with fewer snaps")
+    ap.add_argument("--passes", type=int, default=2,
+                    help="2 = refit the clock against the first snap and snap again")
+    ap.add_argument("--gate2", type=float, default=0.6,
+                    help="second pass gate, as a fraction of --gate")
     a = ap.parse_args()
 
     d = a.dir if os.path.isabs(a.dir) else os.path.join(ROOT, a.dir)
@@ -130,9 +134,35 @@ def main():
         from scipy.optimize import least_squares
         t0 = float(row["zone_time"]) - fr.max() / FPS
 
-        def res(zz):
-            return (ph.project(C, pan, tilt, roll, f, traj(zz[0] + fr / FPS)) - obs).ravel()
-        t0 = float(least_squares(res, [t0], bounds=([t0 - 0.30], [t0 + 0.30])).x[0])
+        def _t0_fit(t_seed, frames, points):
+            def res(zz):
+                return (ph.project(C, pan, tilt, roll, f,
+                                   traj(zz[0] + frames / FPS)) - points).ravel()
+            return float(least_squares(res, [t_seed],
+                                       bounds=([t_seed - 0.30], [t_seed + 0.30])).x[0])
+
+        t0 = _t0_fit(t0, fr, obs)
+
+        # SECOND PASS, and it exists because of a measured defect rather than a hunch.
+        # The harvest's plate frame comes from an INTEGER scan, so its path can sit a frame
+        # out, and at ~8 px/frame that displaces the whole path ALONG its own direction. When
+        # several candidates fall inside the gate, a path biased that way picks the biased
+        # one, and the error survives into the label. Decomposing label-vs-true-centroid
+        # along and across the motion caught it at Asheville: ALONG -2.28 px with ACROSS only
+        # -0.25, which is the signature of a clock error and not a camera one.
+        #
+        # So: refit t0 against the first snap (above), re-project, and snap again through a
+        # TIGHTER gate. The clock is now derived from measurements rather than from an
+        # integer frame guess. The gate shrinks so the second pass cannot wander further than
+        # the first, and both passes' snap distances are reported so drift is visible.
+        if a.passes > 1:
+            path2 = ph.project(C, pan, tilt, roll, f, traj(t0 + g.frame.to_numpy() / FPS))
+            pts2, _ = snap_clip(clip, lane, g.frame.to_numpy(), path2, a.gate * a.gate2)
+            if len(pts2) >= a.min_pts:
+                pts = pts2
+                fr = np.array([p[0] for p in pts], float)
+                obs = np.array([[p[1], p[2]] for p in pts], float)
+                t0 = _t0_fit(t0, fr, obs)
         dia = fpp.ball_diameter_px(C, pan, tilt, roll, f, traj(t0 + fr / FPS))
         for k, p in enumerate(pts):
             dists.append(p[4])
