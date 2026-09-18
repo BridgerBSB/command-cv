@@ -112,7 +112,33 @@ that caught the half-frame bias on 09-17; ALONG isolates timing, ACROSS isolates
 geometry, and both separate a systematic BIAS from random scatter, which a
 contact sheet cannot).
 
-Three outcomes and what each means:
+### RESULT, same day: the experiment as designed cannot run, and why is the finding
+
+**0 of 41 measured.** 15 clips gave no chain; 26 gave a chain ending 1-20 frames
+BEFORE the annotated catch frame. At ~60 fps a 10-frame gap is ~0.17 s, in which
+a 90 mph pitch covers ~22 ft, so this is not the detector fumbling a last frame.
+
+A 10-clip probe settled it. At the annotated catch frame the detector fires **not
+at all** in 5 of 10, and in the other 5 its nearest candidate sits **65 to 345 px
+from the mitt**. The ball is inside the glove by then. Nothing to detect.
+
+**Consequence for Root B, and it is a design change, not a setback.** The
+receive-plane "actual" cannot be *the detected ball at the catch frame*. It has
+to be the ball's pixel path, fitted over the frames where the ball is clean and
+**evaluated at the receive time**. That needs no new machinery:
+`plate_scale_check.py` already interpolates an observed pixel path to a named
+time, and this is the same operation one plane further downstream. It also makes
+the original mitt-vs-ball question answerable -- compare the *extrapolated* ball
+position against the mitt box.
+
+The guard is why this is a finding rather than a wrong number: with nothing
+measured the script refuses to print an offset and says the failure is about the
+window or the weights. A version that fell back to the nearest available
+detection would have reported a confident 65-345 px "mitt offset" assembled
+entirely from things that are not the ball.
+
+The three outcomes below remain the right reading *once the extrapolation
+version runs*:
 
 | result | reading |
 |---|---|
@@ -122,10 +148,29 @@ Three outcomes and what each means:
 
 All three are useful. None of them can be guessed from the box sizes.
 
-**Caveat that has to travel with the result:** all 55 are one pitcher at one park
-(Ogando, Asheville). Whatever this measures is a fact about that camera until it
-is repeated somewhere else, which is the selection-bias trap that already voided
-a 2.23 px label figure on 09-17.
+**Caveat that has to travel with the result, CORRECTED 2026-09-18.** An earlier
+version of this file said all 55 were "one pitcher at one park (Ogando,
+Asheville)". That was wrong -- asserted from the `ogando_` filename prefix rather
+than looked up. Joining the stems to `ogando_2026_manifest.csv` gives **seven
+ballparks**:
+
+| park | annotations | of which `catch` |
+|---|---:|---:|
+| HomeTrust (Asheville) | 27 | 18 |
+| First National Bank Field (Greensboro) | 7 | 5 |
+| Truist (Winston-Salem) | 7 | 7 |
+| Frawley (Wilmington) | 6 | 5 |
+| Fluor Field (Greenville) | 4 | 4 |
+| Bowling Green | 2 | 1 |
+| AdventHealth (Rome) | 2 | 1 |
+
+This makes the experiment **stronger**, not weaker: a mitt-vs-ball offset that is
+real geometry should replicate across seven cameras, and one that is an artifact
+of a single broadcast should not. Report the offset per park as well as pooled --
+if it only appears at Asheville it is a camera fact, not a receiving fact.
+
+The caveat that genuinely remains is **one pitcher**. All 55 are Ogando, so
+anything specific to how one catcher receives him is not separable here.
 
 ---
 

@@ -25,9 +25,38 @@ instrument that caught the half-frame differencing bias on 09-17.
 CONTACT ROWS ARE NOT ROOT B ROWS. 14 of the 55 are `endpoint_kind: contact` -- the ball was
 hit, so no receive point exists. They are excluded, counted, and named.
 
-ONE PITCHER, ONE PARK. All 55 are Ogando at Asheville. Whatever this measures is a fact
-about that camera until it is repeated elsewhere; a 2.23 px label figure died of exactly
-this on 09-17.
+SEVEN PARKS, ONE PITCHER. The `ogando_` prefix reads like one park and is not: joined to
+ogando_2026_manifest.csv the 55 annotations span HomeTrust/Asheville 27, Greensboro 7,
+Winston-Salem 7, Frawley 6, Fluor 4, Bowling Green 2, Rome 2. That makes this experiment
+STRONGER -- a real receiving geometry should replicate across seven cameras and a broadcast
+artifact should not -- so the offset is reported PER PARK as well as pooled. What genuinely
+does not vary is the pitcher: all 55 are Ogando.
+
+RESULT OF THE FIRST RUN, 2026-09-18: **0 of 41 measured, and that is the finding.**
+15 clips produced no chain and 26 produced a chain that ENDS 1-20 frames BEFORE the
+annotated catch frame. At ~60 fps a 10-frame gap is ~0.17 s, during which a 90 mph pitch
+travels ~22 ft -- far too large to be "the detector lost it on the last frame".
+
+A 10-clip probe settled why. AT the annotated catch frame the detector either fires not at
+all (5 of 10) or its nearest candidate is 65-345 px from the mitt (the other 5). **The ball
+is inside the glove by then.** There is nothing to detect, and no amount of widening the
+window or retraining changes that.
+
+SO THE DESIGN BELOW IS WRONG AND IS KEPT ONLY AS THE RECORD OF HOW THAT WAS ESTABLISHED.
+Root B's "actual" cannot be "the detected ball at the catch frame". The two options are:
+  (a) use the mitt, which is what the annotations already are -- circular, answers nothing;
+  (b) fit the ball's pixel path over the frames where it IS clean and EVALUATE it at the
+      receive time.
+(b) is the right one and it needs no new machinery: `plate_scale_check.py` already
+interpolates an observed pixel path to a named time, which is the identical operation one
+plane further downstream. It also turns the original question into a measurable one --
+compare the EXTRAPOLATED ball position at the catch frame against the mitt box.
+
+Note what the guard did here, because it is the reason this is a finding and not a wrong
+number: with no rows measured the script REFUSES to print an offset and says the failure is
+about the window or the weights, not about the mitt. A version that fell back to the nearest
+available detection would have reported a confident 65-345 px "mitt offset" built entirely
+from detections that are not the ball.
 
     python scripts/mitt_vs_ball.py --weights data/yolo_ball_runs/milb4park/weights/best.pt
     python scripts/mitt_vs_ball.py --weights ... --render output/mitt_vs_ball.png
@@ -50,6 +79,30 @@ sys.path.insert(0, os.path.join(ROOT, "scripts"))
 from detect_ball_tracks import best_chain  # noqa: E402
 
 CLIP_ROOTS = ["data/clips", "data/clips/ogando_hardcases", "data/clips/ogando_2026"]
+
+# The stem prefix says PITCHER, never park. Resolving it is a manifest lookup, not a guess --
+# asserting the park from the `ogando_` prefix is exactly how this file's first version came
+# to claim all 55 annotations were one ballpark when they are seven.
+_PARK_BY_GAME = {
+    821780: "Truist (Winston-Salem)", 821847: "Frawley (Wilmington)",
+    821922: "AdventHealth (Rome)", 822162: "Fluor Field (Greenville)",
+    822164: "Fluor Field (Greenville)", 822246: "FNB Field (Greensboro)",
+    822428: "Bowling Green", 822429: "Bowling Green",
+    822498: "HomeTrust (Asheville)", 822504: "HomeTrust (Asheville)",
+    822507: "HomeTrust (Asheville)", 822512: "HomeTrust (Asheville)",
+    822515: "HomeTrust (Asheville)",
+}
+
+
+def park_lookup():
+    """{stem: park name} from the pitcher dir's manifest. Unknown stems map to '?'."""
+    import pandas as pd
+    p = os.path.join(ROOT, "data", "clips", "ogando_2026", "ogando_2026_manifest.csv")
+    if not os.path.exists(p):
+        return {}
+    m = pd.read_csv(p)
+    return {str(s): _PARK_BY_GAME.get(int(g), "game %s" % g)
+            for s, g in zip(m["stem"], m["game_pk"])}
 
 
 def find_clip(name):
@@ -116,6 +169,7 @@ def main():
     if a.limit:
         catch = catch[:a.limit]
 
+    parks = park_lookup()
     from ultralytics import YOLO
     model = YOLO(a.weights)
 
@@ -159,7 +213,8 @@ def main():
         ux, uy = vx / n, vy / n
         dx, dy = bx - gx, by - gy
         rows.append({
-            "stem": d["stem"], "pitch_type": d.get("pitch_type", ""),
+            "stem": d["stem"], "park": parks.get(str(d["stem"]), "?"),
+            "pitch_type": d.get("pitch_type", ""),
             "frame": cf, "ball_x": bx, "ball_y": by, "glove_x": gx, "glove_y": gy,
             "conf": bconf, "step_px": n,
             "along": dx * ux + dy * uy,          # + means the ball is PAST the mitt centroid
@@ -193,7 +248,19 @@ def main():
           "the mitt is already closing). A median ACROSS far from 0 is a GEOMETRY fault "
           "(the mitt is off the ball's line). A small median with a large MAD is annotation "
           "scatter and costs precision, not accuracy.")
-    print("ONE PITCHER, ONE PARK (Ogando, Asheville). Do not quote this without that clause.")
+    print("ONE PITCHER (Ogando), SEVEN PARKS. Do not quote a pooled number without the "
+          "per-park table below -- an offset present at one camera only is a camera fact.")
+    by = {}
+    for r in rows:
+        by.setdefault(r["park"], []).append(r)
+    print()
+    print("%-26s %4s %8s %8s %8s" % ("park", "n", "along", "across", "dist"))
+    for park, rs in sorted(by.items(), key=lambda kv: -len(kv[1])):
+        print("%-26s %4d %8.2f %8.2f %8.2f"
+              % (park[:26], len(rs),
+                 float(np.median([x["along"] for x in rs])),
+                 float(np.median([x["across"] for x in rs])),
+                 float(np.median([x["dist"] for x in rs]))))
 
     out = os.path.join(ROOT, "output", "mitt_vs_ball.csv")
     os.makedirs(os.path.dirname(out), exist_ok=True)
