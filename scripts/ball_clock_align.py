@@ -33,7 +33,9 @@ import numpy as np
 import pandas as pd
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from src import pinhole as ph  # noqa: E402
+import fit_park_pose as fpp  # noqa: E402
 
 ROOT = os.path.join(os.path.dirname(__file__), "..")
 OC = os.path.join(ROOT, "data", "opencommand")
@@ -102,24 +104,21 @@ def scan(pose_row, points_at, m, fps, lo, hi):
     return best[0], best[1], float(np.median([o[0] for o in out]))
 
 
-BALL_DIAMETER_FT = 2.9 / 12
-
-
 def ball_pixels(pose_row, p, f0, fps):
     """(frame_idx, x, y, diameter_px) for the flight at the winning offset: the free labels.
 
     A detector needs a BOX, not a point, so the ball's apparent size comes from the same
-    geometry: a 2.9 in ball at depth d along the optical axis subtends f * (2.9/12) / d
-    pixels. It grows as the ball approaches, which a fixed-size box would get wrong."""
+    geometry, via the ONE definition in fit_park_pose.ball_diameter_px. This file used to
+    carry its own identical copy of it; the two were verified bit-identical over 1500 ball
+    positions across 60 poses before being collapsed, because two hand-maintained copies of
+    one formula is how a definition drifts with nothing raising."""
     C = np.array([pose_row.Cx, ph.CY_FT, pose_row.Cz])
     args = (C, pose_row.pan, pose_row.tilt, pose_row.roll, pose_row.f_px)
     traj = ph.statcast_traj(p)
     idx = np.arange(-int(FLIGHT_S * fps), 1)
     world = traj(plate_time(p) + idx / fps)
     px = ph.project(*args, world)
-    fwd = ph.camera(C, pose_row.pan, pose_row.tilt, pose_row.roll)[2]
-    depth = (world - C) @ fwd
-    dia = pose_row.f_px * BALL_DIAMETER_FT / depth
+    dia = fpp.ball_diameter_px(*args, world)
     return [(int(f0 + i), float(x), float(y), float(d))
             for i, (x, y), d in zip(idx, px, dia)]
 

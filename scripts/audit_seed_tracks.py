@@ -146,6 +146,8 @@ def main():
     ap.add_argument("--flag", type=int, default=6, help="how many worst clips to render")
     ap.add_argument("--keep", type=int, default=6, help="how many best clips to render")
     ap.add_argument("--tag", default="")
+    ap.add_argument("--write-labels", action="store_true",
+                    help="emit seed_labels_<game>.csv for the tracks that pass the cut")
     a = ap.parse_args()
 
     d = a.dir if os.path.isabs(a.dir) else os.path.join(ROOT, a.dir)
@@ -225,6 +227,34 @@ def main():
     pd.DataFrame([{k: r[k] for k in ("stem", "n", "f0", "f1", "rms", "mx", "t0")}
                   for r in rows]).to_csv(
         os.path.join(ROOT, "output", f"audit_tracks_{a.game}{a.tag}.csv"), index=False)
+
+    if a.write_labels:
+        # THE OBSERVED PIXELS ARE THE LABEL, not the projected ones. The seed track is a
+        # direct measurement (top-hat centroid, half-frame corrected); the projection is a
+        # 7-parameter model of it. Asheville's 2.51 px label accuracy was measured against
+        # these very pixels, so they are the reference the model is scored on -- writing the
+        # model's output instead would ship a copy of the pose's error into the labels and
+        # then have nothing independent left to check it with.
+        #
+        # refine_park_pose.py exists for the OTHER clips, the ones the seeder never
+        # recovered; it projects because there is no measurement there to use. Both paths
+        # write the same five columns so build_ball_dataset does not care which produced
+        # them.
+        out_rows = []
+        for r in good:
+            c = r["clip"]
+            t = r["t0"] + c["fr"] / c["fps"]
+            dia = fpp.ball_diameter_px(C, pan, tilt, roll, f, c["traj"](t))
+            for k, fr_i in enumerate(c["fr"]):
+                out_rows.append(dict(stem=c["stem"], game_pk=a.game, frame=int(fr_i),
+                                     x=float(c["obs"][k, 0]), y=float(c["obs"][k, 1]),
+                                     diameter_px=float(dia[k])))
+        lab = pd.DataFrame(out_rows)
+        lp = os.path.join(ROOT, "output", f"seed_labels_{a.game}{a.tag}.csv")
+        lab.to_csv(lp, index=False)
+        print(f"\n{lp}\n  {lab.stem.nunique()} clips, {len(lab)} labelled points "
+              f"({len(flagged)} flagged track(s) excluded), "
+              f"ball {lab.diameter_px.min():.1f}-{lab.diameter_px.max():.1f} px")
 
 
 if __name__ == "__main__":
