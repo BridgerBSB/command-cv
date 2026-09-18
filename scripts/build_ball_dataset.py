@@ -58,6 +58,10 @@ def main():
     ap.add_argument("--val-frac", type=float, default=0.2)
     ap.add_argument("--angle", default="BROADCAST")
     ap.add_argument("--seed", type=int, default=0)
+    ap.add_argument("--val-games", default="",
+                    help="comma-separated game_pk values to use as val INSTEAD of a random "
+                         "draw; makes the held-out park explicit and the score comparable "
+                         "between training runs")
     a = ap.parse_args()
     assert len(a.labels) == len(a.clips), "one --clips per --labels"
     rng = random.Random(a.seed)
@@ -96,9 +100,25 @@ def main():
               f"{', '.join(sorted(lab.game_pk.unique()))} - val is a camera and a park the model "
               f"never trained on, which is the honest test")
     groups = sorted(lab[key].unique())
-    rng.shuffle(groups)
-    n_val = max(1, int(len(groups) * a.val_frac))
-    val = set(groups[:n_val])
+    if a.val_games:
+        # NAME THE HELD-OUT PARK, DO NOT DRAW IT.
+        # --val-frac is a fraction of PARKS, and parks are wildly unequal here: 0.25 across
+        # four of them put 5.6% of the LABELS in val on the first MiLB build. Worse, a random
+        # draw changes the val park between runs, so two training runs' held-out numbers are
+        # not comparable -- and comparing them is the entire point of iterating.
+        want = set(str(g).strip() for g in a.val_games.split(",") if g.strip())
+        have = set(str(g) for g in groups)
+        missing = want - have
+        assert not missing, (
+            "--val-games names %s, which is not in the labels (%s). A silently-empty val "
+            "split trains on everything and reports a score on nothing."
+            % (sorted(missing), sorted(have)))
+        val = want
+        assert len(val) < len(have), "--val-games would leave nothing to train on"
+    else:
+        rng.shuffle(groups)
+        n_val = max(1, int(len(groups) * a.val_frac))
+        val = set(groups[:n_val])
     for s in ("train", "val"):
         for k in ("images", "labels"):
             os.makedirs(os.path.join(a.out, k, s), exist_ok=True)

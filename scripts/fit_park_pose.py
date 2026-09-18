@@ -112,8 +112,33 @@ def traj_fn(row):
     return f
 
 
+def manifest_stems(m, angle="BROADCAST"):
+    """The clip-file stem for every manifest row, whichever schema the manifest uses.
+
+    TWO SHAPES EXIST ON DISK and they name the mp4 differently:
+      browser pulls (all MiLB)  explicit `stem` column -> <stem>.mp4
+      the four MLB pulls        no `stem` at all       -> <play_id>_<ANGLE>.mp4
+
+    This lives here, in the one module both the pose fit and the detector path already
+    import, because the alternative is two hand-maintained copies of a filename convention
+    -- and a filename convention that drifts fails as "no clips built", which reads like an
+    empty park rather than a schema mismatch. See .claude/rules/definition-parity-audit.md.
+    """
+    if "stem" in m.columns:
+        return m["stem"].astype(str).tolist()
+    assert "play_id" in m.columns, (
+        "manifest has neither `stem` nor `play_id`: %s" % list(m.columns)[:12])
+    ang = m["angle"] if "angle" in m.columns else None
+    return [("%s_%s" % (p, (a if isinstance(a, str) and a else angle)))
+            for p, a in zip(m["play_id"].astype(str),
+                            ang if ang is not None else [None] * len(m))]
+
+
 def build(game, seeds, manifest, fps_default=59.69):
-    m = pd.read_csv(manifest).set_index("stem")
+    m = pd.read_csv(manifest)
+    if "stem" not in m.columns:
+        m = m.assign(stem=manifest_stems(m))
+    m = m.set_index("stem")
     d = pd.read_csv(seeds)
     d = d[d.game_pk == game]
     clips = []

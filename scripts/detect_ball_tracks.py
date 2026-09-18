@@ -132,13 +132,8 @@ def main():
     # older shape here rather than rewriting four manifests keeps the raw pulls untouched.
     # Without this the MLB dirs died with `'DataFrame' object has no attribute 'stem'` --
     # loud, at least, because detect_all_parks reports a per-park return code.
-    if "stem" in man.columns:
-        cand = list(man.stem)
-    else:
-        assert "play_id" in man.columns, (
-            "manifest has neither `stem` nor `play_id`: " + str(list(man.columns))[:200])
-        angles = [a.get("angle", "BROADCAST") for _i, a in man.iterrows()]
-        cand = ["%s_%s" % (p, ang or "BROADCAST") for p, ang in zip(man.play_id, angles)]
+    import fit_park_pose as _fpp
+    cand = _fpp.manifest_stems(man)
     stems = [s for s in cand if os.path.exists(os.path.join(d, str(s) + ".mp4"))]
     assert stems, (
         "no manifest row matched a file on disk in %s. %d rows, first candidate %r -- the "
