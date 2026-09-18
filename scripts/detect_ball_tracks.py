@@ -25,6 +25,18 @@ back-filled. The per-clip chain length and step profile are printed so a park th
 
     python scripts/detect_ball_tracks.py --dir data/clips/aaa_815419 --game 815419 \
         --weights data/yolo_ball_runs/milb4park/weights/best.pt
+
+SPEED. Inference runs ~0.4 s/frame at imgsz 1280, so the 100-frame default window costs about
+40 s a clip and a 600-clip park is hours. Two levers, and only one is safe by default:
+  --batch      already on; per-call overhead dominated before it.
+  --lo / --hi  the flight occupies about 45 of those 100 frames. Plate frames measured from
+               the harvest scans: Isotopes 213-220, Frawley 213-223, Asheville 214-224, and a
+               flight is ~26 frames, so f180-230 covers all of them with margin.
+THE DEFAULT STAYS WIDE ON PURPOSE. Those parks agree because they share a broadcast cut
+convention; Hops and Riders have never produced a plate frame, so a narrow default would make
+an unseen park yield nothing and read as 'the detector fails there' -- exactly the false
+blocker pattern in .claude/rules/probe-capability-before-accepting-a-blocker.md. Narrow it per
+park, from the plate-frame distribution this script prints at the end of every run.
 """
 import argparse
 import os
@@ -158,6 +170,11 @@ def main():
     print(f"\ngame {a.game}: {kept}/{len(stems)} clips with a flight, {len(out)} points")
     print(f"  chain length: median {int(np.median(lens))}, "
           f"range {min(lens)}-{max(lens)}   mean conf {out.conf.mean():.2f}")
+    ends = out.groupby("stem").frame.max()
+    print(f"  chain ends (proxy for the plate crossing): p05 {ends.quantile(.05):.0f}  "
+          f"median {ends.median():.0f}  p95 {ends.quantile(.95):.0f}   -> "
+          f"--lo {int(ends.quantile(.05)) - 32} --hi {int(ends.quantile(.95)) + 6} "
+          f"would have sufficed")
     print(f"{p}\n  These are DETECTIONS, not yet verified. Render before using them.")
 
 
