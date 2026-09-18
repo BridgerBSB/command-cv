@@ -68,6 +68,31 @@ RUBBER = np.array([[-12.0 * IN, 60.5, 0.0], [12.0 * IN, 60.5, 0.0],
 TRAJ = ["traj_x0", "traj_x1", "traj_x2", "traj_y0", "traj_y1", "traj_y2",
         "traj_z0", "traj_z1", "traj_z2"]
 
+# A baseball is 2.86-2.94 in by rule; the midpoint is well inside the error of anything
+# downstream of it.
+BALL_DIAM_FT = 2.90 / 12.0
+
+
+def ball_diameter_px(C, pan, tilt, roll, f, X):
+    """Apparent ball diameter in pixels at world point(s) X: f * D / depth.
+
+    WHY THIS IS NOT A CONSTANT, and why the dataset builder needs it. A training box is sized
+    BOX_SCALE x the ball's diameter, and the ball genuinely changes size through a flight --
+    at a park shot from up the line it is farther away at release than at the plate. MLB
+    labels carry `diameter_px` from ball_clock_align; the MiLB label path had no equivalent,
+    and the alternative to computing it was to hard-code a park-wide guess, which would size
+    every box wrong at one end of the flight.
+
+    `depth` is the same quantity ph.project divides by, so this is the projection's own
+    scale factor rather than a second model of it. It inherits the (Cy, f) degeneracy --
+    both scale together, so the RATIO f/depth, which is all that appears here, is far better
+    determined than either. That is the same reason the degeneracy is invisible to labels.
+    """
+    _, _, fwd = ph.camera(C, pan, tilt, roll)
+    depth = (np.atleast_2d(X) - np.asarray(C, float)) @ fwd
+    d = f * BALL_DIAM_FT / depth
+    return float(d[0]) if np.ndim(X) == 1 else d
+
 
 def traj_fn(row):
     """The manifest's 9-param polynomial, t seconds FROM RELEASE: axis = c0 + c1 t + c2 t^2.
@@ -232,6 +257,14 @@ def main():
         print(f"stage 3: {len(dropped)} track(s) look like junk but too few would remain; "
               f"keeping all and relying on the robust loss", flush=True)
     C, pan, tilt, roll, fpx = x[:3], x[3], x[4], x[5], x[6]
+
+    # PERSIST IT. The basin search is 180 solves and takes minutes; until this was written
+    # every downstream consumer (the audit, the harvest, a second look a day later) had to
+    # pay it again, which in practice meant they were not run. Same schema refine_park_pose
+    # already writes -- C, ang, f -- so harvest_park_labels --pose accepts either.
+    pose_out = os.path.join(ROOT, "output", f"park_pose_{a.game}.npz")
+    np.savez(pose_out, C=C, ang=np.array([pan, tilt, roll]), f=fpx)
+
     print(f"\nbest of {len(tried)} starts   seed C=({cx},{cy},{cz}) f={f0}")
     print(f"  ball reprojection RMS  {rms:7.3f} px")
     print(f"  camera   Cx {C[0]:8.2f}  Cy {C[1]:8.2f}  Cz {C[2]:8.2f}   f {fpx:8.1f} px")
@@ -257,6 +290,7 @@ def main():
     print("\n  RENDER IT AND LOOK. A low ball RMS from a wrong camera is a documented\n"
           "  failure mode here (ablate_no_box.py). The plate landing on the plate is the\n"
           "  evidence; the ball RMS is not.")
+    print(f"\n  pose saved: {pose_out}")
 
     if a.render:
         c0 = clips[0]

@@ -64,8 +64,26 @@ def main():
     parts = []
     for lp, cp in zip(a.labels, a.clips):
         d = pd.read_csv(lp)
-        # the game is the split unit, and the clips dir names it (data/clips/mlb_<pk>)
-        d["game_pk"] = os.path.basename(os.path.normpath(cp)).replace("mlb_", "")
+        # TWO LABEL SCHEMAS REACH HERE, and they name the clip file differently.
+        #   MLB  (ball_clock_align)   play_id, frame_idx, x, y, diameter_px
+        #                             -> data/clips/mlb_<pk>/<play_id>_<ANGLE>.mp4
+        #   MiLB (refine_park_pose)   stem, game_pk, frame, x, y, diameter_px
+        #                             -> data/clips/<level>_<pk>/<stem>.mp4
+        # Normalising to (play_id, frame_idx, _file) here rather than writing a second
+        # builder keeps ONE crop convention, one jitter, one negative rate and one box
+        # scale across both. Two builders would drift and the drift would be invisible in
+        # any aggregate computed per dataset.
+        milb = "stem" in d.columns
+        if milb:
+            d = d.rename(columns={"stem": "play_id", "frame": "frame_idx"})
+            d["game_pk"] = d["game_pk"].astype(str)
+            d["_file"] = d.play_id.map(lambda s: os.path.join(cp, f"{s}.mp4"))
+        else:
+            d["game_pk"] = os.path.basename(os.path.normpath(cp)).replace("mlb_", "")
+            d["_file"] = d.play_id.map(lambda s: os.path.join(cp, f"{s}_{a.angle}.mp4"))
+        assert "diameter_px" in d.columns, (
+            f"{lp} has no diameter_px -- a box sized from a guess is not a label. "
+            "Re-run refine_park_pose.py (it writes the column) or ball_clock_align.py.")
         d["_clips"] = cp
         parts.append(d)
     lab = pd.concat(parts, ignore_index=True)
@@ -87,7 +105,15 @@ def main():
     counts = {"train": 0, "val": 0, "neg": 0, "skipped": 0}
     n = 0
     for pid, g in lab.groupby("play_id"):
-        clip = os.path.join(g["_clips"].iloc[0], f"{pid}_{a.angle}.mp4")
+        # SAMPLE NAME MUST BE UNIQUE PER CLIP. An MLB play_id is a UUID, so its first 8
+        # characters identify it; a MiLB stem is `aaa_815419_0010`, whose first 8 are the
+        # LEVEL AND GAME -- shared by all 50 clips. Truncating it would have written every
+        # clip's frame-190 crop to the same filename, so a 40-clip park would silently
+        # yield one clip's worth of images with no error anywhere. Use the full stem, with
+        # only path-hostile characters replaced.
+        tag = pid[:8] if len(pid) >= 32 and "-" in pid else "".join(
+            ch if ch.isalnum() or ch in "-_" else "_" for ch in str(pid))
+        clip = g["_file"].iloc[0]
         if not os.path.exists(clip):
             counts["skipped"] += len(g)
             continue
@@ -115,7 +141,7 @@ def main():
             side = max(MIN_BOX_PX, r.diameter_px * BOX_SCALE)
             cx, cy = r.x - x0, r.y - y0
             if side / 2 <= cx <= CROP_PX - side / 2 and side / 2 <= cy <= CROP_PX - side / 2:
-                _write(split, f"{pid[:8]}_f{i - 1}", crop, [(cx, cy, side, side)], a.out)
+                _write(split, f"{tag}_f{i - 1}", crop, [(cx, cy, side, side)], a.out)
                 counts[split] += 1
             else:
                 counts["skipped"] += 1
@@ -124,7 +150,7 @@ def main():
                 for _ in range(8):
                     nx, ny = rng.randint(0, W - CROP_PX), rng.randint(0, H - CROP_PX)
                     if abs(nx - x0) > CROP_PX or abs(ny - y0) > CROP_PX:
-                        _write(split, f"{pid[:8]}_f{i - 1}_neg", fr[ny:ny + CROP_PX, nx:nx + CROP_PX], [], a.out)
+                        _write(split, f"{tag}_f{i - 1}_neg", fr[ny:ny + CROP_PX, nx:nx + CROP_PX], [], a.out)
                         counts["neg"] += 1
                         break
         cap.release()

@@ -287,10 +287,15 @@ def main():
             else:
                 kept_integer += 1
             tt = t0 + fr / c["fps"]
-            px = ph.project(C, pan, tilt, roll, fpx, c["traj"](tt))
+            world = c["traj"](tt)
+            px = ph.project(C, pan, tilt, roll, fpx, world)
+            # diameter travels WITH the label. build_ball_dataset sizes each training box
+            # from it, and it is not constant across a flight -- see fpp.ball_diameter_px.
+            dia = fpp.ball_diameter_px(C, pan, tilt, roll, fpx, world)
             for k, f in enumerate(fr):
                 newrows.append(dict(stem=stem, game_pk=a.game, frame=int(f),
-                                    x=float(px[k, 0]), y=float(px[k, 1])))
+                                    x=float(px[k, 0]), y=float(px[k, 1]),
+                                    diameter_px=float(dia[k])))
         print(f"        clock: {polished} clips refit to sub-frame, "
               f"{kept_integer} kept the integer estimate")
         harvest = pd.DataFrame(newrows)
