@@ -155,6 +155,10 @@ def main():
     ap.add_argument("--imgsz", type=int, default=1280)
     ap.add_argument("--batch", type=int, default=16)
     ap.add_argument("--device", default="0")
+    ap.add_argument("--extrapolate", action="store_true",
+                    help="when the chain stops short of the catch frame, fit the pixel path "
+                         "and evaluate it there. Required for any result at all -- the ball "
+                         "is inside the glove at the annotated frame.")
     ap.add_argument("--render", default="")
     ap.add_argument("--limit", type=int, default=0)
     a = ap.parse_args()
@@ -192,6 +196,25 @@ def main():
         # measurement (the detector lost it early) and is counted separately rather than
         # silently answered with the closest thing available.
         at = [c for c in chain if c[0] == cf]
+        gap = 0
+        if not at and a.extrapolate:
+            # ROOT B v2: the ball is INSIDE THE GLOVE at the annotated catch frame, so there
+            # is nothing to detect there (measured: no detection at all in 5 of 10 clips, and
+            # the nearest candidate 65-345 px away in the other 5). The receive-plane position
+            # therefore has to come from the ball's PATH, fitted where the ball is clean and
+            # evaluated at the receive time. Same operation plate_scale_check.py already does
+            # one plane upstream.
+            #
+            # A QUADRATIC IN FRAME INDEX, not a physical model. Over the ~15-25 frames of a
+            # chain the pixel path of a pitch is smooth and very nearly parabolic, and fitting
+            # anything richer to 6-25 noisy points invents structure.
+            fr = np.array([c[0] for c in chain], float)
+            if len(fr) >= 4:
+                gap = cf - fr[-1]
+                bx = float(np.polyval(np.polyfit(fr, [c[1] for c in chain], 2), cf))
+                by = float(np.polyval(np.polyfit(fr, [c[2] for c in chain], 2), cf))
+                bconf = float(np.mean([c[3] for c in chain]))
+                at = [(cf, bx, by, bconf)]
         if not at:
             no_frame += 1
             print("  %-22s chain ends f%d, annotation says f%d"
@@ -216,7 +239,7 @@ def main():
             "stem": d["stem"], "park": parks.get(str(d["stem"]), "?"),
             "pitch_type": d.get("pitch_type", ""),
             "frame": cf, "ball_x": bx, "ball_y": by, "glove_x": gx, "glove_y": gy,
-            "conf": bconf, "step_px": n,
+            "conf": bconf, "step_px": n, "gap_frames": gap,
             "along": dx * ux + dy * uy,          # + means the ball is PAST the mitt centroid
             "across": -dx * uy + dy * ux,        # + means the ball is left of the line of travel
             "dist": float(np.hypot(dx, dy)),
@@ -241,6 +264,33 @@ def main():
     for k in ("along", "across", "dist", "step_px"):
         m, d_, lo, hi = stat(k)
         print("%-8s %8.2f %8.2f %8.2f %8.2f" % (k, m, d_, lo, hi))
+    # THE CHECK THAT DECIDES WHETHER ANY OF THIS MEANS ANYTHING.
+    # With --extrapolate, the "ball position" is a fit evaluated `gap_frames` past its last
+    # real observation. Extrapolation error grows with that distance; a real mitt-vs-ball
+    # geometry does not. So if the offset correlates with the gap, what is being measured is
+    # the fit running out of road, not the glove -- and the pooled median would be a
+    # confident number describing the wrong thing.
+    gaps = np.array([r["gap_frames"] for r in rows], float)
+    if gaps.any():
+        print("\nEXTRAPOLATION AUDIT  (gap = frames from the last real detection to the "
+              "annotated catch)")
+        print("  gap frames: median %.0f  p90 %.0f  max %.0f" %
+              (np.median(gaps), np.percentile(gaps, 90), gaps.max()))
+        for k in ("along", "across", "dist"):
+            v = np.array([r[k] for r in rows], float)
+            if len(v) > 3 and gaps.std() > 0 and v.std() > 0:
+                r_ = float(np.corrcoef(gaps, np.abs(v))[0, 1])
+                verdict = ("TRACKS THE GAP -- suspect the fit, not the glove"
+                           if abs(r_) > 0.5 else "independent of the gap")
+                print("    |%-6s| vs gap: r = %+.2f   %s" % (k, r_, verdict))
+        near = [r for r in rows if r["gap_frames"] <= 4]
+        if len(near) >= 5:
+            print("  SHORT-GAP SUBSET (<=4 frames, n=%d): along %+.2f  across %+.2f px"
+                  % (len(near), float(np.median([r["along"] for r in near])),
+                     float(np.median([r["across"] for r in near]))))
+            print("    That subset is the trustworthy read. Quote it beside the pooled "
+                  "number, never instead of it.")
+
     bw = np.median([r["box_w"] for r in rows])
     bh = np.median([r["box_h"] for r in rows])
     print("\nmedian annotated mitt box: %.0f x %.0f px" % (bw, bh))
