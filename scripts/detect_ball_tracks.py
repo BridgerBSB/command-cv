@@ -118,6 +118,12 @@ def main():
                     help="frames per predict call; 16 fits a 4 GB card at 1280")
     ap.add_argument("--limit", type=int, default=0)
     ap.add_argument("--device", default="0")
+    ap.add_argument("--two-pass", action="store_true",
+                    help="admit SHORT chains that end inside the consensus window pass 1 "
+                         "defined. For tight-camera parks where the ball is separable for "
+                         "only a handful of frames.")
+    ap.add_argument("--min-run-2", type=int, default=4,
+                    help="minimum chain length in pass 2 (pass 1 uses %d)" % MIN_RUN)
     ap.add_argument("--tag", default="")
     a = ap.parse_args()
 
@@ -170,6 +176,7 @@ def main():
         stems = stems[:a.limit]
 
     rows, kept, lens = [], 0, []
+    short = {}          # stem -> chain, for clips that fail MIN_RUN but are not empty
     for j, stem in enumerate(stems, 1):
         cap = cv2.VideoCapture(os.path.join(d, stem + ".mp4"))
         dets, i, buf = {}, 0, []
@@ -193,6 +200,12 @@ def main():
             buf = []
         chain = best_chain(dets) if len(dets) >= MIN_RUN else []
         if len(chain) < MIN_RUN:
+            # HOLD the detections instead of discarding them, so a second pass can revisit
+            # this clip without paying for inference again. A clip that fails MIN_RUN is
+            # exactly the case --two-pass exists for, and re-running the network over a
+            # whole park to try a looser gate costs 10-20 minutes per attempt.
+            if a.two_pass and len(chain) >= a.min_run_2:
+                short[stem] = chain
             continue
         kept += 1
         lens.append(len(chain))
@@ -230,6 +243,48 @@ def main():
         out = out[out.stem.isin(keep)]
         kept = out.stem.nunique()
         lens = list(out.groupby("stem").size())
+
+    # SECOND PASS: short chains, admitted ONLY if they land in the window the LONG chains
+    # defined. Four parks now show the same shape -- Greensboro 3/33, Constellation 4/16,
+    # Hops 29/50, L.P. Frans 15/50 -- and in every one the rendered tracks are unmistakable
+    # baseballs while the failures have detections in 59-100 of 101 frames at confidence up
+    # to 0.80. The detector is not blind at those parks; the chain is short because the
+    # camera is tight and low, so the ball is only separable for a handful of frames.
+    #
+    # WHY THIS IS NOT JUST LOWERING MIN_RUN. A global MIN_RUN of 4 would admit short junk
+    # everywhere, including the five parks that are already fine. Here the extra evidence is
+    # the park's OWN consensus window, which was derived from chains that passed the strict
+    # gate -- so a 4-frame run ending where this park's real pitches end is a different claim
+    # from a 4-frame run ending anywhere. The window must come from pass 1; deriving it from
+    # the relaxed set would let the short chains vote on their own admission criterion, which
+    # is the dead-test shape in .claude/rules/tautological-display.md.
+    #
+    # REPORTED SEPARATELY, ALWAYS. Pass-2 clips are tagged in the output so their yield, and
+    # any damage they do, can be attributed rather than blended into the headline number.
+    if a.two_pass and short:
+        added, rejected = [], 0
+        for stem, chain in short.items():
+            end = chain[-1][0]
+            if abs(end - centre) > tol:
+                rejected += 1
+                continue
+            added.append(stem)
+            for f, x, y, cf in chain:
+                rows.append(dict(stem=stem, game_pk=a.game, frame=int(f), x=x, y=y,
+                                 conf=cf, pass2=1))
+        if added:
+            out = pd.DataFrame(rows)
+            out["pass2"] = out.get("pass2", 0)
+            out["pass2"] = out["pass2"].fillna(0).astype(int)
+            out = out[out.stem.isin(keep | set(added))]
+            kept = out.stem.nunique()
+            lens = list(out.groupby("stem").size())
+        print("")
+        print(f"PASS 2 (min run {a.min_run_2}, must end within +-{tol:.0f} of f{centre:.0f}): "
+              f"{len(added)} clip(s) added, {rejected} rejected on the window, "
+              f"{len(short) - len(added) - rejected} had no chain at all")
+        print("  These are SHORTER and therefore weaker. Render them before the dataset "
+              "build -- they are tagged pass2=1 in the csv.")
     p = os.path.join(ROOT, "output", f"detect_tracks_{a.game}{a.tag}.csv")
     out.to_csv(p, index=False)
     print(f"\ngame {a.game}: {kept}/{len(stems)} clips with a flight, {len(out)} points")
