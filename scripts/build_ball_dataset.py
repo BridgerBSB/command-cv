@@ -58,6 +58,10 @@ def main():
     ap.add_argument("--val-frac", type=float, default=0.2)
     ap.add_argument("--angle", default="BROADCAST")
     ap.add_argument("--seed", type=int, default=0)
+    ap.add_argument("--all-train", action="store_true",
+                    help="put every clip in TRAIN. For a per-game build inside the rolling "
+                         "loop, where one game cannot honour a held-out-PARK split and a "
+                         "play_id split would leak the same camera into val.")
     ap.add_argument("--skip-existing", action="store_true",
                     help="reuse a clip whose images are all on disk; makes a rebuild "
                          "incremental instead of a full 40-minute re-decode")
@@ -103,7 +107,13 @@ def main():
               f"{', '.join(sorted(lab.game_pk.unique()))} - val is a camera and a park the model "
               f"never trained on, which is the honest test")
     groups = sorted(lab[key].unique())
-    if a.val_games:
+    if a.all_train:
+        # A single game has one camera. Splitting it by play_id puts that camera on
+        # BOTH sides and reports a val score that means nothing -- the builder already
+        # warns about exactly this. The rolling loop therefore builds each game as pure
+        # train, and the held-out park is built once, separately.
+        val = set()
+    elif a.val_games:
         # NAME THE HELD-OUT PARK, DO NOT DRAW IT.
         # --val-frac is a fraction of PARKS, and parks are wildly unequal here: 0.25 across
         # four of them put 5.6% of the LABELS in val on the first MiLB build. Worse, a random

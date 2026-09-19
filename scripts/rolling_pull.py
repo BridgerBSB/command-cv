@@ -138,6 +138,13 @@ def main():
     ap.add_argument("--two-pass", action="store_true", default=True,
                     help="admit short chains that land in the park's consensus window")
     ap.add_argument("--no-two-pass", dest="two_pass", action="store_false")
+    ap.add_argument("--dataset", default=os.path.join(ROOT, "data", "yolo_milb3"),
+                    help="extract YOLO crops here BEFORE pruning the video; empty to skip")
+    ap.add_argument("--val-games", default="822515",
+                    help="held-out park, passed through to the dataset build so the split "
+                         "stays the same one v1 used and the numbers stay comparable")
+    ap.add_argument("--labels-only", action="store_true",
+                    help="game already has labels: re-download, extract crops, prune")
     ap.add_argument("--keep-clips", action="store_true",
                     help="do NOT delete the mp4s. Only for debugging one game.")
     a = ap.parse_args()
@@ -175,8 +182,11 @@ def main():
     summary = []
     for pk, csv_path in jobs:
         lab = os.path.join(ROOT, "output", "det_labels_%d.csv" % pk)
-        if os.path.exists(lab):
+        if os.path.exists(lab) and not a.labels_only:
             print("== %d  already labelled, skipping" % pk)
+            continue
+        if a.labels_only and not os.path.exists(lab):
+            print("== %d  no labels yet, skipping (--labels-only)" % pk)
             continue
         if free_gb() < a.min_free_gb + 2.5:
             print("\nSTOPPING: %.1f GB free is under the floor plus one game. Nothing was "
@@ -226,6 +236,28 @@ def main():
                     npts = int(x.strip().split("clips,")[1].split("labelled")[0])
                 except Exception:                            # noqa: BLE001
                     pass
+
+        # EXTRACT THE CROPS BEFORE DELETING THE VIDEO. This step was missing and its absence
+        # was silent: labels_from_detector writes a CSV of positions, the prune then removed
+        # the mp4s, and build_ball_dataset -- which needs the VIDEO to cut crops -- reported
+        # every point as "skipped". A pruned game produced labels that could not become
+        # training data. Caught by running the builder on a finished game and getting
+        # {'train': 0, 'skipped': 1305}.
+        #
+        # The labels were never lost; the clips are re-downloadable from the banked CSV. But
+        # the loop was not self-contained, which was its whole point.
+        if a.dataset:
+            out = run([sys.executable, os.path.join(ROOT, "scripts", "build_ball_dataset.py"),
+                       "--labels", lab, "--clips", clip_dir, "--out", a.dataset,
+                       "--skip-existing", "--all-train"], "crops")
+            if out is None:
+                print("    NOT DELETING the video -- crop extraction failed and the labels "
+                      "cannot be rebuilt without it.")
+                summary.append((pk, venue, ok, npts, "crops failed"))
+                continue
+            for x in out.splitlines():
+                if x.startswith("{"):
+                    print("    crops " + x.strip())
 
         if not a.keep_clips:
             # The labels exist, so the video is scratch. Deleting HERE, before the next game
