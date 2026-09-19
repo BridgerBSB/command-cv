@@ -343,11 +343,19 @@ def render(rows, path):
         ax.axis("off")
     for i, r in enumerate(rows[:n]):
         p = find_clip(r["stem"] + ".mp4")
+        # Sequential decode. A seek lands 0-2 frames early on these clips
+        # (.claude/rules/index-and-time-origins.md instance #2), which on THIS sheet would
+        # shift the ball away from the mitt box and make a fine label look like a bad one --
+        # the exact error the sheet exists to detect.
         cap = cv2.VideoCapture(p)
-        cap.set(cv2.CAP_PROP_POS_FRAMES, r["frame"])
-        ok, fr = cap.read()
+        fr, i, ok = None, 0, False
+        while i <= int(r["frame"]):
+            ok, f = cap.read()
+            if not ok:
+                break
+            fr, i = f, i + 1
         cap.release()
-        if not ok:
+        if fr is None or i <= int(r["frame"]):
             continue
         cx, cy = int(r["glove_x"]), int(r["glove_y"])
         x0, y0 = max(0, cx - R), max(0, cy - R)
