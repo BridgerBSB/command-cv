@@ -125,6 +125,15 @@ def main():
     ap.add_argument("--angle", default="BROADCAST",
                     help="the camera the detector was trained on; a banked game in a "
                          "different angle is skipped unless named in --games")
+    # ON BY DEFAULT because it now REFUSES itself when the evidence is thin. At Hops it
+    # took 29 clips to 36 (7 added, 1 rejected, all 7 rendered as clean balls at the
+    # plate) against a real window of +-16 frames from 29 samples. At Greensboro, where
+    # pass 1 kept 3 clips and the window came out at +-50, it refused -- which is the
+    # correct answer, since when it did NOT refuse it admitted four tracks of the ball
+    # still in the pitcher's hand.
+    ap.add_argument("--two-pass", action="store_true", default=True,
+                    help="admit short chains that land in the park's consensus window")
+    ap.add_argument("--no-two-pass", dest="two_pass", action="store_false")
     ap.add_argument("--keep-clips", action="store_true",
                     help="do NOT delete the mp4s. Only for debugging one game.")
     a = ap.parse_args()
@@ -190,7 +199,8 @@ def main():
 
         out = run([sys.executable, os.path.join(ROOT, "scripts", "detect_ball_tracks.py"),
                    "--dir", clip_dir, "--game", str(pk), "--weights", a.weights,
-                   "--lo", str(a.lo), "--hi", str(a.hi), "--device", a.device],
+                   "--lo", str(a.lo), "--hi", str(a.hi), "--device", a.device]
+                  + (["--two-pass"] if a.two_pass else []),
                   "detect")
         if out is None:
             summary.append((pk, venue, ok, 0, "detect failed"))

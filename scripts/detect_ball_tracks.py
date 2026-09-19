@@ -52,6 +52,8 @@ sys.path.insert(0, os.path.join(ROOT, "scripts"))
 
 STEP_LO, STEP_HI = 2.0, 30.0      # px per frame, wide enough for both camera archetypes
 MIN_RUN = 6
+MIN_WINDOW_CLIPS = 8      # pass 2 needs a real distribution of plate frames, not 3 points
+WINDOW_MAX_TOL = 18.0     # a flight is ~26 frames; a wider window cannot exclude the delivery
 
 
 def best_chain(dets, step_lo=STEP_LO, step_hi=STEP_HI):
@@ -262,6 +264,30 @@ def main():
     # REPORTED SEPARATELY, ALWAYS. Pass-2 clips are tagged in the output so their yield, and
     # any damage they do, can be attributed rather than blended into the headline number.
     if a.two_pass and short:
+        # THE WINDOW HAS TO BE A WINDOW. Measured at Greensboro: pass 1 kept only 3 clips,
+        # whose ends (219, 243, 244) gave a spread so wide that tol came out at +-50 frames
+        # on a 100-frame scan. That admits nearly anything, and what it admitted was the ball
+        # AT RELEASE -- four chains ending f186-189, about 55 frames and 0.9 s before the
+        # plate. Every one is a real baseball; none is a flight.
+        #
+        # Two conditions, both physical rather than tuned:
+        #   n >= MIN_WINDOW_CLIPS  -- three samples is not a distribution, and a median plus
+        #     MAD computed from three points cannot describe where this park's pitches land.
+        #   tol <= WINDOW_MAX_TOL  -- a pitch flight is ~26 frames, so a tolerance wider than
+        #     half of one lets a "flight" be entirely disjoint from the real flight. A window
+        #     that cannot exclude the delivery is not evidence.
+        # Failing either, pass 2 REFUSES rather than admitting on a gate that cannot fail
+        # (.claude/rules/grep-guard-criteria.md).
+        n_pass1 = int(out.stem.nunique())
+        if n_pass1 < MIN_WINDOW_CLIPS or tol > WINDOW_MAX_TOL:
+            print("")
+            print("PASS 2 REFUSED: window is f%.0f +-%.0f from %d pass-1 clip(s). Needs >=%d "
+                  "clips and a tolerance <=%d" % (centre, tol, n_pass1, MIN_WINDOW_CLIPS,
+                                                  WINDOW_MAX_TOL))
+            print("  A tolerance wider than half a flight (~26 frames) cannot tell a pitch "
+                  "from the delivery,\n  and at Greensboro that exact failure admitted four "
+                  "tracks of the ball still in the hand.")
+            short = {}
         added, rejected = [], 0
         for stem, chain in short.items():
             end = chain[-1][0]
