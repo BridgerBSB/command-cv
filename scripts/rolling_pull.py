@@ -120,7 +120,11 @@ def main():
     # transformation.
     ap.add_argument("--workers", type=int, default=8)
     ap.add_argument("--lo", type=int, default=150)
-    ap.add_argument("--hi", type=int, default=250)
+    # 300, matching detect_ball_tracks. At 250, Constellation put 25% of its chains on
+    # the ceiling and Greensboro lost two thirds of its clips -- both diagnosed as gate
+    # failures before the window was measured. The truncation warning now fires either
+    # way, so a park that still hits the ceiling says so.
+    ap.add_argument("--hi", type=int, default=300)
     ap.add_argument("--device", default="0")
     ap.add_argument("--angle", default="BROADCAST",
                     help="the camera the detector was trained on; a banked game in a "

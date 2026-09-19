@@ -112,7 +112,13 @@ def main():
     ap.add_argument("--game", type=int, required=True)
     ap.add_argument("--weights", required=True)
     ap.add_argument("--lo", type=int, default=150)
-    ap.add_argument("--hi", type=int, default=250)
+    # 300, not 250. Measured 2026-09-19: Greensboro's plate frame is f277 (median,
+    # spanning 230-337) and Constellation piled 25% of its chains onto the old f250
+    # ceiling. Both parks were previously diagnosed as gate failures; both were the
+    # window. The extra 50 frames cost ~50% more inference per clip, which is the right
+    # trade against silently losing two thirds of a park. Narrow it per park AFTER the
+    # run prints that park's own chain-end distribution.
+    ap.add_argument("--hi", type=int, default=300)
     ap.add_argument("--conf", type=float, default=0.15)
     ap.add_argument("--topk", type=int, default=5)
     ap.add_argument("--imgsz", type=int, default=1280)
@@ -231,6 +237,29 @@ def main():
     # 0.23-0.58, real ran 0.22-0.74) -- only WHEN the chain ends does. Derived from this
     # park's own distribution, never carried between parks.
     ends = out.groupby("stem").frame.max()
+
+    # IS THE SCAN WINDOW CUTTING FLIGHTS OFF? A chain that ends at the last frame we looked
+    # at has not necessarily finished -- it may simply be where we stopped looking. That
+    # failure is completely silent: the clip still yields a (short) chain, the short chain
+    # then fails MIN_RUN, and the park reports a low yield that reads as "hard park".
+    #
+    # Measured 2026-09-19. Greensboro's plate is at f277 median, spanning 230-337, while the
+    # default window stops at 250 -- so it scored 3/33 and I diagnosed it as a CHAINING
+    # failure. Re-run at f200-350 it gives 10/33 and every render is a clean baseball at the
+    # plate. Constellation then showed 25% of chains ending EXACTLY at f250, which is the
+    # same defect and also inflated its chain-end IQR to 49.5 against 5-12 elsewhere.
+    #
+    # Both parks were previously written up as gate problems. They were window problems.
+    at_ceiling = int((ends >= a.hi - 4).sum())
+    if at_ceiling and at_ceiling / len(ends) > 0.05:
+        print("")
+        print("*** WINDOW TRUNCATION: %d of %d chains (%.0f%%) end within 4 frames of --hi "
+              "%d." % (at_ceiling, len(ends), 100 * at_ceiling / len(ends), a.hi))
+        print("    Those are flights CUT OFF, not flights that finished, and the clips that")
+        print("    lost more frames failed MIN_RUN and are not in this count at all.")
+        print("    Re-run with --hi %d (and --lo %d) before trusting this park's yield."
+              % (int(a.hi + 90), int(max(0, a.lo + 40))))
+
     centre = float(ends.median())
     spread = float((ends - centre).abs().median()) or 1.0
     tol = max(12.0, 4.0 * spread)
