@@ -69,6 +69,9 @@ def main():
     ap.add_argument("--pose", default=None, help="default output/park_pose_<game>.npz")
     ap.add_argument("--diameter-px", type=float, default=0.0,
                     help="constant fallback when no pose exists; REPORTED in the output")
+    ap.add_argument("--measure-diameter", action="store_true",
+                    help="no pose: measure the ball width off the pixels and use its median "
+                         "as a constant. For a park that has never been solved.")
     ap.add_argument("--rescale-to-measured", action="store_true",
                     help="scale the pose-derived diameters so their median matches the "
                          "pixel measurement; use when the size ratio is outside 0.94-1.02")
@@ -87,9 +90,9 @@ def main():
     assert os.path.exists(tracks), "no tracks at %s -- run detect_ball_tracks.py first" % tracks
     pose = a.pose or os.path.join(ROOT, "output", "park_pose_%d.npz" % a.game)
     have_pose = os.path.exists(pose)
-    assert have_pose or a.diameter_px > 0, (
-        "no pose at %s and no --diameter-px. A label needs a box width and this script will "
-        "not invent one." % pose)
+    assert have_pose or a.diameter_px > 0 or a.measure_diameter, (
+        "no pose at %s, no --diameter-px and no --measure-diameter. A label needs a box "
+        "width and this script will not invent one." % pose)
 
     manifest = os.path.join(d, os.path.basename(d) + "_manifest.csv")
     clips = fpp.build(a.game, tracks, manifest, fps_default=FPS)
@@ -114,13 +117,40 @@ def main():
             c["_e"] = e
             c["_rms"] = rms
         else:
-            dia = np.full(len(c["fr"]), a.diameter_px, float)
+            dia = np.full(len(c["fr"]), a.diameter_px, float)  # filled below if measuring
         for k, fr_i in enumerate(c["fr"]):
             rows.append(dict(stem=c["stem"], game_pk=a.game, frame=int(fr_i),
                              x=float(c["obs"][k, 0]), y=float(c["obs"][k, 1]),
                              diameter_px=float(dia[k])))
 
     lab = pd.DataFrame(rows)
+
+    # NO POSE AT ALL: measure the ball off the pixels and use the median as a constant.
+    #
+    # This is what a park that has never been solved gets, and it is worth being explicit
+    # about what it costs. The pose version gives a per-frame diameter that GROWS as the ball
+    # approaches -- measured spans are 7.4-8.5 px at Isotopes and 11.1-13.4 at Frawley, so a
+    # constant is wrong by roughly +-10% at the two ends of a flight. For a YOLO box scaled
+    # 1.8x that is inside the slop, and it is the difference between a park contributing and
+    # a park sitting out. The n and the spread are printed so the cost is visible, and the
+    # park should be re-labelled from a pose once it has one.
+    if a.measure_diameter and not have_pose:
+        s = lab.sample(min(200, len(lab)), random_state=a.seed)
+        ms = []
+        for _i, r in s.iterrows():
+            m = measured_diameter(os.path.join(d, r["stem"] + ".mp4"),
+                                  int(r["frame"]), r["x"], r["y"])
+            if m:
+                ms.append(m)
+        assert ms, ("could not measure a single ball width in %d samples -- not inventing a "
+                    "diameter on no evidence" % len(s))
+        ms = np.array(ms, float)
+        med = float(np.median(ms))
+        lab["diameter_px"] = med
+        print("MEASURED diameter %.2f px (n=%d, p25 %.2f p75 %.2f) used as a CONSTANT -- no "
+              "pose for this park,\n  so the per-frame growth through the flight is not "
+              "modelled. Re-label from a pose when one exists."
+              % (med, len(ms), float(np.percentile(ms, 25)), float(np.percentile(ms, 75))))
 
     # SHAPE FROM THE POSE, SCALE FROM THE PIXELS.
     # diameter = f * D_ball / depth, so a wrong f (or a railed depth) multiplies the WHOLE
