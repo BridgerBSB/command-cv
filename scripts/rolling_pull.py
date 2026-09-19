@@ -122,18 +122,40 @@ def main():
     ap.add_argument("--lo", type=int, default=150)
     ap.add_argument("--hi", type=int, default=250)
     ap.add_argument("--device", default="0")
+    ap.add_argument("--angle", default="BROADCAST",
+                    help="the camera the detector was trained on; a banked game in a "
+                         "different angle is skipped unless named in --games")
     ap.add_argument("--keep-clips", action="store_true",
                     help="do NOT delete the mp4s. Only for debugging one game.")
     a = ap.parse_args()
 
     want = set(int(x) for x in a.games.split(",") if x.strip())
     csvs = sorted(glob.glob(os.path.join(a.cvpull_dir, "cvpull_*.csv")))
-    jobs = []
+    jobs, wrong_angle = [], []
     for c in csvs:
         pk = int(os.path.basename(c).split("_")[1].split(".")[0])
         if want and pk not in want:
             continue
+        # THE DEFAULT MUST NOT QUIETLY INCLUDE A GEOMETRY THE DETECTOR HAS NEVER SEEN.
+        # An earlier harvest defaulted to --angle CENTERFIELD, so Daikin Park and Sutter
+        # Health Park came down in a camera the model was never trained on, and Sutter
+        # returned a flight in 0 of 14 clips. Running this with no --games would sweep those
+        # straight back in and the only symptom would be two parks with a suspiciously bad
+        # yield. Named explicitly, they still run -- the operator has then said so on purpose.
+        try:
+            first = next(iter(_csv.DictReader(open(c, newline="", encoding="utf-8"))), {})
+        except Exception:                                    # noqa: BLE001
+            first = {}
+        ang = (first.get("angle") or "").strip()
+        if ang and ang != a.angle and not want:
+            wrong_angle.append((pk, ang, first.get("venue", "?")))
+            continue
         jobs.append((pk, c))
+    if wrong_angle:
+        print("SKIPPED -- not %s, and the detector is trained only on %s:" % (a.angle, a.angle))
+        for pk, ang, v in wrong_angle:
+            print("   %d  %-28s %s" % (pk, v[:28], ang))
+        print("   Name them in --games to run them anyway.\n")
     print("%d banked game(s); %.1f GB free, floor %.1f GB\n"
           % (len(jobs), free_gb(), a.min_free_gb))
 
