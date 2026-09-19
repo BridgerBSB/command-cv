@@ -58,6 +58,9 @@ def main():
     ap.add_argument("--val-frac", type=float, default=0.2)
     ap.add_argument("--angle", default="BROADCAST")
     ap.add_argument("--seed", type=int, default=0)
+    ap.add_argument("--skip-existing", action="store_true",
+                    help="reuse a clip whose images are all on disk; makes a rebuild "
+                         "incremental instead of a full 40-minute re-decode")
     ap.add_argument("--val-games", default="",
                     help="comma-separated game_pk values to use as val INSTEAD of a random "
                          "draw; makes the held-out park explicit and the score comparable "
@@ -122,7 +125,7 @@ def main():
     for s in ("train", "val"):
         for k in ("images", "labels"):
             os.makedirs(os.path.join(a.out, k, s), exist_ok=True)
-    counts = {"train": 0, "val": 0, "neg": 0, "skipped": 0}
+    counts = {"train": 0, "val": 0, "neg": 0, "skipped": 0, "reused": 0}
     n = 0
     for pid, g in lab.groupby("play_id"):
         # SAMPLE NAME MUST BE UNIQUE PER CLIP. An MLB play_id is a UUID, so its first 8
@@ -138,8 +141,29 @@ def main():
             counts["skipped"] += len(g)
             continue
         want = {int(r.frame_idx): r for r in g.itertuples()}
+
+        # PER-CLIP RNG, SEEDED FROM THE CLIP'S OWN NAME.
+        # The jitter used to come from one stream shared by every clip, so a clip's crops
+        # depended on how many clips ran before it. That makes the build unreproducible the
+        # moment the input set changes -- adding a park would silently re-jitter every
+        # existing image -- and it makes --skip-existing impossible, because skipping a clip
+        # would shift the stream for all the rest. Seeding per clip makes each one
+        # independent of processing order, which is what lets a rebuild be incremental.
+        rng = random.Random("%s|%s" % (a.seed, pid))
+
+        # INCREMENTAL REBUILD. Adding parks to a 31,548-image set should not cost the 40
+        # minutes it takes to decode and rewrite the 31,548 that have not changed. A clip
+        # whose every expected image is already on disk is skipped WITHOUT opening the video,
+        # which is where the time actually goes.
+        if a.skip_existing:
+            split_guess = "val" if pid in val or str(g[key].iloc[0]) in val else "train"
+            paths = [os.path.join(a.out, "images", split_guess, "%s_f%d.png" % (tag, f))
+                     for f in want]
+            if paths and all(os.path.exists(p) for p in paths):
+                counts["reused"] += len(paths)
+                continue
         cap = cv2.VideoCapture(clip)
-        i, hi = 0, max(want)
+        i, hi, nclip = 0, max(want), 0
         while i <= hi:
             ok, fr = cap.read()
             if not ok:
@@ -166,7 +190,11 @@ def main():
             else:
                 counts["skipped"] += 1
                 continue
-            if n % NEG_EVERY == 0:      # a crop that cannot contain the ball
+            # Negative cadence counts WITHIN the clip, not across the run. A global counter
+            # makes which frames get a negative depend on processing order, which defeats the
+            # per-clip determinism above. Same ~1-in-6 ratio either way.
+            nclip += 1
+            if nclip % NEG_EVERY == 0:  # a crop that cannot contain the ball
                 for _ in range(8):
                     nx, ny = rng.randint(0, W - CROP_PX), rng.randint(0, H - CROP_PX)
                     if abs(nx - x0) > CROP_PX or abs(ny - y0) > CROP_PX:
@@ -192,8 +220,18 @@ def main():
     n_val = len(val)
     req = ("named: " + ", ".join(sorted(val))) if a.val_games \
         else f"requested {100 * a.val_frac:.0f}% of GROUPS"
+    if counts["reused"] and not tot:
+        # Everything was already on disk. Printing "0 of 0 images = 0.0%" here, and then a
+        # NOTE explaining an unequal park split, describes a run that did not happen. Say
+        # what actually happened instead.
+        print(f"val groups ({key}): {n_val} of {len(groups)}; NOTHING REBUILT -- "
+              f"{counts['reused']} images reused from disk ({req})")
+        print(f"  The dataset on disk is unchanged. Drop --skip-existing to force a rebuild.")
+        print(os.path.join(a.out, "data.yaml"))
+        return
     print(f"val groups ({key}): {n_val} of {len(groups)} -> {counts['val']} of {tot} "
-          f"labelled images = {100 * got:.1f}% ({req})")
+          f"labelled images = {100 * got:.1f}% ({req})"
+          + (f", plus {counts['reused']} reused" if counts["reused"] else ""))
     if not a.val_games and abs(got - a.val_frac) > 0.1:
         print(f"  NOTE: the val share of IMAGES is {100 * got:.1f}%, far from the "
               f"requested group share.")
