@@ -112,7 +112,13 @@ def main():
     ap.add_argument("--games", default="", help="comma-separated gamePks; default = all banked")
     ap.add_argument("--min-free-gb", type=float, default=6.0)
     ap.add_argument("--max-clips", type=int, default=0, help="0 = every clip in the CSV")
-    ap.add_argument("--workers", type=int, default=4)
+    # 8, not 4. Measured on the first full game: 317 clips (~2.0 GB) in 10.2 min at 4
+    # workers, so ~3.3 MB/s. That is concurrency-bound rather than bandwidth-bound, and the
+    # clips come from a CDN (sporty-clips) with no auth, so they are NOT subject to the Stats
+    # API's 25 req/sec limit -- that governs the analytics endpoint, which this stage never
+    # touches. Detection is the slower half anyway (~20 min a game), so this is a trim, not a
+    # transformation.
+    ap.add_argument("--workers", type=int, default=8)
     ap.add_argument("--lo", type=int, default=150)
     ap.add_argument("--hi", type=int, default=250)
     ap.add_argument("--device", default="0")
@@ -147,8 +153,15 @@ def main():
         t0 = time.time()
 
         clip_dir = os.path.join(ROOT, "data", "clips", "pull_%d" % pk)
+        td = time.time()
         ok, n = fetch_game(csv_path, clip_dir, a.workers, a.max_clips)
-        print("    downloaded %d/%d  (%.1f GB free)" % (ok, n, free_gb()))
+        # Split the timing, because "45 minutes a game" is not actionable while
+        # "25 download + 20 detect" says which half to attack.
+        dl_min = (time.time() - td) / 60
+        print("    downloaded %d/%d in %.1f min (%.1f MB/s)  (%.1f GB free)"
+              % (ok, n, dl_min,
+                 sum(os.path.getsize(p) for p in glob.glob(os.path.join(clip_dir, "*.mp4")))
+                 / 2 ** 20 / max(1e-6, dl_min * 60), free_gb()))
         if not ok:
             summary.append((pk, venue, 0, 0, "download failed"))
             continue
