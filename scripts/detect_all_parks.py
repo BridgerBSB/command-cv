@@ -3,7 +3,12 @@
 WHY A DRIVER AND NOT A FOR-LOOP IN A SHELL. Three reasons, all learned:
   - The GPU is 4.3 GB. Two detector processes fit and then do not, and the second one dies
     somewhere in the middle of a park with a partial CSV that looks finished. Serial by
-    construction.
+    construction. Confirmed the hard way on 2026-09-19: starting a 33-clip side experiment
+    while the rolling loop was inferring killed the experiment with
+    `SystemError: <built-in function copyMakeBorder> returned a result with an exception
+    set` -- an OpenCV allocation failure wearing a traceback that names neither memory nor
+    the GPU. If that error appears, look for a second inference process before looking at
+    the image.
   - A park that yields nothing must be REPORTED, not skipped silently. L.P. Frans reported
     "0 tracks" for a week as if it were a property of the park; it was a stale differencing
     implementation. A run that ends with a table naming every park and its yield makes that

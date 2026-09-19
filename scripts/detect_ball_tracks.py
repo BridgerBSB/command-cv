@@ -299,6 +299,14 @@ def main():
         # AT RELEASE -- four chains ending f186-189, about 55 frames and 0.9 s before the
         # plate. Every one is a real baseball; none is a flight.
         #
+        # AND WHY GREENSBORO ONLY HAD 3 PASS-1 CLIPS IN THE FIRST PLACE, established later
+        # the same day: its plate frame is f277 and the window stopped at f250, so most of
+        # its flights were truncated before they finished. The thin window was a SYMPTOM of
+        # the scan being wrong, not a property of the park. With f200-350 pass 1 keeps 10.
+        # So these two conditions are still right -- a window built on 3 points cannot
+        # exclude the delivery -- but they were protecting against damage whose root cause
+        # was upstream. Fix the window first; the refusal is the backstop, not the diagnosis.
+        #
         # Two conditions, both physical rather than tuned:
         #   n >= MIN_WINDOW_CLIPS  -- three samples is not a distribution, and a median plus
         #     MAD computed from three points cannot describe where this park's pitches land.
