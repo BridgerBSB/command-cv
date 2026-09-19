@@ -55,12 +55,18 @@ def read_frame_seq(clip, idx):
 def clip_dir_for(pk):
     """Where this game's clips live, whichever naming era produced them."""
     base = os.path.join(ROOT, "data", "clips")
-    for d in sorted(os.listdir(base)):
-        p = os.path.join(base, d)
-        if not os.path.isdir(p):
-            continue
+    dirs = [d for d in sorted(os.listdir(base)) if os.path.isdir(os.path.join(base, d))]
+
+    # EXACT SUFFIX FIRST, across ALL directories, before falling back to a manifest search.
+    # Interleaving the two let a PITCHER dir win: langford_2026 contains one clip from game
+    # 821924 and sorts before pull_821924, so AdventHealth reported "1 clip, 159 used" and a
+    # yield of 15900%. A percentage over 100 is the tell; the denominator came from a
+    # different directory than the numerator.
+    for d in dirs:
         if d.endswith("_%d" % pk):
-            return p
+            return os.path.join(base, d)
+    for d in dirs:
+        p = os.path.join(base, d)
         man = os.path.join(p, d + "_manifest.csv")
         if os.path.exists(man):
             try:
