@@ -104,6 +104,19 @@ if ($Status) {
 
 if (-not $Command) { throw "give -Command, or -Status / -Stop" }
 
+# PYTHON BLOCK-BUFFERS WHEN ITS STDOUT IS A FILE.
+# Interactively you get line buffering and see progress as it happens. Redirected
+# to a log you get 8 KB blocks, so a job that is working perfectly writes nothing
+# for tens of minutes -- which looks exactly like a hang, and the only way to tell
+# the difference is to go read CPU time and directory sizes. That happened on the
+# first real run of this script. `-u` costs nothing here; the job is I/O bound.
+if ($Command -match '(^|\s)python(\.exe)?\s' -and $Command -notmatch '(^|\s)python(\.exe)?\s+-u(\s|$)') {
+  Write-Warning ("no -u: python will block-buffer into the log, so progress will not " +
+                 "appear and a working job will look hung. Inserting -u.")
+  $Command = $Command -replace '(^|\s)python(\.exe)?\s', '$1python -u '
+  "  command is now: $Command"
+}
+
 # THE REDIRECT GOES FIRST ON THE ECHO LINES, AND IT MUST.
 # `echo ... EXIT %ERRORLEVEL%>> "$Log"` expands to `echo ... EXIT 0>> "$Log"`,
 # and cmd reads `0>>` as an append-redirect of file descriptor 0 (stdin), not
