@@ -51,8 +51,17 @@ payload["video"]["playbackGroups"][i]
 ALTERNATE_BROADCAST (1), HIGH_HOME (3), **CENTERFIELD (4)**, PITCHCAST (5),
 1B/3B BATTER/PITCHER_SIDEVIEW (6-9), MID_HOME (999). All 4000K MP4.
 
-**We use CENTERFIELD for CV command work** (pitcher→catcher axis; best for the
-plate-plane homography + glove tracking). `video.py --angle CENTERFIELD` (default).
+**ANGLE, CORRECTED 2026-09-19 -- READ THIS BEFORE COPYING THE LINE BELOW IT.**
+The MiLB ball detector is trained on **BROADCAST** and `rolling_pull.py --angle`
+defaults to BROADCAST, refusing any game whose banked clips came down in another
+geometry. The sentence that used to sit here said CENTERFIELD, it was written for
+the July MLB pull, and copying it into the MiLB harvest is what brought Daikin Park
+and Sutter Health down in an unseen geometry (Sutter returned 0 of 14 clips).
+So: **MiLB / detector work = BROADCAST.** The legacy MLB path
+`src/ingest/video.py` still defaults to `--angle CENTERFIELD` (pitcher→catcher
+axis, chosen for the plate-plane homography + glove tracking) and is left that way
+on purpose -- every MLB clip in the project was pulled with it. Name the angle
+explicitly rather than relying on either default.
 
 ## BONUS — the analytics payload IS Trackman-equivalent (big)
 
