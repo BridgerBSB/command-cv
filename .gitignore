@@ -12,3 +12,4 @@ __pycache__/
 
 # ultralytics writes here on every train; weights are large and rebuildable
 runs/
+output/detached/
