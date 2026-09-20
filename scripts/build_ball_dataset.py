@@ -23,6 +23,8 @@ the split falls back to play_id and says so: same camera on both sides is still 
         --clips data/clips/mlb_824821 --out data/yolo_ball [--val-frac 0.2]
 """
 import argparse
+import glob
+import json
 import os
 import random
 
@@ -69,6 +71,11 @@ def main():
                     help="comma-separated game_pk values to use as val INSTEAD of a random "
                          "draw; makes the held-out park explicit and the score comparable "
                          "between training runs")
+    ap.add_argument("--rebuild-val", action="store_true",
+                    help="clear images/val + labels/val before building the named split. "
+                         "Required when --val-games names a different park than the one "
+                         "already on disk, because otherwise the two blend and the "
+                         "held-out score silently becomes an average of both.")
     a = ap.parse_args()
     assert len(a.labels) == len(a.clips), "one --clips per --labels"
     rng = random.Random(a.seed)
@@ -135,6 +142,49 @@ def main():
     for s in ("train", "val"):
         for k in ("images", "labels"):
             os.makedirs(os.path.join(a.out, k, s), exist_ok=True)
+
+    # THE VAL SPLIT ACCUMULATES ACROSS RUNS, AND THAT SILENTLY CHANGES WHAT THE
+    # HEADLINE NUMBER MEANS.
+    # Nothing here clears images/val -- builds are incremental on purpose. So a
+    # second build naming a DIFFERENT held-out park leaves the first park's
+    # images sitting in val and adds the new one beside them, and the eval then
+    # reports one pixel error averaged over two parks. It is not wrong-looking:
+    # it is a plausible number, on the same scale, under the same name, and it
+    # cannot be compared to the previous run's. Caught 2026-09-19 with 381
+    # Isotopes images already in yolo_milb3/images/val while the plan was to
+    # hold out Asheville and read the result against v1's Asheville 2.15 px.
+    # The marker records what val was actually built from, so a mismatch stops
+    # the run instead of quietly redefining the measurement.
+    marker = os.path.join(a.out, "val_games.json")
+    n_existing_val = len(glob.glob(os.path.join(a.out, "images", "val", "*.png")))
+    if val and n_existing_val:
+        prior = None
+        if os.path.isfile(marker):
+            with open(marker, encoding="utf-8") as fh:
+                prior = set(json.load(fh).get("val_games", []))
+        if prior != set(val) and not a.rebuild_val:
+            raise SystemExit(
+                "REFUSING TO BLEND VAL SPLITS.\n"
+                "  images/val already holds %d images, built from: %s\n"
+                "  this run asks to hold out:                      %s\n"
+                "  Appending would report ONE pixel error averaged over both, under the\n"
+                "  same name as before, which cannot be compared to any earlier run.\n"
+                "  Either pass --rebuild-val to clear images/val + labels/val and build\n"
+                "  the named split fresh, or point --out at a new dataset directory."
+                % (n_existing_val,
+                   ", ".join(sorted(prior)) if prior else "UNRECORDED (built before this guard)",
+                   ", ".join(sorted(val))))
+        if a.rebuild_val and prior != set(val):
+            for k in ("images", "labels"):
+                d = os.path.join(a.out, k, "val")
+                for f in glob.glob(os.path.join(d, "*")):
+                    os.remove(f)
+            print("--rebuild-val: cleared the old val split (%d images) before rebuilding"
+                  % n_existing_val)
+    if val:
+        with open(marker, "w", encoding="utf-8") as fh:
+            json.dump({"val_games": sorted(str(v) for v in val)}, fh, indent=2)
+
     counts = {"train": 0, "val": 0, "neg": 0, "skipped": 0, "reused": 0}
     n = 0
     for pid, g in lab.groupby("play_id"):
