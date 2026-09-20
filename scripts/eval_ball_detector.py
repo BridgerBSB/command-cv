@@ -21,6 +21,7 @@ reason the numbers here are worse than a random split would give.
 """
 import argparse
 import glob
+import json
 import os
 
 import numpy as np
@@ -38,6 +39,16 @@ def main():
     ap.add_argument("--device", default="0")
     ap.add_argument("--hit-px", type=float, default=8.0,
                     help="a 'find' is within this many px -- about half a ball")
+    # RECORD THE RUN, AND COMPARE AGAINST A RECORDED RUN -- NOT A REMEMBERED ONE.
+    # v1's 2.15 px has been quoted from a checkpoint for days. A figure carried
+    # by hand is a figure that can drift from how it was computed, and the
+    # comparison that matters here is one number against another measured the
+    # SAME way on the SAME images. Writing the numbers means the next run can
+    # diff against them instead of against a sentence.
+    ap.add_argument("--json-out", default="",
+                    help="write this run's figures to JSON so a later run can diff them")
+    ap.add_argument("--vs", default="",
+                    help="a --json-out file from an earlier run; prints it beside this one")
     a = ap.parse_args()
 
     from ultralytics import YOLO
@@ -88,6 +99,50 @@ def main():
               "called this blindness.")
     else:
         print("  READ: found and ranked first. Localisation is the remaining error.")
+    figures = {
+        "data": os.path.abspath(a.data), "split": a.split,
+        "weights": os.path.abspath(a.weights),
+        "n_scored": int(n), "n_no_detection": int(missing),
+        "top1_median": round(float(np.median(t1)), 3),
+        "top1_p90": round(float(np.percentile(t1, 90)), 3),
+        "pct_within_hit_px": round(float(100 * (t1 < a.hit_px).mean()), 2),
+        "bestk_median": round(float(np.median(bk)), 3),
+        "rank_median": round(float(np.median(rk)), 2),
+        "hit_px": a.hit_px, "topk": a.topk, "conf": a.conf,
+    }
+    if a.json_out:
+        with open(a.json_out, "w", encoding="utf-8") as fh:
+            json.dump(figures, fh, indent=2)
+        print(f"  figures written to {a.json_out}")
+
+    if a.vs:
+        with open(a.vs, encoding="utf-8") as fh:
+            old = json.load(fh)
+        # A comparison across DIFFERENT val images is not a comparison. Say so
+        # rather than printing two numbers side by side as though they race.
+        same = (old.get("n_scored") == figures["n_scored"]
+                and os.path.basename(old.get("data", "")) == os.path.basename(figures["data"]))
+        print("\n  vs %s" % a.vs)
+        print(f"  {'':22} {'prior':>9} {'this run':>9}   {'better?':>8}")
+        rows = [("top-1 median px", "top1_median", False),
+                ("top-1 p90 px", "top1_p90", False),
+                ("within %gpx %%" % a.hit_px, "pct_within_hit_px", True),
+                ("rank of closest", "rank_median", False),
+                ("no detection (n)", "n_no_detection", False)]
+        for label, k, higher_better in rows:
+            o, v = old.get(k), figures[k]
+            if o is None:
+                continue
+            good = (v > o) if higher_better else (v < o)
+            mark = "yes" if good else ("same" if v == o else "NO")
+            print(f"  {label:22} {o:>9} {v:>9}   {mark:>8}")
+        if not same:
+            print("\n  WARNING: the two runs did NOT score the same val set "
+                  f"({old.get('n_scored')} vs {figures['n_scored']} images, "
+                  f"{os.path.basename(old.get('data',''))} vs "
+                  f"{os.path.basename(figures['data'])}).\n"
+                  "  These numbers are not comparable. Re-run both against one split.")
+
     print("\n  This is still not the FINAL test. That is feeding these detections into the "
           "camera\n  solve and checking the plate crossing in inches "
           "(scripts/plate_scale_check.py).")
