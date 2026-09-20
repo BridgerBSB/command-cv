@@ -20,6 +20,14 @@
   anything. The reaper exists for a reason; this only takes THIS job out of its
   reach. Check the footprint it reports and keep an eye on free RAM.
 
+  MEASURE THE FOOTPRINT LATE, NOT AT STARTUP. The rolling pull read 77 MB
+  thirty seconds in, which was quoted as evidence the job was never what filled
+  the machine. Eight minutes later it had spawned a detector child at 1,271 MB.
+  The parent is a thin orchestrator and the real cost arrives with inference,
+  so an early reading understates it by more than an order of magnitude. That
+  is why -Status walks the whole process TREE and prints every worker rather
+  than just the one the scheduler started.
+
   USAGE
     .\scripts\run_detached.ps1 -Command "python scripts\rolling_pull.py ..." -Name cv-rolling
     .\scripts\run_detached.ps1 -Status  -Name cv-rolling     # alive? log tail?
