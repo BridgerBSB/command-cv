@@ -120,8 +120,21 @@ def main():
             old = json.load(fh)
         # A comparison across DIFFERENT val images is not a comparison. Say so
         # rather than printing two numbers side by side as though they race.
-        same = (old.get("n_scored") == figures["n_scored"]
-                and os.path.basename(old.get("data", "")) == os.path.basename(figures["data"]))
+        #
+        # COMPARE THE EXAM SIZE, NOT n_scored. n_scored counts images where the
+        # model produced SOME detection, so a better model shifts it -- v1
+        # scored 114 and v2 scored 116 on the identical 119-image split,
+        # precisely because v2 missed fewer. The first version compared
+        # n_scored and therefore declared the one run that mattered "not
+        # comparable", which is worse than no check: a false alarm on a valid
+        # result invites throwing the result away. The exam size is
+        # n_scored + n_no_detection, and it is a property of the SPLIT rather
+        # than of the model being scored.
+        def _exam(d):
+            return (d.get("n_scored") or 0) + (d.get("n_no_detection") or 0)
+        same = (_exam(old) == _exam(figures)
+                and os.path.basename(old.get("data", "")) == os.path.basename(figures["data"])
+                and old.get("split") == figures["split"])
         print("\n  vs %s" % a.vs)
         print(f"  {'':22} {'prior':>9} {'this run':>9}   {'better?':>8}")
         rows = [("top-1 median px", "top1_median", False),
@@ -138,10 +151,13 @@ def main():
             print(f"  {label:22} {o:>9} {v:>9}   {mark:>8}")
         if not same:
             print("\n  WARNING: the two runs did NOT score the same val set "
-                  f"({old.get('n_scored')} vs {figures['n_scored']} images, "
-                  f"{os.path.basename(old.get('data',''))} vs "
-                  f"{os.path.basename(figures['data'])}).\n"
+                  f"({_exam(old)} vs {_exam(figures)} labelled images, "
+                  f"{os.path.basename(old.get('data',''))}[{old.get('split')}] vs "
+                  f"{os.path.basename(figures['data'])}[{figures['split']}]).\n"
                   "  These numbers are not comparable. Re-run both against one split.")
+        else:
+            print(f"\n  same exam: {_exam(figures)} labelled images, "
+                  f"{os.path.basename(figures['data'])}[{figures['split']}].")
 
     print("\n  This is still not the FINAL test. That is feeding these detections into the "
           "camera\n  solve and checking the plate crossing in inches "
