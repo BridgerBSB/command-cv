@@ -133,11 +133,17 @@ if ($Command -match '(^|\s)python(\.exe)?\s' -and $Command -notmatch '(^|\s)pyth
 # indistinguishable from the job having been killed. The START line has the
 # same trap whenever the command happens to end in a digit, and the real one
 # ends in `--min-free-gb 6`. Leading `>>"file" echo ...` cannot be misparsed.
+# THE START LINE ECHOES THE COMMAND AS TEXT, SO ITS METACHARACTERS MUST BE ESCAPED.
+# Unescaped, `echo START a & b` is not a log line: cmd runs `echo START a` and then
+# EXECUTES `b`. On 2026-09-24 a six-step `&` chain ran twice this way -- once inside
+# the echo, once for real -- with the first pass's output going to no log at all,
+# which looked like a step silently failing. `^` escapes & | < > ^ for cmd.
+$EchoText = $Command -replace '([&|<>^])', '^$1'
 $cmd = @"
 @echo off
 cd /d "$Root"
->> "$Log" echo [%DATE% %TIME%] START $Command
-$Command >> "$Log" 2>&1
+>> "$Log" echo [%DATE% %TIME%] START $EchoText
+($Command) >> "$Log" 2>&1
 >> "$Log" echo [%DATE% %TIME%] EXIT %ERRORLEVEL%
 "@
 Set-Content -Path $Wrapper -Value $cmd -Encoding ascii
