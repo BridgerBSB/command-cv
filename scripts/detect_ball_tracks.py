@@ -62,8 +62,22 @@ def best_chain(dets, step_lo=STEP_LO, step_hi=STEP_HI):
     dets: {frame: [(x, y, conf), ...]}. Greedy from each possible start, keeping the longest;
     the search is tiny (a few hundred candidates per clip) so there is no reason to be clever.
     """
+    ch = all_chains(dets, step_lo, step_hi)
+    return max(ch, key=len) if ch else []
+
+
+def all_chains(dets, step_lo=STEP_LO, step_hi=STEP_HI):
+    """Every greedy chain, one per start candidate, in start order.
+
+    best_chain keeps only the longest, and on 2026-09-24 that was the failure: at Isotopes
+    the shortstop stands in the foreground and the chain through his white cleats is LONGER
+    than the pitch, so v2 followed his shoes on 53 of 156 clips (plate misses of 1-2 ft) while
+    the pitch chain existed in the same candidate set. Keeping every chain lets a later step
+    choose the one that ends where this park's pitches end. Ties in length resolve to the
+    earliest start, exactly as best_chain always did (strict `>` below).
+    """
     frames = sorted(dets)
-    best = []
+    out = []
     for si, f0 in enumerate(frames):
         for c0 in dets[f0]:
             chain = [(f0, c0[0], c0[1], c0[2])]
@@ -88,9 +102,8 @@ def best_chain(dets, step_lo=STEP_LO, step_hi=STEP_HI):
                     continue
                 st, x, y, cf = max(cands, key=lambda c: c[3])   # strongest that fits
                 chain.append((f1, x, y, cf))
-            if len(chain) > len(best):
-                best = chain
-    return best
+            out.append(chain)
+    return out
 
 
 def _flush(model, buf, dets, a):
@@ -133,10 +146,13 @@ def main():
     ap.add_argument("--min-run-2", type=int, default=4,
                     help="minimum chain length in pass 2 (pass 1 uses %d)" % MIN_RUN)
     ap.add_argument("--tag", default="")
+    ap.add_argument("--from-dets", default="",
+                    help="replay chain selection from a saved dets_<game><tag>.csv: no video, "
+                         "no GPU, seconds instead of ~27 min for a 327-clip park")
+    ap.add_argument("--plate-spot", action="store_true",
+                    help="pick, per clip, the longest chain that ends WHERE this park's "
+                         "pitches end (spatial consensus from pass 1), not the longest overall")
     a = ap.parse_args()
-
-    from ultralytics import YOLO
-    model = YOLO(a.weights)
 
     d = a.dir if os.path.isabs(a.dir) else os.path.join(ROOT, a.dir)
     man = pd.read_csv(os.path.join(d, os.path.basename(d) + "_manifest.csv"))
@@ -183,29 +199,63 @@ def main():
     if a.limit:
         stems = stems[:a.limit]
 
+    # RAW DETECTIONS ARE SAVED, because chain selection is where the bugs have been and
+    # inference is where the time goes. Every change to the chain logic used to cost a full
+    # re-run of the network (27 min at Isotopes); with the detections on disk it costs seconds,
+    # and the old and new selection can be compared on IDENTICAL candidates.
+    dets_path = os.path.join(ROOT, "output", f"dets_{a.game}{a.tag}.csv")
+    all_dets = {}
+    if a.from_dets:
+        # round_trip: pandas' default fast float parser can land 1 ULP off, which is enough
+        # to make a replay differ byte-wise from the live run it is meant to reproduce.
+        dd = pd.read_csv(a.from_dets, float_precision="round_trip")
+        for (stem, f), g in dd.groupby(["stem", "frame"], sort=True):
+            all_dets.setdefault(stem, {})[int(f)] = [
+                (float(r.x), float(r.y), float(r.conf)) for r in g.itertuples()]
+        for s in stems:                  # clips with no detection at all still count
+            all_dets.setdefault(s, {})
+        print(f"replaying {len(all_dets)} clips from {a.from_dets}", flush=True)
+    else:
+        from ultralytics import YOLO
+        model = YOLO(a.weights)
+        for j, stem in enumerate(stems, 1):
+            cap = cv2.VideoCapture(os.path.join(d, stem + ".mp4"))
+            dets, i, buf = {}, 0, []
+            while True:
+                ok, fr = cap.read()
+                if not ok or i > a.hi:
+                    break
+                if i >= a.lo:
+                    buf.append((i, fr))
+                    # BATCHED, because one predict() per frame is dominated by per-call
+                    # overhead rather than by the network: ~100 frames a clip x 600 clips is
+                    # 60,000 calls. Frames are flushed in chunks instead of all held, since a
+                    # full window of 1280x720x3 is ~276 MB and this box runs near its memory
+                    # watchdog.
+                    if len(buf) >= a.batch:
+                        _flush(model, buf, dets, a)
+                        buf = []
+                i += 1
+            cap.release()
+            if buf:
+                _flush(model, buf, dets, a)
+                buf = []
+            all_dets[stem] = dets
+            if j % 20 == 0:
+                print(f"  [{j}/{len(stems)}] inferred", flush=True)
+        pd.DataFrame([dict(stem=s, frame=f, x=x, y=y, conf=c)
+                      for s, dts in all_dets.items() for f, cs in dts.items()
+                      for x, y, c in cs]).to_csv(dets_path, index=False, float_format="%.17g")
+        # %.17g, not the default: pandas writes 16 significant digits, which drops the last
+        # digit of a float64 (309.76849365234375 -> 309.7684936523437). Harmless in pixels
+        # (~1e-13) but it made a --from-dets replay differ BYTE-wise from the live run, and
+        # a replay that cannot be byte-identical cannot prove a refactor neutral.
+        print(f"raw detections -> {dets_path}", flush=True)
+
     rows, kept, lens = [], 0, []
     short = {}          # stem -> chain, for clips that fail MIN_RUN but are not empty
-    for j, stem in enumerate(stems, 1):
-        cap = cv2.VideoCapture(os.path.join(d, stem + ".mp4"))
-        dets, i, buf = {}, 0, []
-        while True:
-            ok, fr = cap.read()
-            if not ok or i > a.hi:
-                break
-            if i >= a.lo:
-                buf.append((i, fr))
-                # BATCHED, because one predict() per frame is dominated by per-call overhead
-                # rather than by the network: ~100 frames a clip x 600 clips is 60,000 calls.
-                # Frames are flushed in chunks instead of all held, since a full window of
-                # 1280x720x3 is ~276 MB and this box runs near its memory watchdog.
-                if len(buf) >= a.batch:
-                    _flush(model, buf, dets, a)
-                    buf = []
-            i += 1
-        cap.release()
-        if buf:
-            _flush(model, buf, dets, a)
-            buf = []
+    for stem in stems:
+        dets = all_dets.get(stem, {})
         chain = best_chain(dets) if len(dets) >= MIN_RUN else []
         if len(chain) < MIN_RUN:
             # HOLD the detections instead of discarding them, so a second pass can revisit
@@ -219,9 +269,6 @@ def main():
         lens.append(len(chain))
         for f, x, y, cf in chain:
             rows.append(dict(stem=stem, game_pk=a.game, frame=int(f), x=x, y=y, conf=cf))
-        if j % 20 == 0:
-            print(f"  [{j}/{len(stems)}] {kept} clips with a flight, {len(rows)} points",
-                  flush=True)
 
     assert rows, "no clip produced a plausible flight -- check --lo/--hi and the weights"
     out = pd.DataFrame(rows)
@@ -275,6 +322,73 @@ def main():
         kept = out.stem.nunique()
         lens = list(out.groupby("stem").size())
 
+    # PLATE SPOT: WHERE a chain ends, not only WHEN. Added 2026-09-24.
+    #
+    # At Isotopes the shortstop stands in the foreground of the broadcast shot. His white
+    # cleats move for as long as a pitch does and end at the same TIME, so the consensus
+    # window above cannot see them -- and their chain is often the LONGER one, so best_chain
+    # took it. Graded against the tracking system, v2 missed the plate by 1-2 FEET on 53 of
+    # 156 clips this way while the pitch chain sat in the same candidate set. Real pitches at
+    # one park end in one small patch of the frame (the catcher's glove); the cleats end a few
+    # hundred pixels away at the bottom of the shot.
+    #
+    # The spot is derived from THIS park's pass-1 chains, like the time window, so nothing is
+    # carried between parks. It needs a majority of pass-1 chains to be pitches -- at a park
+    # where most chains are junk (Route 66, 2026-09-24) the median lands on junk, which is why
+    # a new park is still rendered and admitted by eye before its crops train anything.
+    #
+    # REFUSES rather than admitting on a spot that cannot discriminate: fewer than
+    # MIN_WINDOW_CLIPS pass-1 clips, or a tolerance wider than HALF the park's median flight
+    # length in pixels -- a spot that wide contains most of the flight, so it cannot separate
+    # a pitch from anything else moving through the same half of the frame.
+    spot = None
+    if a.plate_spot:
+        srt = out.sort_values("frame")
+        last = srt.groupby("stem").tail(1).set_index("stem")
+        first = srt.groupby("stem").head(1).set_index("stem")
+        cx, cy = float(last.x.median()), float(last.y.median())
+        spread_px = float(np.hypot(last.x - cx, last.y - cy).median()) or 1.0
+        tol_px = max(12.0, 4.0 * spread_px)
+        flight_px = float(np.median(np.hypot(last.x - first.x.reindex(last.index),
+                                             last.y - first.y.reindex(last.index))))
+        n1 = len(last)
+        print("")
+        if n1 < MIN_WINDOW_CLIPS or tol_px > flight_px / 2:
+            print(f"PLATE SPOT REFUSED: ({cx:.0f},{cy:.0f}) +-{tol_px:.0f}px from {n1} pass-1 "
+                  f"clip(s); needs >={MIN_WINDOW_CLIPS} clips and a tolerance <= half the "
+                  f"median flight ({flight_px:.0f}px). Keeping the longest chain per clip.")
+        else:
+            spot = (cx, cy, tol_px)
+            before = {s: tuple(g.frame) for s, g in out.groupby("stem")}
+            rows, n_same, n_switch, n_add = [], 0, 0, 0
+            for stem in stems:
+                dets = all_dets.get(stem, {})
+                if len(dets) < MIN_RUN:
+                    continue
+                ok = [c for c in all_chains(dets) if len(c) >= MIN_RUN
+                      and abs(c[-1][0] - centre) <= tol
+                      and np.hypot(c[-1][1] - cx, c[-1][2] - cy) <= tol_px]
+                if not ok:
+                    continue
+                ch = max(ok, key=len)
+                if stem not in before:
+                    n_add += 1
+                elif tuple(f for f, *_ in ch) == before[stem]:
+                    n_same += 1
+                else:
+                    n_switch += 1
+                for f, x, y, cf in ch:
+                    rows.append(dict(stem=stem, game_pk=a.game, frame=int(f), x=x, y=y,
+                                     conf=cf))
+            out = pd.DataFrame(rows)
+            keep = set(out.stem)
+            n_drop = len(set(before) - keep)
+            kept = out.stem.nunique()
+            lens = list(out.groupby("stem").size())
+            print(f"PLATE SPOT ({cx:.0f},{cy:.0f}) +-{tol_px:.0f}px, flight {flight_px:.0f}px, "
+                  f"from {n1} clips: {n_same} unchanged, {n_switch} SWITCHED to a chain ending "
+                  f"at the spot, {n_add} added, {n_drop} dropped (no chain ends there)")
+
     # SECOND PASS: short chains, admitted ONLY if they land in the window the LONG chains
     # defined. Four parks now show the same shape -- Greensboro 3/33, Constellation 4/16,
     # Hops 29/50, L.P. Frans 15/50 -- and in every one the rendered tracks are unmistakable
@@ -327,8 +441,13 @@ def main():
             short = {}
         added, rejected = [], 0
         for stem, chain in short.items():
+            if stem in keep:          # the plate-spot pass already found it a full chain
+                continue
             end = chain[-1][0]
             if abs(end - centre) > tol:
+                rejected += 1
+                continue
+            if spot and np.hypot(chain[-1][1] - spot[0], chain[-1][2] - spot[1]) > spot[2]:
                 rejected += 1
                 continue
             added.append(stem)

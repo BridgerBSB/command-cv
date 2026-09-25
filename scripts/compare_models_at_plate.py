@@ -12,6 +12,14 @@ pixels, interpolate the pixel path to zone_time, unproject onto the plate-front 
 compare to the tracking system. The camera pose is FIXED per park, so the only thing that
 varies between rows is the detector.
 
+LAST-K, DEFAULT 10. A park's pose is fitted from late-flight tracks, so it projects the
+ball well near the plate and worse near release. Grading a WHOLE chain therefore penalises
+a detector for following MORE of the flight: at Isotopes (2026-09-24) v2's pitch-matched
+chains started ~10 frames earlier than v1's and scored 39 clips over 12 in against v1's 14
+-- graded on the last 10 frames the same chains scored 16 vs 8, medians 2.75 vs 2.68 in.
+The whole-chain grade was measuring the pose's reach, not the detector. --last-k 0 restores
+it; plate_scale_check.py still grades the whole chain.
+
 GRAIN. Each model tracks a different set of clips. Averages over different clips are not
 comparable, so the headline table uses ONLY the clips every model tracked, and each model's
 own yield is printed beside it.
@@ -62,6 +70,8 @@ def main():
     ap.add_argument("--dir", required=True)
     ap.add_argument("--tags", required=True, help="comma list; reads output/detect_tracks_<game><tag>.csv")
     ap.add_argument("--pose", default=None)
+    ap.add_argument("--last-k", type=int, default=10,
+                    help="grade each chain on its LAST k frames only (0 = whole chain)")
     a = ap.parse_args()
     d = a.dir if os.path.isabs(a.dir) else os.path.join(ROOT, a.dir)
     assert os.path.isdir(d), d
@@ -80,6 +90,8 @@ def main():
         lab = pd.read_csv(p)
         errs = {}
         for stem, g in lab.groupby("stem"):
+            if a.last_k:
+                g = g.sort_values("frame").tail(a.last_k)
             if stem in usable and len(g) >= MIN_PTS:
                 errs[stem] = clip_error(g, man.loc[stem], C, pan, tilt, roll, f)
         per[tg] = errs
