@@ -56,6 +56,11 @@ MANIFEST_COLS = (["stem", "game_pk", "date", "venue", "play_id", "pitch_type", "
                     "rel_x", "rel_y", "rel_z"])
 
 
+DL_TRIES = 4
+DL_BACKOFF_S = (5, 20, 45)        # seconds between tries: long enough to ride out a reconnect
+MIN_DOWNLOADED = 0.90             # a game with fewer clips than this is left for the next run
+
+
 def free_gb():
     return shutil.disk_usage(ROOT).free / 2 ** 30
 
@@ -80,15 +85,28 @@ def fetch_game(csv_path, clip_dir, workers, max_clips):
     for i, r in enumerate(rows):
         r["stem"] = "%s_%04d" % (name, i)
 
+    # A WIFI DROP MUST NOT BECOME A SILENTLY SHORT PARK. Before 2026-09-25 a failed download
+    # returned False once and the game was labelled on whatever arrived -- 30 of 120 clips
+    # looked exactly like a low-yield park, and the next run skipped it as "already
+    # labelled". Two guards here, one in main():
+    #   * RETRY with backoff (4 tries over ~70 s), which rides out a reconnect.
+    #   * WRITE TO .part AND RENAME, so an interrupted transfer can never pass the
+    #     "exists and > 10 KB" test below as a finished clip.
     def get(r):
         p = os.path.join(clip_dir, r["stem"] + ".mp4")
         if os.path.exists(p) and os.path.getsize(p) > 10000:
             return True
-        try:
-            download(r["cf_url"], p)
-            return True
-        except Exception:                                    # noqa: BLE001
-            return False
+        for attempt in range(DL_TRIES):
+            try:
+                download(r["cf_url"], p + ".part")
+                os.replace(p + ".part", p)
+                return True
+            except Exception:                                # noqa: BLE001
+                if os.path.exists(p + ".part"):
+                    os.remove(p + ".part")
+                if attempt < DL_TRIES - 1:
+                    time.sleep(DL_BACKOFF_S[attempt])
+        return False
 
     ok = 0
     with ThreadPoolExecutor(workers) as ex:
@@ -207,6 +225,16 @@ def main():
               % (ok, n, dl_min,
                  sum(os.path.getsize(p) for p in glob.glob(os.path.join(clip_dir, "*.mp4")))
                  / 2 ** 20 / max(1e-6, dl_min * 60), free_gb()))
+        # LABELLING A PARTIAL GAME WRITES det_labels_<pk>.csv, WHICH MARKS IT DONE FOREVER.
+        # So a game short of MIN_DOWNLOADED stops here: its clips stay on disk (the next run
+        # skips them and fetches only what is missing), no labels are written, and it is
+        # reported so a network outage cannot pass for a low-yield park.
+        if n and ok < MIN_DOWNLOADED * n:
+            print("    INCOMPLETE DOWNLOAD: %d/%d clips (< %.0f%%). NOT labelled -- re-run the "
+                  "same command once the network is back; it resumes from the clips on disk."
+                  % (ok, n, 100 * MIN_DOWNLOADED))
+            summary.append((pk, venue, n, 0, "INCOMPLETE %d/%d" % (ok, n)))
+            continue
         if not ok:
             summary.append((pk, venue, 0, 0, "download failed"))
             continue
