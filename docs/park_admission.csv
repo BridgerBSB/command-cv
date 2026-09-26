@@ -5,6 +5,32 @@ game_pk,venue,labeller,real_of_6,verdict,reviewed,note
 815159,Greater Nevada Field,v3,1,REJECT,2026-09-25,catcher/umpire gear; several tracks before the pitch is thrown
 815216,Chickasaw Bricktown Ballpark,v3,6,ADMIT,2026-09-25,clean
 815256,Las Vegas Ballpark,v3,6,ADMIT,2026-09-25,clean
-815374,Southwest University Park,v3,1,REJECT,2026-09-25,tight 1B-side camera; umpire mask, catcher gear, bat
-817168,Route 66 Stadium,v1,1.5,REJECT,2026-09-24,umpire/catcher gear, pitcher body (quarantined)
+815374,Southwest University Park,v3,1,REJECT,2026-09-25,"tight 1B-side camera; umpire mask, catcher gear, bat"
+817168,Route 66 Stadium,v1,1.5,REJECT,2026-09-24,"umpire/catcher gear, pitcher body (quarantined)"
 827001,City Stadium,v1,5,HOLD,2026-09-24,4% yield; one streak along top edge
+815443,Isotopes Park,v3,4,HOLD,2026-09-25,two tracks on the pitcher at release
+816989,Equity Bank Park,v3,6,ADMIT,2026-09-25,clean
+817085,ONEOK Field,v3,5,ADMIT,2026-09-25,one short 4-point chain
+817170,Route 66 Stadium,v3,2,REJECT,2026-09-25,tracks on outfield ad board lettering
+817256,Nelson Wolff Stadium,v3,6,ADMIT,2026-09-25,small ball but real
+817284,Arvest Ballpark,v3,6,ADMIT,2026-09-25,clean
+817358,Momentum Bank Ballpark,v3,1,REJECT,2026-09-25,umpire/dark blobs; behind-pitcher dim feed
+817409,Riders Field,v3,6,ADMIT,2026-09-25,clean
+817590,Dickey-Stephens Park,v3,6,ADMIT,2026-09-25,clean
+817611,Hodgetown,v3,6,ADMIT,2026-09-25,clean
+821786,Truist Stadium,v3,6,ADMIT,2026-09-25,clean
+821848,Frawley Stadium,v3,6,ADMIT,2026-09-25,clean
+822098,Fifth Third Park,v3,1,REJECT,2026-09-25,tracks on dugout railing and umpire
+822161,Fluor Field at the West End,v3,6,ADMIT,2026-09-25,clean
+822256,Nymeo Field,v3,3,HOLD,2026-09-25,umpire chest protector and batter
+822258,First National Bank Field,v3,3,HOLD,2026-09-25,vertical chains through the pitcher's delivery
+822428,Bowling Green Ballpark,v3,2,REJECT,2026-09-25,chains in the stands above the batter
+826785,Wilson Ballpark,v3,6,ADMIT,2026-09-25,clean
+826866,Carilion Clinic Field,v3,6,ADMIT,2026-09-25,hazy feed but real
+826904,Pelicans Ballpark,v3,4,HOLD,2026-09-25,two on umpire mask
+827002,City Stadium,v3,4,HOLD,2026-09-25,short chains near the batter
+827097,L.P. Frans Stadium,v3,4,HOLD,2026-09-25,behind-pitcher; short 4-point chains
+827182,Virginia Credit Union Stadium,v3,6,ADMIT,2026-09-25,clean
+827337,Arthur W. Perdue Stadium,v3,6,ADMIT,2026-09-25,clean
+827488,Joseph P. Riley Jr. Ballpark,v3,5,ADMIT,2026-09-25,one on catcher gear
+827562,SRP Park,v3,6,ADMIT,2026-09-25,clean
