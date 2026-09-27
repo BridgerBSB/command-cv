@@ -1,0 +1,36 @@
+{
+  "game": 816698,
+  "ref_stem": "aaa_816698_0003",
+  "ref_frame": 120,
+  "source": "read by eye off tools/grid_crop.py zooms + row intensity profiles, 2026-09-26 (Claude). Pixels are in the REFERENCE view that stabilize_park.py maps every clip into.",
+  "points": [
+    {
+      "name": "plate_center",
+      "world_ft": [
+        0.0,
+        1.0,
+        0.0
+      ],
+      "px": [
+        765.0,
+        416.0
+      ],
+      "sigma_px": 2.0,
+      "note": "centre of the white plate bar, cols 736-794 on row 416 (3 px tall: the whole plate seen edge-on). World y = 12 in, mid-depth of the 17 in wide part"
+    }
+  ],
+  "widths_px": {
+    "plate": 58.0,
+    "rubber": 64.0,
+    "note": "NOT used in the fit: plate 58 px / 17 in = 3.4 px/in vs rubber 64 px / 24 in = 2.7 px/in, which no camera behind the rubber can produce. One of the two widths is not what it looks like (rubber partly buried / plate bar includes chalk). Centres are robust to that; widths are not."
+  },
+  "features_npz": "data/landmarks/816698_feats.npz",
+  "features": {
+    "foul": "white-chalk foul-line samples (px), both lines, far from the plate only (x<505 or x>=1000); near the plate the chalk is mixed with batter's-box lines",
+    "mound": "dirt/grass boundary of the 9 ft radius mound circle centred (0, 59, 0), pitcher and scorebug excluded",
+    "plate_ends": "ends of the white plate bar, row 416, cols 736 and 794 = (+-8.5 in, ~12 in, 0)"
+  },
+  "rejected": {
+    "rubber_slab": "The white ribbed slab at (528-592, 654-677) is NOT the rubber. It is 64 px wide where the mound implies a 24 in rubber is ~105 px, and the ground-landmark camera projects the raised rubber (z = 10 in) to y 621 -- exactly under the pitcher's feet, who is standing on it at set-up. The slab sits behind the rubber, lower. Kept here so nobody re-marks it."
+  }
+}
