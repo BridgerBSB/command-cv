@@ -1,0 +1,15 @@
+{
+  "game": 815419,
+  "ref_stem": "aaa_815419_0284",
+  "ref_frame": 135,
+  "source": "reference = set-up frame of the clip whose auto target is nearest the median (same rule as stabilize_park.py). Features by colour segmentation + eye check, 2026-09-26 (Claude).",
+  "features_npz": "data/landmarks/815419_feats.npz",
+  "features": {
+    "mound": "dirt/grass boundary of the 9 ft mound circle, pitcher's legs excluded",
+    "plate_ends": "dim white plate bar, row 451, ends ~735 and ~782 (left end fades; +-3 px)"
+  },
+  "rejected": {
+    "home_circle": "its near edge merges into the basepath dirt at this angle; centre not known to the inch",
+    "foul_lines": "not visible as chalk from this camera"
+  }
+}

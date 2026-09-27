@@ -43,7 +43,7 @@ sys.path.insert(0, os.path.join(ROOT, "tools"))
 from src import pinhole as ph  # noqa: E402
 import fit_park_pose as fpp  # noqa: E402
 
-MOUND_R_FT, MOUND_Y_FT = 9.0, 59.0
+MOUND_R_FT, MOUND_Y_FT = 9.0, 59.0   # rule size; --mound-r overrides per park (crews vary)
 PLATE_BAR = np.array([[8.5 / 12, 1.0, 0.0], [-8.5 / 12, 1.0, 0.0]])
 
 
@@ -116,10 +116,17 @@ def main():
     ap.add_argument("--plate-weight", type=float, default=5.0)
     ap.add_argument("--init", default=None, help="starting pose npz (default: v4fit pose)")
     ap.add_argument("--out", default=None)
+    ap.add_argument("--grid", action="store_true", help="add a position lattice of starts")
+    ap.add_argument("--mound-r", type=float, default=None,
+                    help="visible dirt-circle radius, ft (rule 9.0; Isotopes reads wider)")
     a = ap.parse_args()
     d = a.dir if os.path.isabs(a.dir) else os.path.join(ROOT, a.dir)
     assert os.path.isdir(d), d
     j, F = load(a.game)
+    if a.mound_r:
+        global MOUND_R_FT
+        MOUND_R_FT = a.mound_r
+    print("mound radius %.2f ft" % MOUND_R_FT)
     print("landmarks: " + ", ".join("%s %d" % (k, len(v)) for k, v in F.items() if np.ndim(v) == 2))
 
     tmp = os.path.join(ROOT, "output", "_seeds_%d_stabfit.csv" % a.game)
@@ -134,15 +141,28 @@ def main():
     xs7 = [40, 60, 20, 0.1, 0.1, 0.05, 5000]
 
     # stage 1: landmarks only, multi-start along the depth valley (f scaled with distance)
+    # Starts: the old pose scaled along its depth valley, PLUS (with --grid) a lattice over
+    # camera position with f set from the plate bar's measured width, for parks where the
+    # old pose is nowhere near the basin (Isotopes: shot from well off the centre line).
+    starts = [np.r_[bC[0] * cy / max(bC[1], 1.0), cy, bC[2] * cy / max(bC[1], 1.0), bang,
+                    bf * cy / max(bC[1], 1.0)] for cy in (120, 200, 300, 450, 650)]
+    if a.grid:
+        pe = F["plate_ends"]
+        px_per_ft = abs(pe[1, 0] - pe[0, 0]) / (17 / 12.0)
+        for cx in (-90, -45, -15, 15, 45, 90):
+            for cy in (150, 250, 400, 600):
+                for cz in (10, 25, 45):
+                    starts.append(np.r_[cx, cy, cz, 0.0, 0.0, 0.0, px_per_ft * np.hypot(cx, cy)])
     best = None
-    for cy in (120, 200, 300, 450, 650):
-        s = cy / max(bC[1], 1.0)
-        x0 = np.clip(np.r_[bC[0] * s, cy, bC[2] * s, bang, bf * s], np.array(lo7) + 1e-6, np.array(hi7) - 1e-6)
+    for x0 in starts:
+        cy = x0[1]
+        x0 = np.clip(x0, np.array(lo7) + 1e-6, np.array(hi7) - 1e-6)
         r = least_squares(landmark_res, x0, args=(F, a.plate_weight), bounds=(lo7, hi7), x_scale=xs7,
                           loss="soft_l1", f_scale=2.0, max_nfev=3000)
         e = np.abs(landmark_res(r.x, F, 1.0))
-        print("  start Cy %4d -> C (%6.1f,%6.1f,%5.1f) f %7.0f  landmark med %6.2f p90 %6.2f px"
-              % (cy, *r.x[:3], r.x[6], np.median(e), np.percentile(e, 90)), flush=True)
+        if not a.grid or np.median(e) < 5:
+            print("  start Cy %4d -> C (%6.1f,%6.1f,%5.1f) f %7.0f  landmark med %6.2f p90 %6.2f px"
+                  % (cy, *r.x[:3], r.x[6], np.median(e), np.percentile(e, 90)), flush=True)
         if best is None or r.cost < best.cost:
             best = r
     x = best.x

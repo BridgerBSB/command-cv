@@ -2,8 +2,12 @@
 
 WHAT EACH NUMBER IS, so nobody has to guess:
   miss    = distance from the catcher's SET-UP glove (the target) to where the ball crossed,
-            inches. The crossing is the video ball where its track reaches the plate, else
-            the tracking system's plate_x / plate_z (command_miss.py FALLBACK RULE).
+            inches. The TARGET always comes from video. The CROSSING comes from one of two
+            models, reported side by side and never blended (Zac, 09-27):
+              video  primary   - the detector's ball at the plate, only on pitches whose
+                                 track reaches the plate (command_miss B_ok)
+              data   secondary - the tracking system's plate_x / plate_z, every pitch
+            --actual picks which one the figure draws; the tables carry both.
   arm     = signed miss toward the pitcher's ARM side, inches (negative = glove side).
             plate_x is catcher's view, + = catcher's right, so a RHP's arm side is -x.
   up      = signed miss above the target, inches (negative = below).
@@ -44,19 +48,25 @@ def board(game, tag, src="auto"):
     assert d.pitcher_name.notna().all(), "pitches with no pitcher -- rerun pitch_context.py"
     n_all = len(d)
     d = d[d.plaus].copy()
-    # final crossing minus target, per the fallback rule
-    d["dx"] = np.where(d.final_src == "B", d.B_dx, d.A_dx)
-    d["dz"] = np.where(d.final_src == "B", d.B_dz, d.A_dz)
-    d["arm"] = np.where(d.p_throws == "R", -d.dx, d.dx)
-    d["up"] = d.dz
+    sgn = np.where(d.p_throws == "R", -1.0, 1.0)
+    for m, col in (("video", "B"), ("data", "A")):
+        ok = d.B_ok if m == "video" else pd.Series(True, index=d.index)
+        d[m + "_dx"] = d[col + "_dx"].where(ok)
+        d[m + "_dz"] = d[col + "_dz"].where(ok)
+        d[m + "_miss"] = d[col + "_miss"].where(ok)
+        d[m + "_arm"] = sgn * d[m + "_dx"]
     return d, n_all
 
 
 def summarise(d, keys):
     g = d.groupby(keys)
-    return pd.DataFrame(dict(n=g.size(), miss_med=g.final_miss.median(),
-                             arm_mean=g.arm.mean(), up_mean=g.up.mean(),
-                             video_share=g.final_src.apply(lambda s: (s == "B").mean())))
+    out = {}
+    for m in ("video", "data"):
+        out["n_" + m] = g[m + "_miss"].count()
+        out[m + "_miss_med"] = g[m + "_miss"].median()
+        out[m + "_arm_mean"] = g[m + "_arm"].mean()
+        out[m + "_up_mean"] = g[m + "_dz"].mean()
+    return pd.DataFrame(out)
 
 
 def main():
@@ -65,11 +75,13 @@ def main():
     ap.add_argument("--tag", default="_final")
     ap.add_argument("--park", default="")
     ap.add_argument("--out", default=None)
+    ap.add_argument("--actual", choices=("video", "data"), default="video")
     a = ap.parse_args()
     d, n_all = board(a.game, a.tag)
     print("game %d%s: %d pitches with a target, %d pass the plausibility screen"
           % (a.game, a.tag, n_all, len(d)))
-    pit = summarise(d, ["pitcher_name", "p_throws"]).sort_values("n", ascending=False)
+    pit = summarise(d, ["pitcher_name", "p_throws"]).sort_values("n_data", ascending=False)
+    M = a.actual
     typ = summarise(d, ["pitcher_name", "pitch_type"])
     pd.set_option("display.width", 160)
     print(pit.round(1).to_string())
@@ -92,12 +104,13 @@ def main():
         ax.axhline(0, color="#ddd", lw=0.6, zorder=0)
         ax.axvline(0, color="#ddd", lw=0.6, zorder=0)
         for pt, q in s.groupby("pitch_type"):
-            ax.scatter(q.dx.clip(-lim, lim), q.dz.clip(-lim, lim), s=14,
+            q = q[q[M + "_miss"].notna()]
+            ax.scatter(q[M + "_dx"].clip(-lim, lim), q[M + "_dz"].clip(-lim, lim), s=14,
                        color=PT_COLOR.get(pt, "#777"), edgecolor="k", lw=0.3, label=pt, zorder=3)
         ax.plot(0, 0, marker="+", color=NAVY, ms=10, mew=2, zorder=4)
         r = pit.loc[name].iloc[0]
         hand = pit.loc[name].index[0]
-        ax.set_title("%s (%sHP)\nn %d   median miss %.1f in" % (name, hand, r.n, r.miss_med),
+        ax.set_title("%s (%sHP)\nn %d   median miss %.1f in" % (name, hand, r["n_" + M], r[M + "_miss_med"]),
                      fontsize=8.5, color=NAVY)
         ax.set_xlim(-lim, lim)
         ax.set_ylim(-lim, lim)
@@ -116,12 +129,13 @@ def main():
     labs = [p for p in PT_ORDER if p in handles] + sorted(set(handles) - set(PT_ORDER))
     fig.legend([handles[l] for l in labs], labs, loc="lower center", ncol=min(len(labs), 6),
                fontsize=7.5, frameon=False)
-    fig.suptitle("Command miss vs the catcher's set-up glove - %s%s\n"
+    fig.suptitle("Command miss vs the catcher's set-up glove - %s%s - ball location from %s\n"
                  "catcher's view, inches; dotted rings 6 and 12 in; points past 30 in drawn at the edge"
-                 % (a.park + " " if a.park else "", "game %d" % a.game), fontsize=10, color=NAVY)
+                 % (a.park + " " if a.park else "", "game %d" % a.game,
+                    "VIDEO" if M == "video" else "plate_x / plate_z DATA"), fontsize=10, color=NAVY)
     fig.subplots_adjust(left=0.04, right=0.99, top=1 - 0.95 / fig.get_figheight(),
                         bottom=0.9 / fig.get_figheight(), hspace=0.32, wspace=0.28)
-    png = base + ".png"
+    png = base + "_" + M + ".png"
     fig.savefig(png, dpi=150)
     plt.close(fig)
     print("->", png)
