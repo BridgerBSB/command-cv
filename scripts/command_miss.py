@@ -48,6 +48,13 @@ import compare_models_at_plate as cmp  # noqa: E402
 
 GLOVE_DEPTH_FT = -1.75
 LAST_K = 10
+# FALLBACK RULE (Zac: "the fall back is target with plate x and z"). Root B's error lives in
+# the pitches whose ball track STOPS short of the plate -- usually the batter hides it -- and
+# the clip is then extrapolated. Measured 2026-09-26, video-vs-data vertical error by gap:
+# Isotopes 2.6 in (<=2 frames, n 141) vs 15.9 in (>=10, n 51); Frawley 1.0 vs 3.1; Asheville
+# 0.3 vs 1.4. So B is used only when the track ends within MAX_GAP_FR of the plate, and the
+# COMBINED miss falls back to A otherwise. A flag, reported, never a silent drop.
+MAX_GAP_FR = 5
 # OpenCommand's plausibility screen for a target, inches (x about plate centre, z height).
 PLAUS_X_IN = 20.0
 # Hand labels drawn on a DIFFERENT VIDEO with the same stem (the Jun 29 GC2 side-cam zip),
@@ -83,6 +90,10 @@ def main():
     ap.add_argument("--tracks", required=True)
     ap.add_argument("--mitt-weights", default="data/yolo/runs/mitt/weights/best.pt")
     ap.add_argument("--no-auto", action="store_true", help="hand targets only (no GPU)")
+    ap.add_argument("--targets", default=None,
+                    help="precomputed auto targets csv (stem, px, py) -- e.g. stabilized by "
+                         "stabilize_park.py; replaces the mitt-detector pass")
+    ap.add_argument("--tag", default="", help="suffix for the output csv")
     a = ap.parse_args()
     d = a.dir if os.path.isabs(a.dir) else os.path.join(ROOT, a.dir)
     assert os.path.isdir(d), d
@@ -97,13 +108,18 @@ def main():
     hand = {}
     for p in glob.glob(os.path.join(ROOT, "data", "annotations", "*.json")):
         j = json.load(open(p, encoding="utf-8"))
-        if j.get("stem") in WRONG_VIDEO_LABELS:
+        if j.get("stem") in WRONG_VIDEO_LABELS or a.targets:
+            # With --targets the tracks and targets are in a STABILIZED reference frame;
+            # hand labels are raw clip pixels and would be unprojected through the wrong camera.
             continue
         if j.get("stem") in man.index and j.get("setup"):
             hand[j["stem"]] = (float(j["setup"]["cx"]), float(j["setup"]["cy"]))
 
     auto = {}
-    if not a.no_auto:
+    if a.targets:
+        tg = pd.read_csv(os.path.join(ROOT, a.targets))
+        auto = {r.stem: (float(r.px), float(r.py)) for r in tg.itertuples() if r.stem in man.index}
+    elif not a.no_auto:
         from ultralytics import YOLO
         from src.auto_glove import detect_setup_catch
         mitt = YOLO(os.path.join(ROOT, a.mitt_weights))
@@ -116,6 +132,9 @@ def main():
                 auto[stem] = r["setup"][:2]
             if i % 10 == 0:
                 print("  auto target %d/%d" % (i, len(man)), flush=True)
+        # persist, so a re-run (a changed rule, a new pose) does not pay the mitt pass again
+        pd.DataFrame([dict(stem=k, px=v[0], py=v[1]) for k, v in auto.items()]).to_csv(
+            os.path.join(ROOT, "output", "targets_%d_raw.csv" % a.game), index=False)
 
     rows = []
     for stem, r in man.iterrows():
@@ -123,9 +142,9 @@ def main():
             continue
         ax_A, az_A = float(r.plate_x), float(r.plate_z)
         g = trk[trk.stem == stem].sort_values("frame").tail(LAST_K)
-        ax_B = az_B = np.nan
+        ax_B = az_B = gap = np.nan
         if len(g) >= cmp.MIN_PTS:
-            ex, ez = cmp.clip_error(g, r, C, pan, tilt, roll, f)
+            ex, ez, gap = cmp.clip_error(g, r, C, pan, tilt, roll, f, with_gap=True)
             ax_B, az_B = ax_A + ex / 12.0, az_A + ez / 12.0
         for src, tg in (("hand", hand.get(stem)), ("auto", auto.get(stem))):
             if tg is None:
@@ -139,11 +158,15 @@ def main():
                        B_dx=(ax_B - tx) * 12, B_dz=(az_B - tz) * 12)
             row["A_miss"] = float(np.hypot(row["A_dx"], row["A_dz"]))
             row["B_miss"] = float(np.hypot(row["B_dx"], row["B_dz"]))
+            row["gap_fr"] = gap
+            row["B_ok"] = bool(gap <= MAX_GAP_FR) if gap == gap else False
+            row["final_src"] = "B" if row["B_ok"] else "A"
+            row["final_miss"] = row["B_miss"] if row["B_ok"] else row["A_miss"]
             row["B_minus_A_in"] = float(np.hypot(row["B_dx"] - row["A_dx"], row["B_dz"] - row["A_dz"]))
             rows.append(row)
 
     out = pd.DataFrame(rows)
-    p = os.path.join(ROOT, "output", "command_miss_%d.csv" % a.game)
+    p = os.path.join(ROOT, "output", "command_miss_%d%s.csv" % (a.game, a.tag))
     out.to_csv(p, index=False)
 
     print("\ngame %d  pose %s  pitches with truth %d  | hand targets %d  auto targets %d"
@@ -152,11 +175,16 @@ def main():
         s = out[out.target_src == src]
         if s.empty:
             continue
+        s = s.assign(B_ok_miss=s.B_miss.where(s.B_ok), B_ok_gap=s.B_minus_A_in.where(s.B_ok))
         ok = s[s.plaus]
+        print("  video track reaches the plate (<=%d frames short) on %d of %d; the rest fall back to A"
+              % (MAX_GAP_FR, int(s.B_ok.sum()), len(s)))
         print("\nTARGET = %s glove  (%d pitches, %d pass the plausibility screen)" % (src, len(s), len(ok)))
         print("  %-26s %8s %8s   %s" % ("", "median", "n", "(all pitches / plausible only)"))
         for lab, col in (("miss A  (plate_x/z data)", "A_miss"), ("miss B  (video ball)", "B_miss"),
-                         ("B vs A disagreement", "B_minus_A_in")):
+                         ("B vs A disagreement", "B_minus_A_in"),
+                         ("B, track reaches plate", "B_ok_miss"), ("B-A gap, track reaches", "B_ok_gap"),
+                         ("FINAL (B, else A)", "final_miss")):
             m1, n1 = med(s[col]); m2, n2 = med(ok[col])
             print("  %-26s %8.2f %8d   / %.2f (n %d)" % (lab, m1, n1, m2, n2))
     both = out.pivot_table(index="stem", columns="target_src", values=["target_x_in", "target_z_in"])

@@ -203,6 +203,9 @@ def main():
     ap.add_argument("--render", action="store_true")
     ap.add_argument("--coarse-clips", type=int, default=6,
                     help="how many of the LONGEST tracks the 180-start basin search uses")
+    ap.add_argument("--out", default=None,
+                    help="pose .npz path (default output/park_pose_<game>.npz, which OVERWRITES "
+                         "the park's existing pose -- pass --out for a variant)")
     a = ap.parse_args()
     seeds = a.seeds or os.path.join(ROOT, "output", f"seed_tracks_{a.game}.csv")
     manifest = os.path.join(a.dir, os.path.basename(a.dir) + "_manifest.csv")
@@ -287,7 +290,7 @@ def main():
     # every downstream consumer (the audit, the harvest, a second look a day later) had to
     # pay it again, which in practice meant they were not run. Same schema refine_park_pose
     # already writes -- C, ang, f -- so harvest_park_labels --pose accepts either.
-    pose_out = os.path.join(ROOT, "output", f"park_pose_{a.game}.npz")
+    pose_out = a.out or os.path.join(ROOT, "output", f"park_pose_{a.game}.npz")
     np.savez(pose_out, C=C, ang=np.array([pan, tilt, roll]), f=fpx)
 
     print(f"\nbest of {len(tried)} starts   seed C=({cx},{cy},{cz}) f={f0}")

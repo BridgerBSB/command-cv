@@ -40,7 +40,7 @@ PLATE_FRONT_Y = 17.0 / 12.0
 MIN_PTS = 5
 
 
-def clip_error(g, row, C, pan, tilt, roll, f):
+def clip_error(g, row, C, pan, tilt, roll, f, with_gap=False):
     """(ex, ez) inches for one clip's track, or None."""
     g = g.sort_values("frame")
     fr = g.frame.to_numpy(float); obs = g[["x", "y"]].to_numpy()
@@ -54,7 +54,10 @@ def clip_error(g, row, C, pan, tilt, roll, f):
     px = np.polyval(np.polyfit(t, obs[:, 0], 2), zt)
     py = np.polyval(np.polyfit(t, obs[:, 1], 2), zt)
     wx, wz = ph.unproject(C, pan, tilt, roll, f, (px, py), PLATE_FRONT_Y)
-    return (wx - float(row["plate_x"])) * 12.0, (wz - float(row["plate_z"])) * 12.0
+    err = ((wx - float(row["plate_x"])) * 12.0, (wz - float(row["plate_z"])) * 12.0)
+    if with_gap:   # frames between the last tracked point and the plate crossing
+        return err + ((zt - t[-1]) * FPS,)
+    return err
 
 
 def summarise(e):
