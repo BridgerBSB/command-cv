@@ -77,6 +77,24 @@ def plausible(x_in, z_in, pt):
     return abs(x_in) <= PLAUS_X_IN and lo <= z_in <= hi
 
 
+def track_fit_px(g, r, C, pan, tilt, roll, f):
+    """Median px distance of the last-K track from the pitch's own trajectory under this pose.
+
+    A FLAG, not a gate (Zac decides gates). Measured 2026-09-28: tracks that fit within 5 px
+    give B-A gaps of 0.34-1.33 in; the rare ones above it were not the pitch (a throw near
+    the first baseman at Isotopes 815443) and gave 29-81 in. B_ok is NOT changed by this.
+    """
+    fr = g.frame.to_numpy(float)
+    obs = g[["x", "y"]].to_numpy()
+    traj = cmp.fpp.traj_fn(r)
+
+    def res(t0):
+        return (ph.project(C, pan, tilt, roll, f, traj(t0[0] + fr / cmp.FPS)) - obs).ravel()
+    from scipy.optimize import least_squares
+    t0 = least_squares(res, [float(r["zone_time"]) - fr.max() / cmp.FPS]).x
+    return float(np.median(np.hypot(*res(t0).reshape(-1, 2).T)))
+
+
 def med(s):
     s = pd.Series(s).dropna()
     return (np.nan, 0) if s.empty else (float(s.median()), len(s))
@@ -143,9 +161,11 @@ def main():
         ax_A, az_A = float(r.plate_x), float(r.plate_z)
         g = trk[trk.stem == stem].sort_values("frame").tail(LAST_K)
         ax_B = az_B = gap = np.nan
+        track_px = np.nan
         if len(g) >= cmp.MIN_PTS:
             ex, ez, gap = cmp.clip_error(g, r, C, pan, tilt, roll, f, with_gap=True)
             ax_B, az_B = ax_A + ex / 12.0, az_A + ez / 12.0
+            track_px = track_fit_px(g, r, C, pan, tilt, roll, f)
         for src, tg in (("hand", hand.get(stem)), ("auto", auto.get(stem))):
             if tg is None:
                 continue
@@ -159,6 +179,7 @@ def main():
             row["A_miss"] = float(np.hypot(row["A_dx"], row["A_dz"]))
             row["B_miss"] = float(np.hypot(row["B_dx"], row["B_dz"]))
             row["gap_fr"] = gap
+            row["track_px"] = track_px
             row["B_ok"] = bool(gap <= MAX_GAP_FR) if gap == gap else False
             row["final_src"] = "B" if row["B_ok"] else "A"
             row["final_miss"] = row["B_miss"] if row["B_ok"] else row["A_miss"]
@@ -179,6 +200,8 @@ def main():
         ok = s[s.plaus]
         print("  video track reaches the plate (<=%d frames short) on %d of %d; the rest fall back to A"
               % (MAX_GAP_FR, int(s.B_ok.sum()), len(s)))
+        print("  of those, %d track(s) sit more than 5 px off the pitch's own path (track_px) "
+              "- flagged, not dropped" % int((s.B_ok & (s.track_px > 5)).sum()))
         print("\nTARGET = %s glove  (%d pitches, %d pass the plausibility screen)" % (src, len(s), len(ok)))
         print("  %-26s %8s %8s   %s" % ("", "median", "n", "(all pitches / plausible only)"))
         for lab, col in (("miss A  (plate_x/z data)", "A_miss"), ("miss B  (video ball)", "B_miss"),
