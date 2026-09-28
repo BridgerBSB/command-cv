@@ -1,0 +1,28 @@
+{
+  "game": 822515,
+  "overlay_boxes": [
+    [
+      815,
+      548,
+      1220,
+      688
+    ],
+    [
+      282,
+      200,
+      418,
+      270
+    ]
+  ],
+  "overlay_note": "Asheville scorebug + pitch clock",
+  "ref_stem": "ogando_fo_3",
+  "ref_frame": 150,
+  "features_npz": "data/landmarks/822515_feats.npz",
+  "features": {
+    "foul": "chalk foul lines away from the plate",
+    "mound": "mound dirt edge, scorebug side cut"
+  },
+  "rejected": {
+    "plate": "under the catcher/batter"
+  }
+}
