@@ -9,5 +9,9 @@
     ]
   ],
   "overlay_note": "Isotopes MiLB scorebug",
-  "ref_note": "mapped into aaa_815419_0284 f135, the view park_pose_815419_s2lm1 was fit in"
+  "ref_note": "mapped into aaa_815419_0284 f135, the view park_pose_815419_s2lm1 was fit in",
+  "ref_stem": "../aaa_815419/aaa_815419_0284",
+  "ref_frame": 135,
+  "features_npz": "data/landmarks/815419_feats.npz",
+  "features_note": "815419's landmarks, valid because 815443 is stabilized into 815419's reference view"
 }
