@@ -125,6 +125,10 @@ def main():
     ap.add_argument("--overlay", action="append", default=[],
                     help="x0,y0,x1,y1 box to mask (repeatable); default from data/landmarks/<game>.json")
     ap.add_argument("--limit", type=int, default=0, help="first N clips only (smoke test)")
+    ap.add_argument("--ref-clip", default=None,
+                    help="reference mp4 from ANOTHER game at the same park (reuse that game's "
+                         "validated pose); needs --ref-frame")
+    ap.add_argument("--ref-frame", type=int, default=None)
     a = ap.parse_args()
     d = a.dir if os.path.isabs(a.dir) else os.path.join(ROOT, a.dir)
     assert os.path.isdir(d), d
@@ -168,13 +172,18 @@ def main():
     assert setups, "no set-up targets found"
 
     # REFERENCE: the landmark json's, else the set-up nearest the median (v1 rule)
-    if lm.get("ref_stem"):
+    if a.ref_clip:
+        assert a.ref_frame is not None, "--ref-clip needs --ref-frame"
+        ref_path, ref_stem, ref_frame = a.ref_clip, os.path.basename(a.ref_clip), a.ref_frame
+    elif lm.get("ref_stem"):
         ref_stem, ref_frame = lm["ref_stem"], int(lm["ref_frame"])
     else:
         sx = np.median([v[0] for v in setups.values()]); sy = np.median([v[1] for v in setups.values()])
         ref_stem = min(setups, key=lambda s: np.hypot(setups[s][0] - sx, setups[s][1] - sy))
         ref_frame = int(setups[ref_stem][2])
-    ref = read_frames(os.path.join(d, ref_stem + ".mp4"), {ref_frame})[ref_frame]
+    if not a.ref_clip:
+        ref_path = os.path.join(d, ref_stem + ".mp4")
+    ref = read_frames(ref_path, {ref_frame})[ref_frame]
     M = Matcher(ref, overlay_mask(ref.shape, boxes))
     print("reference view: %s frame %d" % (ref_stem, ref_frame), flush=True)
 

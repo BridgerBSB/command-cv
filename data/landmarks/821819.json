@@ -1,0 +1,28 @@
+{
+  "game": 821819,
+  "overlay_boxes": [
+    [
+      360,
+      555,
+      920,
+      680
+    ],
+    [
+      195,
+      288,
+      365,
+      372
+    ]
+  ],
+  "overlay_note": "scorebug centre-bottom + pitch clock (its digits change every pitch)",
+  "ref_stem": "aplus_821819_0000",
+  "ref_frame": 150,
+  "features_npz": "data/landmarks/821819_feats.npz",
+  "features": {
+    "foul": "chalk foul lines, far segments only (left x<525, right x>=1195)",
+    "mound": "dirt/grass edge of the mound where the scorebug and pitcher do not cover it"
+  },
+  "rejected": {
+    "plate": "hidden under the catcher in the reference frame"
+  }
+}

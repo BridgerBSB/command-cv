@@ -1,0 +1,19 @@
+{
+  "game": 821848,
+  "overlay_boxes": [
+    [
+      360,
+      555,
+      920,
+      680
+    ],
+    [
+      195,
+      288,
+      365,
+      372
+    ]
+  ],
+  "overlay_note": "scorebug centre-bottom + pitch clock (its digits change every pitch)",
+  "ref_note": "mapped into aplus_821819_0000 f150, the view park_pose_821819 was fit in"
+}

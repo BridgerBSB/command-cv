@@ -117,6 +117,7 @@ def main():
     ap.add_argument("--init", default=None, help="starting pose npz (default: v4fit pose)")
     ap.add_argument("--out", default=None)
     ap.add_argument("--grid", action="store_true", help="add a position lattice of starts")
+    ap.add_argument("--joint-from-init", action="store_true")
     ap.add_argument("--mound-r", type=float, default=None,
                     help="visible dirt-circle radius, ft (rule 9.0; Isotopes reads wider)")
     a = ap.parse_args()
@@ -167,6 +168,12 @@ def main():
             best = r
     x = best.x
 
+    if a.ball_weight > 0 and a.joint_from_init:
+        # the landmark-only basin can be wrong when the landmarks are thin (Frawley: two
+        # short foul-line segments + half a mound put the camera 6 ft off the ground); start
+        # the joint fit from the ball-validated pose instead and let landmarks refine it
+        x = np.r_[bC, bang, bf]
+        print("  joint fit starts from --init, not from the landmark-only basin")
     if a.ball_weight > 0:
         t0s = [ball_t0(x, c)[0] for c in clips]
         x0 = np.r_[x, t0s]
