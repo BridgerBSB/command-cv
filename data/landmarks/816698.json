@@ -32,5 +32,14 @@
   },
   "rejected": {
     "rubber_slab": "The white ribbed slab at (528-592, 654-677) is NOT the rubber. It is 64 px wide where the mound implies a 24 in rubber is ~105 px, and the ground-landmark camera projects the raised rubber (z = 10 in) to y 621 -- exactly under the pitcher's feet, who is standing on it at set-up. The slab sits behind the rubber, lower. Kept here so nobody re-marks it."
-  }
+  },
+  "overlay_boxes": [
+    [
+      880,
+      565,
+      1215,
+      655
+    ]
+  ],
+  "overlay_note": "scorebug, masked from homography matching (the v1 ORB stabilization locked onto it)"
 }

@@ -11,5 +11,14 @@
   "rejected": {
     "home_circle": "its near edge merges into the basepath dirt at this angle; centre not known to the inch",
     "foul_lines": "not visible as chalk from this camera"
-  }
+  },
+  "overlay_boxes": [
+    [
+      1003,
+      595,
+      1203,
+      712
+    ]
+  ],
+  "overlay_note": "scorebug, masked from homography matching (the v1 ORB stabilization locked onto it)"
 }
