@@ -89,6 +89,8 @@ def main():
     man_p = [f for f in os.listdir(a.dir) if f.endswith("_manifest.csv")]
     man = pd.read_csv(os.path.join(a.dir, man_p[0]))
     man = man[man.game_pk.astype(str).isin(games)].copy()
+    if "date" in man:
+        man = man.sort_values("date", kind="stable")   # season order across games
     stems = [s for s in man.stem if os.path.exists(os.path.join(a.dir, s + ".mp4"))]
     assert stems, f"no clips for games {games} in {a.dir}"
     # play in game order = manifest order
@@ -114,8 +116,10 @@ def main():
             lines.append("miss, video: " + _fmt_miss(r.B_dx, r.B_dz))
             lines.append("miss, data:  " + _fmt_miss(r.A_dx, r.A_dz))
         else:
-            lines.append("ball only - park camera not solved yet" if not a.miss
-                         else "no target / no miss row")
+            # a game with no miss rows at all = no camera at that park; otherwise a per-pitch gap
+            solved = len(ms) and man.loc[man.stem.isin(ms.index), "game_pk"].eq(mrow.game_pk).any()
+            lines.append("no target / no miss row" if solved
+                         else "ball only - park camera not solved yet")
         if not len(t):
             lines.append("no ball track")
 
