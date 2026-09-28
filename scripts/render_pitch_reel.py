@@ -43,7 +43,7 @@ def _reticle(img, x, y, r=16):
 
 
 def _caption(img, lines, n, total, headline=None):
-    h = 34 * len(lines) + 16 + (56 if headline else 0)
+    h = 34 * len(lines) + 16 + (40 if headline else 0)
     ov = img.copy()
     cv2.rectangle(ov, (0, 0), (660, h), NAVY, -1)
     cv2.addWeighted(ov, 0.78, img, 0.22, 0, img)
@@ -53,9 +53,9 @@ def _caption(img, lines, n, total, headline=None):
                     WHITE, 2, cv2.LINE_AA)
         y0 += 34
         if i == 0 and headline:
-            cv2.putText(img, headline, (14, y0 + 16), cv2.FONT_HERSHEY_DUPLEX, 1.5, ORANGE, 3,
+            cv2.putText(img, headline, (14, y0 + 8), cv2.FONT_HERSHEY_DUPLEX, 1.0, ORANGE, 2,
                         cv2.LINE_AA)
-            y0 += 56
+            y0 += 40
     cv2.putText(img, f"{n}/{total}", (img.shape[1] - 110, 36), cv2.FONT_HERSHEY_SIMPLEX, 0.9,
                 WHITE, 2, cv2.LINE_AA)
     # legend
