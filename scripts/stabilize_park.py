@@ -129,6 +129,12 @@ def main():
                     help="reference mp4 from ANOTHER game at the same park (reuse that game's "
                          "validated pose); needs --ref-frame")
     ap.add_argument("--ref-frame", type=int, default=None)
+    ap.add_argument("--chain", action="store_true",
+                    help="when a clip fails against the reference, match it to the last clip "
+                         "that mapped and compose (lighting drift through a game)")
+    ap.add_argument("--max-hops", type=int, default=30,
+                    help="stop chaining past this many composed hops (error accumulates)")
+    ap.add_argument("--tag", default="", help="suffix on the stab2 outputs")
     a = ap.parse_args()
     d = a.dir if os.path.isabs(a.dir) else os.path.join(ROOT, a.dir)
     assert os.path.isdir(d), d
@@ -188,6 +194,7 @@ def main():
     print("reference view: %s frame %d" % (ref_stem, ref_frame), flush=True)
 
     tgt_rows, trk_rows, clip_rows, h_rows = [], [], [], []
+    anchor = None   # (Matcher on the last good frame, its H to the reference, hop count)
     for i, s in enumerate(stems, 1):
         g = trk[trk.stem == s].sort_values("frame")
         key = set()
@@ -198,14 +205,29 @@ def main():
         if not key:
             continue
         got = read_frames(os.path.join(d, s + ".mp4"), key)
-        Hs = {}
+        Hs, hops = {}, {}
         for f_, im in got.items():
             H, n, spread = M.to_ref(im)
+            hop = 0
+            if (H is None or n < MIN_INLIERS or not spread) and anchor is not None:
+                # CHAIN: the reference no longer matches (Frawley: the light goes from day to
+                # stadium lights by the 7th, and 57 late clips fell under MIN_INLIERS against
+                # a first-inning reference). Match to the most recent clip that DID map, and
+                # compose. Lighting drifts gradually, so a neighbour still matches.
+                H2, n2, sp2 = anchor[0].to_ref(im)
+                if H2 is not None and n2 >= MIN_INLIERS and sp2:
+                    H, n, spread, hop = anchor[1] @ H2, n2, True, anchor[2] + 1
             Hs[f_] = (H, n, spread)
-            h_rows.append(dict(stem=s, frame=f_, inliers=n, spread=spread,
+            hops[f_] = hop
+            h_rows.append(dict(stem=s, frame=f_, inliers=n, spread=spread, hops=hop,
                                **({"h%d" % k: float(v) for k, v in enumerate((H / H[2, 2]).ravel())}
                                   if H is not None else {})))
         good = {f_: v for f_, v in Hs.items() if v[0] is not None and v[1] >= MIN_INLIERS and v[2]}
+        if good and a.chain:
+            # the newest good frame of this clip becomes the anchor for the next clips
+            f_a = max(good)
+            if hops[f_a] <= a.max_hops:
+                anchor = (Matcher(got[f_a], M.mask), good[f_a][0], hops[f_a])
         if s in setups and int(setups[s][2]) in good:
             H = good[int(setups[s][2])][0]
             px, py = apply(H, setups[s][0], setups[s][1])
@@ -222,11 +244,12 @@ def main():
                 kept += 1
         zs = [zoom(v[0]) for v in good.values()]
         clip_rows.append(dict(stem=s, track_pts=len(g), kept=kept, n_h=len(Hs), n_h_good=len(good),
+                              max_hops=max([hops[f_] for f_ in good], default=-1),
                               zoom_med=float(np.median(zs)) if zs else np.nan))
         if i % 20 == 0:
             print("  stabilized %d/%d" % (i, len(stems)), flush=True)
 
-    sfx = "" if not a.limit else "_smoke"
+    sfx = a.tag + ("" if not a.limit else "_smoke")
     out_t = os.path.join(ROOT, "output", "targets_%d_stab2%s.csv" % (a.game, sfx))
     out_k = os.path.join(ROOT, "output", "detect_tracks_%d_v4stab2%s.csv" % (a.game, sfx))
     out_c = os.path.join(ROOT, "output", "stab2_clips_%d%s.csv" % (a.game, sfx))
@@ -240,6 +263,9 @@ def main():
     print("  targets mapped %d of %d found; track points kept %d of %d"
           % (len(tgt_rows), len(setups), int(c.kept.sum()), int(c.track_pts.sum())))
     print("  clips with NO usable homography: %d" % int((c.n_h_good == 0).sum()))
+    if a.chain:
+        print("  clips mapped through a chain: %d (max hops %d)"
+              % (int((c.max_hops > 0).sum()), int(c.max_hops.max())))
     z = c.zoom_med.dropna()
     print("  zoom vs reference, per clip: p05 %.3f  median %.3f  p95 %.3f"
           % (z.quantile(.05), z.median(), z.quantile(.95)))
