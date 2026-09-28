@@ -149,6 +149,9 @@ def main():
     ap.add_argument("--from-dets", default="",
                     help="replay chain selection from a saved dets_<game><tag>.csv: no video, "
                          "no GPU, seconds instead of ~27 min for a 327-clip park")
+    ap.add_argument("--window-pick", action="store_true",
+                    help="for a clip whose longest chain ends outside the consensus window, "
+                         "take its longest chain that ends INSIDE it instead of dropping it")
     ap.add_argument("--plate-spot", action="store_true",
                     help="pick, per clip, the longest chain that ends WHERE this park's "
                          "pitches end (spatial consensus from pass 1), not the longest overall")
@@ -319,6 +322,26 @@ def main():
         print("  dropped: " + ", ".join(f"{s}@f{ends[s]:.0f}" for s in dropped[:12])
               + (f" (+{len(dropped) - 12} more)" if len(dropped) > 12 else ""))
         out = out[out.stem.isin(keep)]
+        # WINDOW PICK (2026-09-28, opt-in). A dropped clip lost only its LONGEST chain; the
+        # pitch chain is often still in the same candidate set, just shorter than the return
+        # throw that follows it (Asheville 822515: 8 of 60 dropped, longest chains ending
+        # f256-300, while e.g. ogando_si_9's pitch runs f193-217 at conf ~0.8). Re-choose the
+        # longest chain that ENDS inside the consensus window. Plate spot cannot do this at a
+        # side-view park -- it refuses there on spatial spread.
+        if a.window_pick:
+            added = []
+            for s in dropped:
+                ok = [c for c in all_chains(all_dets.get(s, {}))
+                      if len(c) >= MIN_RUN and abs(c[-1][0] - centre) <= tol]
+                if ok:
+                    c = max(ok, key=len)
+                    added.append(s)
+                    out = pd.concat([out, pd.DataFrame(
+                        [dict(stem=s, game_pk=a.game, frame=int(f), x=x, y=y, conf=cf,
+                              window_pick=1) for f, x, y, cf in c])], ignore_index=True)
+            if "window_pick" in out:
+                out["window_pick"] = out["window_pick"].fillna(0).astype(int)
+            print(f"  window pick: {len(added)}/{len(dropped)} recovered: {', '.join(added)}")
         kept = out.stem.nunique()
         lens = list(out.groupby("stem").size())
 
