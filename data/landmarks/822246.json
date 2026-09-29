@@ -19,5 +19,6 @@
   "rejected": {
     "foul": "chalk not visible from behind the pitcher",
     "rubber": "the bright slab/striped object is ~9 ft BEHIND the pitcher's pivot foot (a mat or rosin bag), not the rubber; the fitted camera puts the rubber under the pivot foot"
-  }
+  },
+  "camera_choice": "2026-09-29: BALL-ONLY pose output/park_pose_822246_v4fit.npz, not a landmark fit. Its held-out plate lands within 4 px of the real plate bar, 33/33 targets plausible, held-out B-A 0.32 in but only n=2 reach the plate (weakly proven). Landmark joint fits (s2lm2/s2lm3) put the plate 47-95 px high and graded 4-10 in B-A: rejected."
 }

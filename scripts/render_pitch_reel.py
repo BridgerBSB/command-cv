@@ -86,6 +86,9 @@ def track_gloves(clips, weights, cache, conf=0.05, imgsz=640, batch=32, topk=5):
         return have
     from ultralytics import YOLO
     model = YOLO(weights)
+    names = model.names or {}
+    gcls = [k for k, v in names.items() if v == "glove"] if len(names) > 1 else []
+    ckw = {"classes": gcls} if gcls else {}
     rows = []
     for k, (s, path, lo, hi) in enumerate(todo, 1):
         cap = cv2.VideoCapture(path)
@@ -104,7 +107,7 @@ def track_gloves(clips, weights, cache, conf=0.05, imgsz=640, batch=32, topk=5):
         cap.release()
         for i in range(0, len(frames), batch):
             res = model.predict(frames[i:i + batch], imgsz=imgsz, conf=conf, verbose=False,
-                                device=0)
+                                device=0, **ckw)
             for f_, r in zip(idx[i:i + batch], res):
                 c = r.boxes.conf.cpu().numpy()
                 xywh = r.boxes.xywh.cpu().numpy()
@@ -171,8 +174,8 @@ def main():
     ap.add_argument("--game", required=True, nargs="+")
     ap.add_argument("--dir", required=True)
     ap.add_argument("--tracks", required=True, nargs="+")
-    ap.add_argument("--targets", default="", help="omit at a park with no camera: no target, no inches")
-    ap.add_argument("--miss", default="")
+    ap.add_argument("--targets", nargs="*", default=[], help="one per solved game; omit at a park with no camera")
+    ap.add_argument("--miss", nargs="*", default=[])
     ap.add_argument("--out", required=True)
     ap.add_argument("--sheet", default=None, help="optional contact sheet PNG of end frames")
     ap.add_argument("--pitcher", default="")
@@ -189,8 +192,10 @@ def main():
     tr = pd.concat([pd.read_csv(f) for f in a.tracks], ignore_index=True)
     games = [str(g) for g in a.game]
     tr = tr[tr.game_pk.astype(str).isin(games)]
-    tg = pd.read_csv(a.targets).set_index("stem") if a.targets else pd.DataFrame()
-    ms = pd.read_csv(a.miss).set_index("stem") if a.miss else pd.DataFrame()
+    tg = (pd.concat([pd.read_csv(f) for f in a.targets]).drop_duplicates("stem").set_index("stem")
+          if a.targets else pd.DataFrame())
+    ms = (pd.concat([pd.read_csv(f) for f in a.miss]).drop_duplicates("stem").set_index("stem")
+          if a.miss else pd.DataFrame())
     man_p = [f for f in os.listdir(a.dir) if f.endswith("_manifest.csv")]
     man = pd.read_csv(os.path.join(a.dir, man_p[0]))
     man = man[man.game_pk.astype(str).isin(games)].copy()
