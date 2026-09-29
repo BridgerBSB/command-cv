@@ -241,7 +241,10 @@ def main():
         if s in ms.index:
             r = ms.loc[s]
             headline = f'MISS {r.final_miss:.1f} in ' + ("(video)" if r.final_src == "B" else "(data)")
-            lines.append("video: " + _fmt_miss(r.B_dx, r.B_dz))
+            # B_ok False = the video track stops short of the plate, so its number is not a
+            # measurement (Frawley ogando pitch printed 70.8 in beside a 21.1 in data miss)
+            lines.append("video: " + (_fmt_miss(r.B_dx, r.B_dz) if bool(r.get("B_ok", True))
+                                      else "ball not tracked to the plate"))
             lines.append("data:  " + _fmt_miss(r.A_dx, r.A_dz))
         else:
             # a game with no miss rows at all = no camera at that park; otherwise a per-pitch gap
