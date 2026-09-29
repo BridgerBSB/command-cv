@@ -1,0 +1,28 @@
+{
+  "game": 821922,
+  "overlay_boxes": [
+    [
+      30,
+      680,
+      125,
+      718
+    ],
+    [
+      1150,
+      680,
+      1250,
+      718
+    ]
+  ],
+  "overlay_note": "AdventHealth: no scorebug in these clips, only the two corner colour bars",
+  "ref_stem": "ogando_si_1",
+  "ref_frame": 150,
+  "features_npz": "data/landmarks/821922_feats.npz",
+  "features": {
+    "mound": "dirt/grass edge by HSV (grass H30-90 S>60), pitcher legs + rubber + frame edge excluded; eye-checked 2026-09-29"
+  },
+  "rejected": {
+    "plate": "under the catcher/batter",
+    "foul": "chalk not visible from behind the pitcher at this park"
+  }
+}
