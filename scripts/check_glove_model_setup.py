@@ -24,4 +24,4 @@ for s in tg.index:
     d.append(np.hypot(x - tg.loc[s, "raw_px"], y - tg.loc[s, "raw_py"]))
 d = pd.Series(d, index=tg.index)
 print(f"imgsz {imgsz}: {d.notna().sum()}/{len(d)} set-ups found; px from our target: median {d.median():.1f}, p90 {d.quantile(.9):.1f}, >10px {int((d>10).sum())}")
-d.to_csv(rf"C:\Users\Owner\AppData\Local\Temp\claude\C--Users-Owner-bsb-resources\bee7963e-cb7a-4ae8-9879-efbd3f1e30a6\scratchpad\oc_setup_{imgsz}.csv")
+d.to_csv(rf"C:\Users\Owner\bsb-resources\command-cv\output\oc_setup_check_{imgsz}.csv")
