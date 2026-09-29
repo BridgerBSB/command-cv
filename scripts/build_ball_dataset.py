@@ -39,11 +39,14 @@ BOX_SCALE = 1.8          # box side / ball diameter, so a small detection error 
 MIN_BOX_PX = 6
 
 
+IMG_EXT = ".png"   # --jpg switches to ".jpg" (q95): ~5x smaller, for streamed games on a full disk
+
+
 def _write(split, name, img, boxes, out):
     """boxes: list of (cx, cy, w, h) in crop pixels. YOLO txt is normalised xywh, class 0."""
-    ip = os.path.join(out, "images", split, name + ".png")
+    ip = os.path.join(out, "images", split, name + IMG_EXT)
     lp = os.path.join(out, "labels", split, name + ".txt")
-    cv2.imwrite(ip, img)
+    cv2.imwrite(ip, img, [cv2.IMWRITE_JPEG_QUALITY, 95] if IMG_EXT == ".jpg" else [])
     h, w = img.shape[:2]
     with open(lp, "w") as f:
         for cx, cy, bw, bh in boxes:
@@ -60,6 +63,8 @@ def main():
     ap.add_argument("--val-frac", type=float, default=0.2)
     ap.add_argument("--angle", default="BROADCAST")
     ap.add_argument("--seed", type=int, default=0)
+    ap.add_argument("--jpg", action="store_true",
+                    help="write crops as JPEG q95 instead of PNG (~5x smaller); default PNG unchanged")
     ap.add_argument("--all-train", action="store_true",
                     help="put every clip in TRAIN. For a per-game build inside the rolling "
                          "loop, where one game cannot honour a held-out-PARK split and a "
@@ -77,6 +82,9 @@ def main():
                          "already on disk, because otherwise the two blend and the "
                          "held-out score silently becomes an average of both.")
     a = ap.parse_args()
+    global IMG_EXT
+    if a.jpg:
+        IMG_EXT = ".jpg"
     assert len(a.labels) == len(a.clips), "one --clips per --labels"
     rng = random.Random(a.seed)
     parts = []
@@ -156,7 +164,7 @@ def main():
     # The marker records what val was actually built from, so a mismatch stops
     # the run instead of quietly redefining the measurement.
     marker = os.path.join(a.out, "val_games.json")
-    n_existing_val = len(glob.glob(os.path.join(a.out, "images", "val", "*.png")))
+    n_existing_val = len(glob.glob(os.path.join(a.out, "images", "val", "*" + IMG_EXT)))
     if val and n_existing_val:
         prior = None
         if os.path.isfile(marker):
@@ -217,7 +225,7 @@ def main():
         # which is where the time actually goes.
         if a.skip_existing:
             split_guess = "val" if pid in val or str(g[key].iloc[0]) in val else "train"
-            paths = [os.path.join(a.out, "images", split_guess, "%s_f%d.png" % (tag, f))
+            paths = [os.path.join(a.out, "images", split_guess, "%s_f%d%s" % (tag, f, IMG_EXT))
                      for f in want]
             if paths and all(os.path.exists(p) for p in paths):
                 counts["reused"] += len(paths)
