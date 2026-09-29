@@ -19,10 +19,11 @@
   "ref_frame": 150,
   "features_npz": "data/landmarks/821922_feats.npz",
   "features": {
-    "mound": "dirt/grass edge by HSV (grass H30-90 S>60), pitcher legs + rubber + frame edge excluded; eye-checked 2026-09-29"
+    "mound": "dirt/grass edge by HSV (grass H30-90 S>60), pitcher legs + rubber + frame edge excluded; eye-checked 2026-09-29 -- NEAR edge only (lower boundary in image): from a low camera behind the pitcher the raised mound hides its own far edge, so the upper boundary is the crest, not the circle (all-edge fit 18 px median -> near-edge 8 px at 821922). mound_all keeps every point."
   },
   "rejected": {
     "plate": "under the catcher/batter",
-    "foul": "chalk not visible from behind the pitcher at this park"
+    "foul": "chalk not visible from behind the pitcher at this park",
+    "rubber": "the bright slab/striped object is ~9 ft BEHIND the pitcher's pivot foot (a mat or rosin bag), not the rubber; the fitted camera puts the rubber under the pivot foot"
   }
 }

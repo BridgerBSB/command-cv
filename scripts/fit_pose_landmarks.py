@@ -45,6 +45,12 @@ import fit_park_pose as fpp  # noqa: E402
 
 MOUND_R_FT, MOUND_Y_FT = 9.0, 59.0   # rule size; --mound-r overrides per park (crews vary)
 PLATE_BAR = np.array([[8.5 / 12, 1.0, 0.0], [-8.5 / 12, 1.0, 0.0]])
+# Front edge of the pitching rubber (the edge facing the plate), on top of the 10 in mound.
+# Same corners as fit_park_pose.RUBBER + 10 in, which is what the render already draws.
+# Added 2026-09-29 for behind-the-pitcher parks (AdventHealth, Greensboro): there the pitch
+# runs along the view axis, so ball tracks cannot fix camera DEPTH and a mound circle alone
+# did not either (rubber projected ~45 px above the real one at 821922).
+RUBBER_FRONT = np.array([[12.0 / 12, 60.5, 10 / 12.0], [-12.0 / 12, 60.5, 10 / 12.0]])
 
 
 def load(game):
@@ -83,6 +89,11 @@ def landmark_res(x, F, plate_w=5.0):
         pr = ph.project(C, pan, tilt, roll, f, PLATE_BAR)
         pr = pr[np.argsort(pr[:, 0])]
         out.append(plate_w * (pr - pe[np.argsort(pe[:, 0])]).ravel())
+    re_ = F.get("rubber_ends")
+    if re_ is not None and len(re_):
+        rr_ = ph.project(C, pan, tilt, roll, f, RUBBER_FRONT)
+        rr_ = rr_[np.argsort(rr_[:, 0])]
+        out.append(plate_w * (rr_ - re_[np.argsort(re_[:, 0])]).ravel())
     return np.concatenate(out)
 
 
@@ -220,7 +231,7 @@ def main():
                            (fpp.RUBBER + [0, 0, 10 / 12.0], (255, 0, 0), True)):
         p = ph.project(C, pan, tilt, roll, f, P).astype(np.int32)
         cv2.polylines(fr, [p.reshape(-1, 1, 2)], closed, col, 1)
-    for k in ("foul", "mound", "plate_ends"):
+    for k in ("foul", "mound", "plate_ends", "rubber_ends"):
         for q in F.get(k, []):
             cv2.circle(fr, tuple(int(v) for v in q), 1, (0, 255, 0), -1)
     png = out.replace(".npz", ".png")
