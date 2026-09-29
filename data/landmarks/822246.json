@@ -1,0 +1,22 @@
+{
+  "game": 822246,
+  "overlay_boxes": [
+    [
+      60,
+      28,
+      292,
+      148
+    ]
+  ],
+  "overlay_note": "Greensboro scorebug top-left",
+  "ref_stem": "ogando_si_3",
+  "ref_frame": 150,
+  "features_npz": "data/landmarks/822246_feats.npz",
+  "features": {
+    "mound": "dirt/grass edge by HSV, pitcher legs + rubber + SS #11 (x>968) excluded; eye-checked 2026-09-29",
+    "plate_ends": "white plate bar x 722-797 at y 523, read off a 6x zoom grid"
+  },
+  "rejected": {
+    "foul": "chalk not visible from behind the pitcher"
+  }
+}
