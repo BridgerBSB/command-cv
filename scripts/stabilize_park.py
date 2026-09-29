@@ -121,7 +121,12 @@ def main():
     ap.add_argument("--game", type=int, required=True)
     ap.add_argument("--dir", required=True)
     ap.add_argument("--tracks", required=True)
-    ap.add_argument("--mitt-weights", default="data/yolo/runs/mitt/weights/best.pt")
+    ap.add_argument("--mitt-weights", default="models/od/YOLO/glove_tracking/model_weights/glove_tracking.pt",
+                    help="set-up glove model. Default = OpenCommand glove_tracking (glove class): "
+                         "58/58 Asheville set-ups at median 1.9 px from the validated targets, and "
+                         "it finds the glove at parks where the in-house mitt model "
+                         "(data/yolo/runs/mitt/weights/best.pt, 98 Asheville crops) lands on the "
+                         "umpire's mask. 2026-09-29.")
     ap.add_argument("--overlay", action="append", default=[],
                     help="x0,y0,x1,y1 box to mask (repeatable); default from data/landmarks/<game>.json")
     ap.add_argument("--limit", type=int, default=0, help="first N clips only (smoke test)")

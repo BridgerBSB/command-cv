@@ -36,12 +36,18 @@ def _glove_track(clip_path: str, model, step: int = 3, conf: float = 0.25,
     cap = cv2.VideoCapture(clip_path)
     n = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
     track = []
+    # A multi-class model (OpenCommand glove_tracking.pt: glove/homeplate/baseball/rubber/na)
+    # must be held to its glove class, or the "highest-conf box" below can be the plate or the
+    # ball. The single-class in-house mitt model is unaffected.
+    names = getattr(model, "names", None) or {}
+    glove_cls = [k for k, v in names.items() if v == "glove"] if len(names) > 1 else []
+    kw = {"classes": glove_cls} if glove_cls else {}
     for fi in range(0, n, step):
         cap.set(cv2.CAP_PROP_POS_FRAMES, fi)
         ok, fr = cap.read()
         if not ok:
             break
-        r = model.predict(fr, imgsz=imgsz, conf=conf, verbose=False)[0]
+        r = model.predict(fr, imgsz=imgsz, conf=conf, verbose=False, **kw)[0]
         if len(r.boxes):
             i = int(np.argmax(r.boxes.conf.cpu().numpy()))
             x, y = r.boxes.xywh[i][:2].cpu().numpy()
