@@ -35,3 +35,6 @@ game_pk,venue,labeller,real_of_6,verdict,reviewed,note
 827488,Joseph P. Riley Jr. Ballpark,v3,5,ADMIT,2026-09-25,one on catcher gear
 827562,SRP Park,v3,6,ADMIT,2026-09-25,clean
 814874,Constellation Field,v4stream,5.4,ADMIT,2026-09-29,"random 10: 9 pitch arcs on a real ball, 1 outfield-camera fly ball (a real ball, not a pitch); 115/120 tracked, 2162 crops"
+816447,Vystar Ballpark,v4stream,5.4,ADMIT,2026-09-29,"random 10: 9 real ball arcs (tracks often end before the plate), 1 short chain on the pitcher follow-through (0086); 117/120 tracked, 2424 crops"
+827289,SEGRA Stadium,v4stream,1.2,REJECT,2026-09-29,"1B-side reverse view: random 10 = 2 ball flights; rest on the pitcher's white cleat at landing (3) and catcher gear/umpire (5); 88/120 tracked"
+817525,Whataburger Field,v4stream,5.4,ADMIT,2026-09-29,"random 10: 9 pitch arcs on a real ball, 1 wide night shot tracking a light in the sky; 113/120 tracked, 2472 crops"

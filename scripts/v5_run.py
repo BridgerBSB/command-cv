@@ -10,10 +10,12 @@ Resumable like v4_finish.py: each step skips when its output exists.
   4. grade  compare_models_at_plate.py, v4 vs v5, video ball vs tracking data at the plate,
             in inches -> output/v5_grades.txt. Never mAP (it misled three times).
 
-    python scripts/v5_run.py --epochs 10
+    python scripts/v5_run.py --epochs 3 --replay 0.25
 """
 import argparse
+import glob
 import os
+import random
 import subprocess
 import sys
 
@@ -52,16 +54,29 @@ def admitted():
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--epochs", type=int, default=10)
+    ap.add_argument("--epochs", type=int, default=3)
+    ap.add_argument("--replay", type=float, default=0.25, help="fraction of v4 train crops kept")
     a = ap.parse_args()
     games = admitted()
     assert games, "no streamed game is ADMITTED in docs/park_admission.csv yet"
     y = os.path.join(ROOT, "data", "yolo_milb5", "data.yaml")
     os.makedirs(os.path.dirname(y), exist_ok=True)
-    train = [os.path.join(ROOT, "data", "yolo_milb4", "images", "train")] + [
-        os.path.join(ROOT, "data", "yolo_stream", g, "images", "train") for g in games]
+    # REPLAY, NOT THE FULL v4 SET: v4 epochs took ~1400 s on 53k crops (its results.csv), so
+    # a full retrain is hours. Fine-tune from v4 on a random --replay slice of its train crops
+    # (so the old parks are not forgotten) plus every admitted streamed crop.
+    v4img = sorted(glob.glob(os.path.join(ROOT, "data", "yolo_milb4", "images", "train", "*.png")))
+    random.Random(0).shuffle(v4img)
+    keep = v4img[:int(len(v4img) * a.replay)]
+    new = []
+    for g in games:
+        new += sorted(glob.glob(os.path.join(ROOT, "data", "yolo_stream", g, "images", "train", "*.jpg")))
+    lst = os.path.join(os.path.dirname(y), "train.txt")
+    with open(lst, "w") as f:
+        f.write("\n".join(keep + new) + "\n")
+    print("train list: %d v4 replay (of %d) + %d streamed = %d"
+          % (len(keep), len(v4img), len(new), len(keep) + len(new)), flush=True)
     with open(y, "w") as f:
-        f.write("train:\n" + "".join("  - %s\n" % p for p in train))
+        f.write("train: %s\n" % lst)
         f.write("val: %s\n" % os.path.join(ROOT, "data", "yolo_milb4", "images", "val"))
         f.write("names:\n  0: ball\n")
     print("v5 data: v4 train + %d streamed games: %s" % (len(games), ", ".join(games)), flush=True)
