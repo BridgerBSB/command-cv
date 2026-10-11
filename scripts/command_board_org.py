@@ -33,9 +33,11 @@ sys.path.insert(0, os.path.join(ROOT, "scripts"))
 from command_board_park import NAVY, PT_COLOR, PT_ORDER, board, summarise  # noqa: E402
 
 HOU = 117
-# Panel titles carry the affiliate; the full club name ran off the right edge on a 5-wide row.
-SHORT = {"Houston Astros": "HOU", "Sugar Land Space Cowboys": "Sugar Land", "Corpus Christi Hooks": "Corpus",
-         "Asheville Tourists": "Asheville", "Fayetteville Woodpeckers": "Fayetteville"}
+# Panel titles carry the LEVEL: club names ran off the right edge on a 5-wide row, and a pitcher
+# who pitched for two affiliates ("Corpus/Sugar Land") still did after shortening them.
+SHORT = {"Houston Astros": "MLB", "Sugar Land Space Cowboys": "AAA", "Corpus Christi Hooks": "AA",
+         "Asheville Tourists": "A+", "Fayetteville Woodpeckers": "A"}
+LEVEL_ORDER = ["MLB", "AAA", "AA", "A+", "A"]
 
 
 def load(games):
@@ -55,7 +57,7 @@ def draw(d, pit, M, title, png):
     ncol = min(5, len(names))
     nrow = int(np.ceil(len(names) / ncol))
     # cells near square: the panels are equal-aspect, so a taller cell is only white space
-    fig, axes = plt.subplots(nrow, ncol, figsize=(max(3.1 * ncol, 8.0), 3.0 * nrow + 1.85), squeeze=False)
+    fig, axes = plt.subplots(nrow, ncol, figsize=(max(3.1 * ncol, 8.0), 3.0 * nrow + 2.15), squeeze=False)
     lim = 30
     for ax, name in zip(axes.ravel(), names):
         s = d[d.pitcher_name == name]
@@ -88,8 +90,11 @@ def draw(d, pit, M, title, png):
     labs = [p for p in PT_ORDER if p in handles] + sorted(set(handles) - set(PT_ORDER))
     fig.legend([handles[l] for l in labs], labs, loc="lower center", ncol=min(len(labs), 6),
                fontsize=7.5, frameon=False)
-    fig.suptitle(title, fontsize=10, color=NAVY)
-    fig.subplots_adjust(left=0.04, right=0.99, top=1 - 0.95 / fig.get_figheight(),
+    # pinned in INCHES from the top: at 5 rows the default y=0.98 put its second line on top of
+    # the first row of panel titles
+    H = fig.get_figheight()
+    fig.suptitle(title, fontsize=10, color=NAVY, y=1 - 0.12 / H, va="top")
+    fig.subplots_adjust(left=0.04, right=0.99, top=1 - 1.25 / H,
                         bottom=0.9 / fig.get_figheight(), hspace=0.38, wspace=0.28)
     fig.savefig(png, dpi=150)
     plt.close(fig)
@@ -108,7 +113,8 @@ def main():
     print("our pitches with a plausible target: %d, pitchers %d" % (len(d), d.pitcher_id.nunique()))
 
     pit = summarise(d, ["pitcher_name", "p_throws"])
-    meta = d.groupby("pitcher_name").agg(team=("pitch_team", lambda s: "/".join(sorted(SHORT.get(v, v) for v in s.unique()))),
+    meta = d.groupby("pitcher_name").agg(team=("pitch_team", lambda s: "/".join(sorted({SHORT.get(v, v) for v in s.unique()},
+                                                    key=lambda x: LEVEL_ORDER.index(x) if x in LEVEL_ORDER else 9))),
                                          games=("game", "nunique"))
     pit = pit.join(meta, on="pitcher_name").sort_values("n_data", ascending=False)
     typ = summarise(d, ["pitcher_name", "pitch_type"])
@@ -119,7 +125,8 @@ def main():
     typ.round(3).to_csv(base + "_types.csv")
     d.to_csv(base + "_pitches.csv", index=False)
     for M in ("video", "data"):
-        title = ("Command miss vs the catcher's set-up glove - Astros pitchers, %d games - ball location from %s\n"
+        # three short lines: one long line ran off both edges of the 8 in single-pitcher figure
+        title = ("Command miss vs the catcher's set-up glove - Astros pitchers, %d games\nball location from %s\n"
                  "catcher's view, inches; dotted rings 6 and 12 in; points past 30 in drawn at the edge"
                  % (len(games), "VIDEO" if M == "video" else "plate_x / plate_z DATA"))
         draw(d, pit, M, title, base + "_" + M + ".png")
