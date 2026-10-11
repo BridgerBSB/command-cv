@@ -124,7 +124,7 @@ def main():
         d = ours_only_dir(g, d)
         a.dir = os.path.relpath(d, ROOT)
 
-    print("STEP 1  detect (v4)", flush=True)
+    print("STEP 1  detect (%s)" % a.weights, flush=True)
     if not have("detect_tracks_%d_v4.csv" % g):
         sh(["scripts/detect_ball_tracks.py", "--dir", a.dir, "--game", str(g), "--weights", a.weights,
             "--device", "0", "--tag", "_v4"] + a.detect_flags.split())
