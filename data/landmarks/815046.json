@@ -1,0 +1,13 @@
+{
+  "game": 815046,
+  "overlay_boxes": [
+    [
+      105,
+      525,
+      380,
+      635
+    ]
+  ],
+  "overlay_note": "Dell Diamond: bottom-left scorebug only (team/score/count/pitches box); framing changes between clips. Boxes marked by eye on frame 150 of clips 0005/0040/0080/0110, 2026-10-11.",
+  "purpose": "labels only (ball-only camera); no ref_stem, so stabilize_park uses the set-up nearest the median"
+}

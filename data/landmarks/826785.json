@@ -1,0 +1,13 @@
+{
+  "game": 826785,
+  "overlay_boxes": [
+    [
+      0,
+      0,
+      345,
+      118
+    ]
+  ],
+  "overlay_note": "Wilson Ballpark: top-left scorebug only; some clips use a wider camera (e.g. pull_826785_0040). Boxes marked by eye on frame 150 of clips 0005/0040/0080/0110, 2026-10-11.",
+  "purpose": "labels only (ball-only camera); no ref_stem, so stabilize_park uses the set-up nearest the median"
+}
