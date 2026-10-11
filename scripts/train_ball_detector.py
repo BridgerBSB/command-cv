@@ -14,17 +14,46 @@ The REAL gate is downstream: feed this detector's ball positions into the joint 
 and whether the held-out box corners still come back inside an inch. Until that runs, this is
 plumbing with a loss curve.
 
-CPU reality on this laptop: torch is CPU-only and single-threaded, ~0.25 s per image per epoch
-at 320 px. 5,600 images x 60 epochs is about a day, so the defaults here are deliberately small
-and --epochs is the dial. Run it overnight or cut --fraction.
+TRAIN ON THE GPU: pass --device 0. The default is still cpu, and that default is the trap that
+had this project declared "cannot train here" for six days (probe-capability-before-accepting-
+a-blocker.md). Measured on data/yolo_milb (2,345 imgs, yolo11n, 320 px, batch 16):
+    Surface, RTX 3050 Ti, CUDA              ~54 s/epoch   (data/yolo_ball_runs/milb4park)
+    ASUS PX13, Radeon 8060S, ROCm 7.2.1      ~20 s/epoch   (amd_bench_1010_bn, 2026-10-10)
+On the AMD laptop run it from the ROCm venv: ~\\.venvs\\cv-rocm\\Scripts\\python.exe
 
-    python scripts/train_ball_detector.py --data data/yolo_ball/data.yaml --epochs 30
+    python scripts/train_ball_detector.py --data data/yolo_ball/data.yaml --epochs 30 --device 0
 """
 import argparse
 import os
 import sys
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+
+def _native_batchnorm_on_rocm(device) -> bool:
+    """Route batch-norm to PyTorch's own kernel on AMD ROCm. No-op on CUDA and CPU.
+
+    MIOpen compiles its batch-norm TRAINING kernel at runtime with hipRTC, and the ROCm
+    Windows wheel (torch 2.9.1+rocm7.2.1, gfx1151) cannot find <type_traits>:
+    HIPRTC_ERROR_COMPILATION -> miopenStatusUnknownError on the first training step
+    (2026-10-10). Inference never hits it, so the AMP check passes and the crash comes
+    after. Convolutions keep MIOpen; only batch-norm goes native, and its backward follows
+    the forward's kernel. Measured the same learning curve as the CUDA baseline.
+    """
+    import torch
+    if str(device).lower() == "cpu" or not getattr(torch.version, "hip", None):
+        return False
+    from torch.nn.modules.batchnorm import _BatchNorm
+    if getattr(_BatchNorm.forward, "_native_bn", False):      # blocking rule #21
+        return True
+    orig = _BatchNorm.forward
+
+    def forward(self, x):
+        with torch.backends.cudnn.flags(enabled=False):
+            return orig(self, x)
+    forward._native_bn = True
+    _BatchNorm.forward = forward
+    return True
 
 
 def main():
@@ -50,6 +79,9 @@ def main():
     a = ap.parse_args()
     assert os.path.exists(a.data), f"no dataset: {a.data} (run build_ball_dataset.py first)"
     from ultralytics import YOLO
+    if _native_batchnorm_on_rocm(a.device):
+        print("ROCm: batch-norm on PyTorch's native kernel (MIOpen's runtime compile is broken "
+              "on Windows)", flush=True)
 
     out = os.path.join(ROOT, "data", "yolo_ball_runs")
     last = os.path.join(out, a.name, "weights", "last.pt")
@@ -82,3 +114,10 @@ def main():
 
 if __name__ == "__main__":
     main()
+    # The ROCm build can spin at interpreter teardown (2026-10-06), which leaves a 1 GB
+    # process holding the GPU after the run has finished. Skip the teardown there.
+    import torch
+    if getattr(torch.version, "hip", None):
+        sys.stdout.flush()
+        sys.stderr.flush()
+        os._exit(0)
