@@ -7,6 +7,12 @@ rebuilt from `output/_queue*.sh`, `output/_adv_821922.log`, the script docstring
 progress log. Every command below was run at least once on a real park; the two steps that
 were never scripted were marked **UNSCRIPTED**; step 5 now has a script (make_holdout_split.py), step 7 (landmarks) still does not.
 
+**LABELS ONLY? Skip the landmarks.** If the park is wanted for training labels and not for a
+miss in inches, steps 7-9 are unnecessary: a camera fitted to the ball alone (step 6, with
+`--stab`) projects labels within ~1 px of the landmark camera's at all five solved parks
+(PROGRESS-LOG 115). `scripts/label_new_park.py --game g --dir D` runs steps 2, 4, 5, 6 and 10 and
+stops at the eye check. You still mark the overlay boxes (step 3) by hand first.
+
 Worked examples: AdventHealth 821922 (behind the pitcher, rows 107), Durham 816698 (CF view,
 rows 87-91), Asheville 822515 (side view, row 100).
 
