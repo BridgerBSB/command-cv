@@ -92,6 +92,12 @@ def main():
     ap.add_argument("--dir", required=True)
     ap.add_argument("--ours-only", action="store_true",
                     help="only the clips Houston pitchers threw (subset folder data/clips/hou_<g>/)")
+    ap.add_argument("--weights", default=V4,
+                    help="ball detector; v4 by default. SEGRA (1B-side mirror view) needs v8r "
+                         "(data/yolo_ball_runs/milb8r_proj/weights/best.pt): on 12 rendered clips v8r "
+                         "followed the pitch on ~9, v4 on ~4 (2026-10-11). File names keep the legacy "
+                         "_v4 (stabilize_park and make_holdout_split hard-code it); the weights actually "
+                         "used are recorded in output/miss_scope_<g>.txt")
     ap.add_argument("--detect-flags", default="--window-pick",
                     help="space-separated extra detect_ball_tracks flags (e.g. '--two-pass')")
     a = ap.parse_args()
@@ -103,6 +109,8 @@ def main():
     man = pd.read_csv(os.path.join(d, os.path.basename(d) + "_manifest.csv"))
     man = man[man.game_pk == g]
     scope = "ours-only" if a.ours_only else "all"
+    if a.weights != V4:   # legacy markers say only the scope; v4 runs keep matching them
+        scope += " weights=" + a.weights
     sp = os.path.join(OUT, "miss_scope_%d.txt" % g)
     if os.path.exists(sp):
         prev = open(sp).read().strip()
@@ -118,7 +126,7 @@ def main():
 
     print("STEP 1  detect (v4)", flush=True)
     if not have("detect_tracks_%d_v4.csv" % g):
-        sh(["scripts/detect_ball_tracks.py", "--dir", a.dir, "--game", str(g), "--weights", V4,
+        sh(["scripts/detect_ball_tracks.py", "--dir", a.dir, "--game", str(g), "--weights", a.weights,
             "--device", "0", "--tag", "_v4"] + a.detect_flags.split())
 
     print("STEP 2  stabilize + glove set-ups", flush=True)

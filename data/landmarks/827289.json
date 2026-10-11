@@ -1,0 +1,13 @@
+{
+  "game": 827289,
+  "overlay_boxes": [
+    [
+      20,
+      600,
+      285,
+      685
+    ]
+  ],
+  "overlay_note": "SEGRA Stadium (Fayetteville): 1B-side broadcast, pitcher RIGHT / catcher LEFT (mirror of Sugar Land and Corpus); bottom-left scorebug only (teams / score / count / inning / pitch count). Some clips cut to a wide outfield night camera after the pitch (0170). Boxes marked by eye on frames 150 and 205 of clips 0058/0154/0250/0330, 2026-10-11.",
+  "purpose": "miss distance with the v8r detector (v4 tracks the pitcher's cleat and catcher gear here, docs/park_admission.csv)"
+}
