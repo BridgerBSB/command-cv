@@ -1,0 +1,13 @@
+{
+  "game": 814875,
+  "overlay_boxes": [
+    [
+      95,
+      545,
+      340,
+      660
+    ]
+  ],
+  "overlay_note": "Constellation Field (Sugar Land): low 3B-side broadcast, pitcher left / catcher right; bottom-left scorebug only (sponsor line / teams / score / count / pitcher). Zoom differs between half-innings (0023 wider than 0002). Same box as 814874, confirmed by eye on frames 150 and 205 of clips 0010/0120/0250/0380, 2026-10-11. 0250 f150 is a wide outfield camera that cuts back to the main camera before the pitch (harmless, as SRP 827562).",
+  "purpose": "miss distance (ball-only camera + set-up targets); no ref_stem, so stabilize_park uses the set-up nearest the median"
+}

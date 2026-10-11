@@ -40,10 +40,10 @@ PT_COLOR = {"Four-seam FB": "#D22D49", "Sinker": "#FE9D00", "Cutter": "#933F2C",
             "Knuckle Curve": "#6236CD", "Changeup": "#1DBE3A", "Splitter": "#3BACAC"}
 
 
-def board(game, tag, src="auto"):
+def board(game, tag, src="auto", extra_ctx=()):
     d = pd.read_csv(os.path.join(ROOT, "output", "command_miss_%d%s.csv" % (game, tag)))
     ctx = pd.read_csv(os.path.join(ROOT, "output", "pitch_context_%d.csv" % game))
-    d = d[d.target_src == src].merge(ctx[["stem", "pitcher_name", "p_throws", "bat_side"]],
+    d = d[d.target_src == src].merge(ctx[["stem", "pitcher_name", "p_throws", "bat_side"] + list(extra_ctx)],
                                      on="stem", how="left")
     assert d.pitcher_name.notna().all(), "pitches with no pitcher -- rerun pitch_context.py"
     n_all = len(d)

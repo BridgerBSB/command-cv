@@ -22,10 +22,15 @@ from src.ingest.statsapi import FEED_URL, _get_json  # noqa: E402
 
 def fetch(game):
     feed = _get_json(FEED_URL.format(game_pk=game))
+    # The PITCHING team: the home team pitches the top of an inning. parentOrgId 117 = Houston,
+    # which is how command_board_org.py picks out our pitchers on the road as well as at home.
+    teams = feed.get("gameData", {}).get("teams", {})
+    side_of = {"top": "home", "bottom": "away"}
     rows = []
     for ab in feed.get("liveData", {}).get("plays", {}).get("allPlays", []):
         m = ab.get("matchup", {})
         about = ab.get("about", {})
+        pt = teams.get(side_of.get(about.get("halfInning"), ""), {})
         for ev in ab.get("playEvents", []):
             if not ev.get("isPitch") or not ev.get("playId"):
                 continue
@@ -34,6 +39,7 @@ def fetch(game):
                              pitcher_id=m.get("pitcher", {}).get("id"),
                              pitcher_name=m.get("pitcher", {}).get("fullName"),
                              p_throws=(m.get("pitchHand") or {}).get("code"),
+                             pitch_team=pt.get("name"), pitch_team_org=pt.get("parentOrgId"),
                              batter_id=m.get("batter", {}).get("id"),
                              batter_name=m.get("batter", {}).get("fullName"),
                              bat_side=(m.get("batSide") or {}).get("code"),

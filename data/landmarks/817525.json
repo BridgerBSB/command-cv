@@ -1,0 +1,13 @@
+{
+  "game": 817525,
+  "overlay_boxes": [
+    [
+      40,
+      10,
+      360,
+      140
+    ]
+  ],
+  "overlay_note": "Whataburger Field (Corpus Christi): low 3B-side broadcast, pitcher left / catcher right; top-left scorebug only (TEXAS LEAGUE header / teams / score / count / pitcher+batter). Framing and zoom vary between clips (fielders in the foreground on some). Boxes marked by eye on frames 150 and 205 of clips 0003/0030/0060/0095, 2026-10-11.",
+  "purpose": "miss distance (ball-only camera + set-up targets); no ref_stem, so stabilize_park uses the set-up nearest the median"
+}

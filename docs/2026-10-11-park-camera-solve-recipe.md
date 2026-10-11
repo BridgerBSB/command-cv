@@ -13,6 +13,12 @@ miss in inches, steps 7-9 are unnecessary: a camera fitted to the ball alone (st
 (PROGRESS-LOG 115). `scripts/label_new_park.py --game g --dir D` runs steps 2, 4, 5, 6 and 10 and
 stops at the eye check. You still mark the overlay boxes (step 3) by hand first.
 
+**A MISS DISTANCE? Also skip the landmarks** (PROGRESS-LOG 121). At the same five parks the
+ball-only camera moved the glove target a median 0.18-0.76 in and each park's median miss by at
+most 0.80 in, and graded 0.20-0.37 in held out. `scripts/miss_new_park.py --game g --dir D` runs
+steps 2, 4 (WITH the glove pass), 5, 6, 9 and the reference render, and stops at the held-out
+grade. Landmarks stay worth doing as an independent check at a home park.
+
 Worked examples: AdventHealth 821922 (behind the pitcher, rows 107), Durham 816698 (CF view,
 rows 87-91), Asheville 822515 (side view, row 100).
 
@@ -170,7 +176,7 @@ Two traps found admitting 15 parks on 2026-10-11 (PROGRESS-LOG 116, 118):
 |---|---|
 | 1 download | ~30 s per 120-clip game (three games 01:54-01:56, 2026-10-11) |
 | 2 detect v4 | ~3.5 min for 120 clips at Dell Diamond on the AMD GPU (02:02-02:06, 2026-10-11) |
-| 4 stabilize | set-up (glove) pass ~30 min per 120 clips on the AMD GPU (02:06-~02:31); it SEEKS to every 3rd frame (`src/auto_glove._glove_track`), which is the cost. Labels never use the set-ups: `stabilize_park --no-setups` does 120 clips in 62 s with identical track points and labels (815046); label_new_park uses it. ~1.5 h for 327 clips on the Surface. Cached on rerun |
+| 4 stabilize | set-up (glove) pass ~4.2 s/clip (~8.5 min per 120 clips) since `aadd50cc0` (straight-through decode + FP16, PROGRESS-LOG 122); it was ~30 min per 120 clips when it SOUGHT to every 3rd frame. Labels never use the set-ups: `stabilize_park --no-setups` does 120 clips in 62 s with identical track points and labels (815046); label_new_park uses it. ~1.5 h for 327 clips on the Surface. Cached on rerun |
 | 5, 7 | hand work; no time recorded |
 | 6, 8 | not measured |
 | 10 | seconds per game (row 113) |
