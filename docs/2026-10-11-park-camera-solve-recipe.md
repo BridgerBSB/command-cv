@@ -5,7 +5,7 @@ and (b) camera-projected training labels (PROGRESS-LOG 102, 113). Six parks have
 each by hand, and the sequence lived only in queue scripts and logs. This is that sequence,
 rebuilt from `output/_queue*.sh`, `output/_adv_821922.log`, the script docstrings and the
 progress log. Every command below was run at least once on a real park; the two steps that
-were NEVER scripted are marked **UNSCRIPTED** and are the bottleneck for scaling past six parks.
+were never scripted were marked **UNSCRIPTED**; step 5 now has a script (make_holdout_split.py), step 7 (landmarks) still does not.
 
 Worked examples: AdventHealth 821922 (behind the pitcher, rows 107), Durham 816698 (CF view,
 rows 87-91), Asheville 822515 (side view, row 100).
@@ -71,17 +71,21 @@ Read the printout: clips with no usable homography, clips mapped through a chain
 histogram. A zoom histogram stacked exactly at 1.000 at a park known to re-frame = the overlay
 mask is wrong.
 
-## 5. Held-out split + fit-half seeds - **UNSCRIPTED**
+## 5. Held-out split + fit-half seeds
 
-Two files, made ad hoc each time:
-- `output/holdout_<g>.csv` - one column `stem`, roughly half the clips that have truth
-  (Asheville 26/26, Durham 12, AdventHealth 11). Never used by any fit. v6_run, grade_holdout and
-  project_labels all key off this file, so it must exist BEFORE step 6 and must never change after.
-- `output/seeds_<g>_v4fit.csv` - the stabilized v4 track points (`stem,frame,x,y,conf,game_pk`)
-  of the OTHER half.
+```
+python scripts/make_holdout_split.py --game g --tracks output/detect_tracks_<g>_v4.csv
+```
+Writes two files and REFUSES to overwrite either:
+- `output/holdout_<g>.csv` - one column `stem`. Never used by any fit. v6_run, grade_holdout and
+  project_labels all key off this file, so it must exist BEFORE step 6 and never change after.
+- `output/seeds_<g>_v4fit.csv` - the RAW v4 track rows of the other half.
 
-Gap to close: a `make_holdout_split.py --game g --seed 0` that writes both from
-`detect_tracks_<g>_v4stab2c.csv` + the manifest, deterministically, and refuses to overwrite.
+The rule (sorted tracked stems, odd positions held out, even positions seed) was recovered from
+the five solved parks; `--check` reproduces Asheville, AdventHealth and Frawley exactly. Isotopes
+815419 and Durham 816698 used a hand-picked pool (165 of 242, 25 of 46 tracked clips) whose
+filter was never recorded, so their files stay as they are. Written 2026-10-11 (was step 5's
+"UNSCRIPTED" gap).
 
 ## 6. Ball-only starting pose
 
