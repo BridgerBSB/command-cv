@@ -1,0 +1,13 @@
+{
+  "game": 817085,
+  "overlay_boxes": [
+    [
+      40,
+      20,
+      440,
+      170
+    ]
+  ],
+  "overlay_note": "ONEOK Field: top-left scorebug with batter/pitcher lines and sponsor logo. Boxes marked by eye on frame 205 (mid-pitch) of clips 0005/0040/0080/0105, 2026-10-11.",
+  "purpose": "labels only (ball-only camera); no ref_stem, so stabilize_park --no-setups uses the clip whose track starts nearest the median start"
+}

@@ -1,0 +1,13 @@
+{
+  "game": 817590,
+  "overlay_boxes": [
+    [
+      830,
+      575,
+      1210,
+      690
+    ]
+  ],
+  "overlay_note": "Dickey-Stephens Park: bottom-right scorebug. Boxes marked by eye on frame 205 (mid-pitch) of clips 0005/0040/0080/0105, 2026-10-11.",
+  "purpose": "labels only (ball-only camera); no ref_stem, so stabilize_park --no-setups uses the clip whose track starts nearest the median start"
+}

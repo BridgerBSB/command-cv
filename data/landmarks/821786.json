@@ -1,0 +1,13 @@
+{
+  "game": 821786,
+  "overlay_boxes": [
+    [
+      20,
+      10,
+      300,
+      165
+    ]
+  ],
+  "overlay_note": "Truist Stadium: top-left scorebug. Boxes marked by eye on frame 205 (mid-pitch) of clips 0005/0040/0080/0105, 2026-10-11.",
+  "purpose": "labels only (ball-only camera); no ref_stem, so stabilize_park --no-setups uses the clip whose track starts nearest the median start"
+}

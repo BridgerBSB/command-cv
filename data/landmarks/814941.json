@@ -1,0 +1,13 @@
+{
+  "game": 814941,
+  "overlay_boxes": [
+    [
+      40,
+      30,
+      360,
+      155
+    ]
+  ],
+  "overlay_note": "America First Square: top-left scorebug with batter/pitcher lines. Boxes marked by eye on frame 205 (mid-pitch) of clips 0005/0040/0080/0105, 2026-10-11.",
+  "purpose": "labels only (ball-only camera); no ref_stem, so stabilize_park --no-setups uses the clip whose track starts nearest the median start"
+}

@@ -1,0 +1,13 @@
+{
+  "game": 827337,
+  "overlay_boxes": [
+    [
+      120,
+      545,
+      370,
+      680
+    ]
+  ],
+  "overlay_note": "Perdue Stadium: lower-left scorebug; some clips show the pitch from a 1B-side camera (pull_827337_0005 at f205) - expect those to fail to map. Boxes marked by eye on frame 205 (mid-pitch) of clips 0005/0040/0080/0105, 2026-10-11.",
+  "purpose": "labels only (ball-only camera); no ref_stem, so stabilize_park --no-setups uses the clip whose track starts nearest the median start"
+}
