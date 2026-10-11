@@ -134,13 +134,22 @@ def manifest_stems(m, angle="BROADCAST"):
                             ang if ang is not None else [None] * len(m))]
 
 
-def build(game, seeds, manifest, fps_default=59.69):
+def build(game, seeds, manifest, fps_default=59.69, stab=None):
+    """stab: optional stabilized track csv. When given, the (stem, frame) rows come from `seeds`
+    and the PIXELS from `stab` -- fit_pose_landmarks.stab_seeds' rule -- so the pose is for the
+    park's reference view (stabilize_park.py) rather than for raw clip pixels."""
     m = pd.read_csv(manifest)
     if "stem" not in m.columns:
         m = m.assign(stem=manifest_stems(m))
     m = m.set_index("stem")
     d = pd.read_csv(seeds)
     d = d[d.game_pk == game]
+    if stab is not None:
+        t = pd.read_csv(stab, float_precision="round_trip")
+        n0 = len(d)
+        d = d[["stem", "frame", "game_pk"]].merge(t[["stem", "frame", "x", "y"]],
+                                                  on=["stem", "frame"], how="inner")
+        print(f"--stab: {len(d)} of {n0} seed points matched in {os.path.basename(stab)}")
     clips = []
     for stem, g in d.groupby("stem"):
         if stem not in m.index:
@@ -200,6 +209,9 @@ def main():
     ap.add_argument("--game", type=int, default=822515)
     ap.add_argument("--dir", default=os.path.join(ROOT, "data", "clips", "ogando_2026"))
     ap.add_argument("--seeds", default=None)
+    ap.add_argument("--stab", default=None,
+                    help="stabilized tracks (detect_tracks_<g>_v4stab2c.csv): seed ROWS from --seeds, "
+                         "pixels from here, so the pose is for the reference view")
     ap.add_argument("--render", action="store_true")
     ap.add_argument("--coarse-clips", type=int, default=6,
                     help="how many of the LONGEST tracks the 180-start basin search uses")
@@ -209,7 +221,7 @@ def main():
     a = ap.parse_args()
     seeds = a.seeds or os.path.join(ROOT, "output", f"seed_tracks_{a.game}.csv")
     manifest = os.path.join(a.dir, os.path.basename(a.dir) + "_manifest.csv")
-    clips = build(a.game, seeds, manifest)
+    clips = build(a.game, seeds, manifest, stab=a.stab)
     assert len(clips) >= 3, f"need >=3 seeded clips, have {len(clips)}"
     npts = sum(len(c["fr"]) for c in clips)
     print(f"game {a.game}: {len(clips)} clips, {npts} ball points, "
