@@ -234,68 +234,86 @@ def main():
     # LONGEST tracks locates it, and the full set then refines it from that single start.
     # Longest-first matters: a 5-point run barely constrains a quadratic, so seeding the
     # search with the thinnest tracks would pick the basin on the weakest evidence.
-    order = sorted(range(len(clips)), key=lambda i: -len(clips[i]["fr"]))
-    coarse = [clips[i] for i in order[:max(3, a.coarse_clips)]]
-    print(f"stage 1: basin search on the {len(coarse)} longest tracks "
-          f"({sum(len(c['fr']) for c in coarse)} points), 180 starts ...", flush=True)
+    # THE BASIN MUST NOT BE CHOSEN BY A TRACK STAGE 3 THROWS OUT. Longest-first picks the seeds,
+    # and a junk chain is often the LONGEST thing in a clip (Corpus 817525, 2026-10-11: two chains of
+    # 40 and 57 points, longer than any pitch flight, were 2 of the 6 seeds; the basin railed at
+    # Cx=-400 / 31.6 px and stage 2 settled at 5.15 px; stage 3 then rejected both at 346 and 159 px
+    # but refit from that basin, and the held-out gap was 2.64 in). So if stage 3 rejects any basin
+    # seed, stage 1 runs once more on the clips stage 3 kept. Same 3x-median rule, no new threshold;
+    # a park where no seed is rejected takes one pass and is unchanged.
+    clips_all, excluded = clips, set()
+    for attempt in (1, 2):
+        clips = [c for c in clips_all if c["stem"] not in excluded]
+        order = sorted(range(len(clips)), key=lambda i: -len(clips[i]["fr"]))
+        coarse = [clips[i] for i in order[:max(3, a.coarse_clips)]]
+        print(f"stage 1: basin search on the {len(coarse)} longest tracks "
+              f"({sum(len(c['fr']) for c in coarse)} points), 180 starts ...", flush=True)
 
-    best, tried = None, []
-    grid = itertools.product([-260, -170, -110, 110, 170, 260],   # Cx
-                             [-40, 10, 60, 130, 260],            # Cy
-                             [15, 35, 70],                       # Cz
-                             [1400, 2600])                       # f seed, px
-    for cx, cy, cz, f0 in grid:
-        try:
-            r = fit(coarse, (cx, cy, cz), f0)
-        except Exception:
-            continue
-        rms = float(np.sqrt(np.mean(r.fun ** 2)))
-        tried.append((rms, cx, cy, cz, f0, r.x))
-        if best is None or rms < best[0]:
-            best = (rms, cx, cy, cz, f0, r.x)
-    assert best, "every start failed"
-    tried.sort(key=lambda t: t[0])
-    c_rms, cx, cy, cz, f0, cxx = best
-    print(f"         basin rms {c_rms:.2f} px  C=({cxx[0]:.1f},{cxx[1]:.1f},{cxx[2]:.1f}) "
-          f"f={cxx[6]:.0f}", flush=True)
+        best, tried = None, []
+        grid = itertools.product([-260, -170, -110, 110, 170, 260],   # Cx
+                                 [-40, 10, 60, 130, 260],            # Cy
+                                 [15, 35, 70],                       # Cz
+                                 [1400, 2600])                       # f seed, px
+        for cx, cy, cz, f0 in grid:
+            try:
+                r = fit(coarse, (cx, cy, cz), f0)
+            except Exception:
+                continue
+            rms = float(np.sqrt(np.mean(r.fun ** 2)))
+            tried.append((rms, cx, cy, cz, f0, r.x))
+            if best is None or rms < best[0]:
+                best = (rms, cx, cy, cz, f0, r.x)
+        assert best, "every start failed"
+        tried.sort(key=lambda t: t[0])
+        c_rms, cx, cy, cz, f0, cxx = best
+        print(f"         basin rms {c_rms:.2f} px  C=({cxx[0]:.1f},{cxx[1]:.1f},{cxx[2]:.1f}) "
+              f"f={cxx[6]:.0f}", flush=True)
 
-    print(f"stage 2: refining on all {len(clips)} clips from that basin ...", flush=True)
-    r = fit(clips, (cxx[0], cxx[1], cxx[2]), cxx[6])
-    rms, x = float(np.sqrt(np.mean(r.fun ** 2))), r.x
-
-    # STAGE 3 -- THE POSE ITSELF IS THE JUNK FILTER, and it is a better one than anything
-    # measured on the image. onboard_park.py knowingly lets in-window false positives through
-    # (a batting helmet, a blob on wall padding) at roughly 1 in 8, and brightness was tested
-    # and rejected as a discriminator because its distributions overlap across parks. But a
-    # false track is not a pitch, so no camera can reproject it: on Durham the helmet track
-    # came back at 60.8 px while real tracks sat at 2-10 px. That is a 6x gap on the quantity
-    # the fit already computes, and it is self-calibrating -- the cut is relative to this
-    # park's own median, never an absolute pixel threshold carried between parks.
-    def per_clip_rms(xx):
-        C_, pan_, tilt_, roll_, f_ = xx[:3], xx[3], xx[4], xx[5], xx[6]
-        out = []
-        for k, c in enumerate(clips):
-            t = xx[7 + k] + c["fr"] / c["fps"]
-            e = np.hypot(*(ph.project(C_, pan_, tilt_, roll_, f_, c["traj"](t)) - c["obs"]).T)
-            out.append(float(np.sqrt((e ** 2).mean())))
-        return np.array(out)
-
-    e0 = per_clip_rms(x)
-    cut = max(3.0 * float(np.median(e0)), 12.0)
-    good = [i for i in range(len(clips)) if e0[i] <= cut]
-    dropped = [(clips[i]["stem"], e0[i]) for i in range(len(clips)) if e0[i] > cut]
-    if dropped and len(good) >= max(3, a.coarse_clips):
-        print(f"stage 3: rejecting {len(dropped)} track(s) above {cut:.1f} px "
-              f"(3x the {np.median(e0):.1f} px median) and refitting:", flush=True)
-        for s, e in sorted(dropped, key=lambda t: -t[1]):
-            print(f"         {s:24} {e:7.1f} px")
-        clips = [clips[i] for i in good]
-        r = fit(clips, (x[0], x[1], x[2]), x[6], freeze_depth=True)
+        print(f"stage 2: refining on all {len(clips)} clips from that basin ...", flush=True)
+        r = fit(clips, (cxx[0], cxx[1], cxx[2]), cxx[6])
         rms, x = float(np.sqrt(np.mean(r.fun ** 2))), r.x
-        print(f"         refit on {len(clips)} clips, rms {rms:.2f} px", flush=True)
-    elif dropped:
-        print(f"stage 3: {len(dropped)} track(s) look like junk but too few would remain; "
-              f"keeping all and relying on the robust loss", flush=True)
+
+        # STAGE 3 -- THE POSE ITSELF IS THE JUNK FILTER, and it is a better one than anything
+        # measured on the image. onboard_park.py knowingly lets in-window false positives through
+        # (a batting helmet, a blob on wall padding) at roughly 1 in 8, and brightness was tested
+        # and rejected as a discriminator because its distributions overlap across parks. But a
+        # false track is not a pitch, so no camera can reproject it: on Durham the helmet track
+        # came back at 60.8 px while real tracks sat at 2-10 px. That is a 6x gap on the quantity
+        # the fit already computes, and it is self-calibrating -- the cut is relative to this
+        # park's own median, never an absolute pixel threshold carried between parks.
+        def per_clip_rms(xx):
+            C_, pan_, tilt_, roll_, f_ = xx[:3], xx[3], xx[4], xx[5], xx[6]
+            out = []
+            for k, c in enumerate(clips):
+                t = xx[7 + k] + c["fr"] / c["fps"]
+                e = np.hypot(*(ph.project(C_, pan_, tilt_, roll_, f_, c["traj"](t)) - c["obs"]).T)
+                out.append(float(np.sqrt((e ** 2).mean())))
+            return np.array(out)
+
+        e0 = per_clip_rms(x)
+        cut = max(3.0 * float(np.median(e0)), 12.0)
+        good = [i for i in range(len(clips)) if e0[i] <= cut]
+        dropped = [(clips[i]["stem"], e0[i]) for i in range(len(clips)) if e0[i] > cut]
+        if dropped and len(good) >= max(3, a.coarse_clips):
+            print(f"stage 3: rejecting {len(dropped)} track(s) above {cut:.1f} px "
+                  f"(3x the {np.median(e0):.1f} px median) and refitting:", flush=True)
+            for s, e in sorted(dropped, key=lambda t: -t[1]):
+                print(f"         {s:24} {e:7.1f} px")
+            clips = [clips[i] for i in good]
+            r = fit(clips, (x[0], x[1], x[2]), x[6], freeze_depth=True)
+            rms, x = float(np.sqrt(np.mean(r.fun ** 2))), r.x
+            print(f"         refit on {len(clips)} clips, rms {rms:.2f} px", flush=True)
+        elif dropped:
+            print(f"stage 3: {len(dropped)} track(s) look like junk but too few would remain; "
+                  f"keeping all and relying on the robust loss", flush=True)
+        seed_rejects = {c["stem"] for c in coarse} & {s for s, _ in dropped}
+        if seed_rejects and attempt == 1 and len(good) >= max(3, a.coarse_clips):
+            print(f"stage 1 again: {len(seed_rejects)} of the {len(coarse)} basin seeds were rejected "
+                  f"in stage 3 ({', '.join(sorted(seed_rejects))}); re-searching without the "
+                  f"{len(dropped)} rejected track(s)", flush=True)
+            excluded |= {s for s, _ in dropped}
+            continue
+        break
     C, pan, tilt, roll, fpx = x[:3], x[3], x[4], x[5], x[6]
 
     # PERSIST IT. The basin search is 180 solves and takes minutes; until this was written
