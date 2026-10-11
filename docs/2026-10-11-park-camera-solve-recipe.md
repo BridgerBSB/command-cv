@@ -150,6 +150,18 @@ separate verdicts, because unconfirmed means "detector blind spot" at some parks
 Frawley: ADMIT) and "ball hidden behind batter/catcher" at others (Durham, Asheville: REJECT).
 Then add `(g, D)` to `TRAIN_GAMES` and a grading row to `PARKS` in the next training script.
 
+Two traps found admitting 15 parks on 2026-10-11 (PROGRESS-LOG 116, 118):
+- **A second camera DURING the pitch breaks a park.** Perdue 827337 films some pitches from a
+  1B-side camera; stabilize maps those clips through a homography (zoom ~1.1-1.2) that cannot
+  relate two camera POSITIONS, the ball-only fit lands at ~58 px RMS (1-2.5 elsewhere) and
+  project_labels keeps 0 labels. Check frame ~205 (mid-pitch) of several clips when marking
+  overlays; a different camera at f150 that CUTS to the main one before the pitch is harmless
+  (SRP 827562).
+- **Light pants under an unconfirmed label: whose?** The BATTER's = ball in front of him,
+  visible (admit); the PITCHER's right after release = ball behind him, hidden (reject).
+  The tile cannot tell you; re-render a few at 3x with the full frame beside them.
+`scripts/check_park_labels.py` prints the numbers (misplacement signature, per-clip offsets).
+
 ---
 
 ## Time per park (what is measured, what is not)
