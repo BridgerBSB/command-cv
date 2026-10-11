@@ -140,6 +140,11 @@ def main():
     ap.add_argument("--max-hops", type=int, default=30,
                     help="stop chaining past this many composed hops (error accumulates)")
     ap.add_argument("--tag", default="", help="suffix on the stab2 outputs")
+    ap.add_argument("--no-setups", action="store_true",
+                    help="LABELS-ONLY parks: skip the glove set-up pass (~30 min per 120 clips, it "
+                         "seeks every 3rd frame) and write no targets file. Track points map through "
+                         "the first/last track-frame H exactly as before; the reference, unless "
+                         "given, is the clip whose track starts nearest the median start")
     a = ap.parse_args()
     d = a.dir if os.path.isabs(a.dir) else os.path.join(ROOT, a.dir)
     assert os.path.isdir(d), d
@@ -165,7 +170,10 @@ def main():
         c = pd.read_csv(cache)
         setups = {r.stem: (r.x, r.y, int(r.frame)) for r in c.itertuples()}
         print("set-ups from cache: %d" % len(setups))
-    todo = [s for s in stems if s not in setups]
+    todo = [] if a.no_setups else [s for s in stems if s not in setups]
+    if a.no_setups:
+        setups = {}
+        print("--no-setups: glove pass skipped, no targets file will be written")
     if todo:
         from ultralytics import YOLO
         from src.auto_glove import detect_setup_catch
@@ -180,7 +188,7 @@ def main():
                              ).to_csv(cache, index=False)
         pd.DataFrame([dict(stem=k, x=v[0], y=v[1], frame=int(v[2])) for k, v in setups.items()]
                      ).to_csv(cache, index=False)
-    assert setups, "no set-up targets found"
+    assert setups or a.no_setups, "no set-up targets found"
 
     # REFERENCE: the landmark json's, else the set-up nearest the median (v1 rule)
     if a.ref_clip:
@@ -188,6 +196,11 @@ def main():
         ref_path, ref_stem, ref_frame = a.ref_clip, os.path.basename(a.ref_clip), a.ref_frame
     elif lm.get("ref_stem"):
         ref_stem, ref_frame = lm["ref_stem"], int(lm["ref_frame"])
+    elif a.no_setups:
+        first = trk[trk.stem.isin(stems)].sort_values("frame").groupby("stem").first()
+        mx, my = first.x.median(), first.y.median()
+        ref_stem = (np.hypot(first.x - mx, first.y - my)).idxmin()
+        ref_frame = int(first.loc[ref_stem, "frame"])
     else:
         sx = np.median([v[0] for v in setups.values()]); sy = np.median([v[1] for v in setups.values()])
         ref_stem = min(setups, key=lambda s: np.hypot(setups[s][0] - sx, setups[s][1] - sy))
@@ -259,7 +272,8 @@ def main():
     out_k = os.path.join(ROOT, "output", "detect_tracks_%d_v4stab2%s.csv" % (a.game, sfx))
     out_c = os.path.join(ROOT, "output", "stab2_clips_%d%s.csv" % (a.game, sfx))
     out_h = os.path.join(ROOT, "output", "stab2_H_%d%s.csv" % (a.game, sfx))
-    pd.DataFrame(tgt_rows).to_csv(out_t, index=False)
+    if not a.no_setups:
+        pd.DataFrame(tgt_rows).to_csv(out_t, index=False)
     pd.DataFrame(trk_rows).to_csv(out_k, index=False, float_format="%.17g")
     c = pd.DataFrame(clip_rows)
     c.to_csv(out_c, index=False)
@@ -275,7 +289,7 @@ def main():
     print("  zoom vs reference, per clip: p05 %.3f  median %.3f  p95 %.3f"
           % (z.quantile(.05), z.median(), z.quantile(.95)))
     print("  zoom histogram:", np.histogram(z, bins=[0, .8, .9, .97, 1.03, 1.1, 1.2, 1.3, 1.5, 9])[0].tolist())
-    for p in (out_t, out_k, out_c, out_h):
+    for p in ((out_k, out_c, out_h) if a.no_setups else (out_t, out_k, out_c, out_h)):
         print("  ->", p)
 
 

@@ -12,8 +12,12 @@ ball-only camera is fitted to v4's own tracks, so its labels sit closer to v4's 
 
 WHAT IT RUNS, each step skipped when its output exists (resumable, long-jobs rule):
   1. detect   v4, --window-pick                    -> detect_tracks_<g>_v4.csv, dets_<g>_v4.csv
-  2. stab     stabilize_park --chain --tag c       -> detect_tracks_<g>_v4stab2c.csv, stab2_H_<g>c.csv
-              (needs data/landmarks/<g>.json with overlay_boxes - mark them by eye first)
+  2. stab     stabilize_park --chain --tag c --no-setups -> detect_tracks_<g>_v4stab2c.csv, stab2_H_<g>c.csv
+              (needs data/landmarks/<g>.json with overlay_boxes - mark them by eye first).
+              --no-setups skips the glove pass labels never use: Dell Diamond 815046 in 62 s
+              instead of ~30 min, with all 2,666 track points and all 1,358 labels identical
+              to the with-set-ups run on the same reference (2026-10-11). No glove targets are
+              written, so a labels-only park has no miss distance until it is re-stabilized.
   3. split    make_holdout_split                   -> holdout_<g>.csv, seeds_<g>_v4fit.csv
   4. camera   fit_park_pose --stab --render        -> park_pose_<g>_ballonly.npz (+ png)
   5. labels   project_labels --all-frames          -> proj_labels_<g>.csv
@@ -72,7 +76,7 @@ def main():
     print("STEP 2  stabilize", flush=True)
     if not have("detect_tracks_%d_v4stab2c.csv" % g):
         sh(["scripts/stabilize_park.py", "--game", str(g), "--dir", a.dir,
-            "--tracks", "output/detect_tracks_%d_v4.csv" % g, "--chain", "--tag", "c"])
+            "--tracks", "output/detect_tracks_%d_v4.csv" % g, "--chain", "--tag", "c", "--no-setups"])
 
     print("STEP 3  held-out split", flush=True)
     if not have("holdout_%d.csv" % g):

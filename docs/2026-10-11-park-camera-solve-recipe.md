@@ -158,7 +158,7 @@ Then add `(g, D)` to `TRAIN_GAMES` and a grading row to `PARKS` in the next trai
 |---|---|
 | 1 download | ~30 s per 120-clip game (three games 01:54-01:56, 2026-10-11) |
 | 2 detect v4 | ~3.5 min for 120 clips at Dell Diamond on the AMD GPU (02:02-02:06, 2026-10-11) |
-| 4 stabilize | set-up (glove) pass ~30 min per 120 clips on the AMD GPU (02:06-~02:31); it SEEKS to every 3rd frame (`src/auto_glove._glove_track`), which is the cost. Labels never use the set-ups, so a skip-set-ups path is the next speedup for a labels-only park. ~1.5 h for 327 clips on the Surface. Cached on rerun |
+| 4 stabilize | set-up (glove) pass ~30 min per 120 clips on the AMD GPU (02:06-~02:31); it SEEKS to every 3rd frame (`src/auto_glove._glove_track`), which is the cost. Labels never use the set-ups: `stabilize_park --no-setups` does 120 clips in 62 s with identical track points and labels (815046); label_new_park uses it. ~1.5 h for 327 clips on the Surface. Cached on rerun |
 | 5, 7 | hand work; no time recorded |
 | 6, 8 | not measured |
 | 10 | seconds per game (row 113) |
