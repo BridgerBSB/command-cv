@@ -1,0 +1,6 @@
+game_pk,venue,pose,confirmed_verdict,unconfirmed_verdict,unconfirmed_visible_of_12,reviewed,note
+815419,Isotopes Park,park_pose_815419_s2lm1.npz,ADMIT,ADMIT,12,2026-10-11,unconfirmed = ball over the red ad board and light-blue jerseys - the detector's blind spots; 30/30 tiles on the ball
+815443,Isotopes Park,park_pose_815419_s2lm1.npz,ADMIT,ADMIT,11,2026-09-28,row 102: unconfirmed = low-contrast backgrounds (white uniform / red board) not hidden; 11/12 sampled crops on the ball
+816698,Durham Bulls Athletic Park,park_pose_816698_s2lm1.npz,ADMIT,REJECT,7,2026-10-11,unconfirmed near the catch sit inside the mitt or behind the bat (0037 f217 / 0045 f215 / 0059 f211); confirmed 12/12 + control 6/6 clean
+821819,Frawley Stadium,park_pose_821819_s2lm1.npz,ADMIT,ADMIT,11,2026-10-11,unconfirmed = white ball over white home jerseys - faint but present; one unclear at the mask (0260 f216)
+822515,HomeTrust Park (Asheville),park_pose_822515_s2lm1.npz,ADMIT,REJECT,2,2026-10-11,this angle puts the ball BEHIND the batter and catcher once it nears the plate - unconfirmed rows are mostly hidden balls; confirmed clean

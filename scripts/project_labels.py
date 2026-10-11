@@ -40,6 +40,17 @@ FPS = 59.69
 MATCH_PX = 6.0
 
 
+def good_homographies(H):
+    """The per-clip homographies stabilize_park.py itself would USE: present, at least
+    MIN_INLIERS inliers, and spread across the frame. It also WRITES the rejected ones (for the
+    record), so taking the nearest row of the raw file can map a point through a match it
+    refused. 2026-10-11: 19 of 3,640 labels at 815419 had been. One threshold, imported."""
+    from stabilize_park import MIN_INLIERS
+    H = H.dropna(subset=["h0"])
+    spread = H["spread"].astype(str).str.lower() == "true"
+    return H[(H["inliers"] >= MIN_INLIERS) & spread]
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--game", type=int, required=True)
@@ -60,7 +71,8 @@ def main():
     C, ang, f = z["C"], z["ang"], float(z["f"])
     out_dir = os.path.join(ROOT, "output")
     trk = pd.read_csv(os.path.join(out_dir, "detect_tracks_%d_v4stab2%s.csv" % (a.game, a.stab_tag)))
-    Hs = pd.read_csv(os.path.join(out_dir, "stab2_H_%d%s.csv" % (a.game, a.stab_tag))).dropna(subset=["h0"])
+    Hs = good_homographies(
+        pd.read_csv(os.path.join(out_dir, "stab2_H_%d%s.csv" % (a.game, a.stab_tag))))
     dets = pd.read_csv(a.dets or os.path.join(out_dir, "dets_%d_v4.csv" % a.game))
     hold = set(pd.read_csv(os.path.join(out_dir, "holdout_%d.csv" % a.game)).stem)
 

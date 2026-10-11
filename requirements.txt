@@ -5,8 +5,13 @@ matplotlib>=3.8
 # Video decode for the provided-clip path (extract the glove-flash frame).
 opencv-python-headless>=4.9   # use opencv-python instead if you want GUI windows
 
-# Trained detection backend — auto-locate glove/plate/zone (replaces manual clicks).
-# ultralytics>=8.2            # YOLO glove/plate/zone detector (planned)
+# Data + fitting: every pipeline script (project_labels, stabilize_park, fit_*, compare_*)
+pandas>=2.2
+scipy>=1.13
+
+# Ball / glove detectors (YOLO). On the AMD laptop install into the ROCm venv
+# (~/.venvs/cv-rocm: torch 2.9.1+rocm7.2.1 from repo.radeon.com), not over it.
+ultralytics>=8.4
 
 # Testing
 pytest>=8.0

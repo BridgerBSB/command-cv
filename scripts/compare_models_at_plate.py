@@ -75,6 +75,9 @@ def main():
     ap.add_argument("--pose", default=None)
     ap.add_argument("--last-k", type=int, default=10,
                     help="grade each chain on its LAST k frames only (0 = whole chain)")
+    ap.add_argument("--holdout", action="store_true",
+                    help="grade only the stems in output/holdout_<game>.csv - required when a "
+                         "model being compared was trained on the other half of this game")
     a = ap.parse_args()
     d = a.dir if os.path.isabs(a.dir) else os.path.join(ROOT, a.dir)
     assert os.path.isdir(d), d
@@ -84,6 +87,12 @@ def main():
     man = man[man.game_pk == a.game]
     usable = {s for s, r in man.iterrows()
               if not any(pd.isna(r[k]) for k in fpp.TRAJ) and not pd.isna(r.get("plate_x"))}
+    if a.holdout:
+        hold = set(pd.read_csv(os.path.join(ROOT, "output", f"holdout_{a.game}.csv")).stem)
+        n0 = len(usable)
+        usable &= hold
+        print(f"--holdout: grading {len(usable)} held-out clips of {n0} with truth")
+        assert usable, "no held-out clip has truth"
 
     tags = a.tags.split(",")
     per = {}

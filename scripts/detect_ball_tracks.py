@@ -155,6 +155,12 @@ def main():
     ap.add_argument("--plate-spot", action="store_true",
                     help="pick, per clip, the longest chain that ends WHERE this park's "
                          "pitches end (spatial consensus from pass 1), not the longest overall")
+    ap.add_argument("--stems-file", default="",
+                    help="CSV with a `stem` column: run on those clips only (e.g. a game's "
+                         "holdout_<game>.csv, so a model trained on the other half is graded "
+                         "without touching its own training clips). The pass-1 consensus window "
+                         "is then fitted on that subset, so compare two models only when both "
+                         "ran with the SAME file")
     a = ap.parse_args()
 
     d = a.dir if os.path.isabs(a.dir) else os.path.join(ROOT, a.dir)
@@ -193,6 +199,14 @@ def main():
             "game's clips would put a wrong game_pk on every row."
             % (a.game, sorted(man.game_pk.astype(str).unique())))
         man = mine
+
+    if a.stems_file:
+        keep = set(pd.read_csv(a.stems_file).stem.astype(str))
+        sub = man[man["_stem"].astype(str).isin(keep)]
+        print("--stems-file %s keeps %d of %d clips" % (os.path.basename(a.stems_file),
+                                                       len(sub), len(man)), flush=True)
+        assert len(sub), "--stems-file matched none of this game's clips"
+        man = sub
 
     cand = list(man["_stem"])
     stems = [s for s in cand if os.path.exists(os.path.join(d, str(s) + ".mp4"))]
@@ -505,3 +519,9 @@ def main():
 
 if __name__ == "__main__":
     main()
+    # Same guard as train_ball_detector.py: the ROCm build can spin at interpreter teardown,
+    # which would hang any orchestrator waiting on this process (v6_run.py).
+    if "torch" in sys.modules and getattr(sys.modules["torch"].version, "hip", None):
+        sys.stdout.flush()
+        sys.stderr.flush()
+        os._exit(0)
