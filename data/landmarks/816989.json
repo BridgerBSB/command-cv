@@ -1,0 +1,13 @@
+{
+  "game": 816989,
+  "overlay_boxes": [
+    [
+      40,
+      15,
+      360,
+      175
+    ]
+  ],
+  "overlay_note": "Equity Bank Park: top-left scorebug with batter/pitcher lines; clip 0005 is a close-up replay. Boxes marked by eye on frame 150 of clips 0005/0040/0080/0110, 2026-10-11.",
+  "purpose": "labels only (ball-only camera); no ref_stem, so stabilize_park uses the set-up nearest the median"
+}

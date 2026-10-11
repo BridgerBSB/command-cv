@@ -1,0 +1,13 @@
+{
+  "game": 827562,
+  "overlay_boxes": [
+    [
+      945,
+      570,
+      1220,
+      700
+    ]
+  ],
+  "overlay_note": "SRP Park: bottom-right scorebug; some clips use a high 1B-side camera (pull_827562_0040) that will not map to the reference. Boxes marked by eye on frame 150 of clips 0005/0040/0080/0110, 2026-10-11.",
+  "purpose": "labels only (ball-only camera); no ref_stem, so stabilize_park uses the set-up nearest the median"
+}

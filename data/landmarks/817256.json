@@ -1,0 +1,13 @@
+{
+  "game": 817256,
+  "overlay_boxes": [
+    [
+      975,
+      575,
+      1225,
+      715
+    ]
+  ],
+  "overlay_note": "Nelson Wolff: bottom-right scorebug (pitcher name / score / count / MPH); not drawn on every clip. Boxes marked by eye on frame 150 of clips 0005/0040/0080/0110, 2026-10-11.",
+  "purpose": "labels only (ball-only camera); no ref_stem, so stabilize_park uses the set-up nearest the median"
+}

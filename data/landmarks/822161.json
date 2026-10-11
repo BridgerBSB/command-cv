@@ -1,0 +1,13 @@
+{
+  "game": 822161,
+  "overlay_boxes": [
+    [
+      40,
+      20,
+      445,
+      175
+    ]
+  ],
+  "overlay_note": "Fluor Field: top-left scorebug + MLB/sponsor logo boxes; the outfield pitch clock is part of the stadium, not masked. Boxes marked by eye on frame 150 of clips 0005/0040/0080/0110, 2026-10-11.",
+  "purpose": "labels only (ball-only camera); no ref_stem, so stabilize_park uses the set-up nearest the median"
+}
