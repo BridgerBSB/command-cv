@@ -124,6 +124,25 @@ def main():
     print("\nSpread = distance from the model's own median miss; the bias is a constant the camera")
     print("pose contributes equally to every model. SPREAD is the detector's resolution in inches.")
 
+    # PAIRED, per clip (PROGRESS-LOG 114): a spread median can move on a few clips; the paired
+    # test says whether the model is better on MOST clips. vs the first tag (the baseline), and
+    # newest vs the one before it when there are three or more.
+    from scipy.stats import wilcoxon
+    sc = sorted(common)
+    spread = {}
+    for tg in tags:
+        e = np.array([per[tg][s] for s in sc])
+        spread[tg] = np.hypot(e[:, 0] - np.median(e[:, 0]), e[:, 1] - np.median(e[:, 1]))
+    pairs = [(tags[0], tg) for tg in tags[1:]]
+    if len(tags) >= 3:
+        pairs.append((tags[-2], tags[-1]))
+    print("\nPAIRED per clip (spread, inches): B vs A")
+    for A, B in pairs:
+        d = spread[B] - spread[A]
+        p = wilcoxon(spread[B], spread[A]).pvalue if np.any(d != 0) else 1.0
+        print(f"  {B} vs {A}: better on {int((d < 0).sum())}, worse on {int((d > 0).sum())} "
+              f"of {len(d)}; median diff {np.median(d):+.2f}; Wilcoxon p={p:.3f}")
+
 
 if __name__ == "__main__":
     main()
