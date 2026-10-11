@@ -55,6 +55,14 @@ def _glove_track(clip_path: str, model, step: int = 3, conf: float = 0.25,
     names = getattr(model, "names", None) or {}
     glove_cls = [k for k, v in names.items() if v == "glove"] if len(names) > 1 else []
     kw = {"classes": glove_cls} if glove_cls else {}
+    # ultralytics 8.4 renamed half -> quantize=16 (same compute; `half` still works but logs a
+    # deprecation warning on EVERY frame, ~70k lines per game). Older versions only know `half`.
+    if half:
+        try:
+            from ultralytics.cfg import DEFAULT_CFG_DICT
+            kw.update({"quantize": 16} if "quantize" in DEFAULT_CFG_DICT else {"half": True})
+        except ImportError:
+            kw["half"] = True
     fi = -1
     while True:
         fi += 1
@@ -65,7 +73,7 @@ def _glove_track(clip_path: str, model, step: int = 3, conf: float = 0.25,
         ok, fr = cap.read()
         if not ok:
             break
-        r = model.predict(fr, imgsz=imgsz, conf=conf, verbose=False, half=half, **kw)[0]
+        r = model.predict(fr, imgsz=imgsz, conf=conf, verbose=False, **kw)[0]
         if len(r.boxes):
             i = int(np.argmax(r.boxes.conf.cpu().numpy()))
             x, y = r.boxes.xywh[i][:2].cpu().numpy()
