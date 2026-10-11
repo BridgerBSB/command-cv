@@ -30,8 +30,21 @@ import numpy as np
 
 
 def _glove_track(clip_path: str, model, step: int = 3, conf: float = 0.25,
-                 imgsz: int = 640):
-    """[(frame, x, y, conf)] — highest-conf glove per sampled frame."""
+                 imgsz: int = 640, half: bool = True):
+    """[(frame, x, y, conf)] — highest-conf glove per sampled frame.
+
+    Frames are read STRAIGHT THROUGH (grab the skipped ones, decode every `step`-th), so
+    `frame` is the sequential index counted from 0 -- the project convention
+    (index-and-time-origins.md #2). The earlier `cap.set(POS_FRAMES)` seek cost 7.0 s of
+    a 16.8 s clip (662 frames, Asheville) and lands 0-2 frames early, so a set-up `frame`
+    from before 2026-10-11 can sit up to 2 frames off this one; the set-up PIXEL is a
+    median over the hold and moved <= 0.85 px on 10 clips.
+
+    half=True runs the detector in FP16 on the GPU: 0.018 vs 0.041 s/frame on the AMD
+    laptop, box centres a median 0.19 px / max 0.50 px from FP32 over 60 frames
+    (2026-10-11). Ultralytics ignores it on CPU. Batching frames was tried and is SLOWER
+    on this GPU (batch 16: 0.051 s/frame), so frames go one at a time.
+    """
     import cv2
     cap = cv2.VideoCapture(clip_path)
     n = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
@@ -42,12 +55,17 @@ def _glove_track(clip_path: str, model, step: int = 3, conf: float = 0.25,
     names = getattr(model, "names", None) or {}
     glove_cls = [k for k, v in names.items() if v == "glove"] if len(names) > 1 else []
     kw = {"classes": glove_cls} if glove_cls else {}
-    for fi in range(0, n, step):
-        cap.set(cv2.CAP_PROP_POS_FRAMES, fi)
+    fi = -1
+    while True:
+        fi += 1
+        if fi % step:
+            if not cap.grab():
+                break
+            continue
         ok, fr = cap.read()
         if not ok:
             break
-        r = model.predict(fr, imgsz=imgsz, conf=conf, verbose=False, **kw)[0]
+        r = model.predict(fr, imgsz=imgsz, conf=conf, verbose=False, half=half, **kw)[0]
         if len(r.boxes):
             i = int(np.argmax(r.boxes.conf.cpu().numpy()))
             x, y = r.boxes.xywh[i][:2].cpu().numpy()
