@@ -8,6 +8,6 @@
       700
     ]
   ],
-  "overlay_note": "SRP Park: bottom-right scorebug; some clips use a high 1B-side camera (pull_827562_0040) that will not map to the reference. Boxes marked by eye on frame 150 of clips 0005/0040/0080/0110, 2026-10-11.",
+  "overlay_note": "SRP Park: bottom-right scorebug; some clips OPEN on a high 1B-side camera (pull_827562_0040 at f150) and cut to the main camera before the pitch - 0040 maps at zoom 1.000 with its whole track (checked f207). Boxes marked by eye on frame 150 of clips 0005/0040/0080/0110, 2026-10-11.",
   "purpose": "labels only (ball-only camera); no ref_stem, so stabilize_park uses the set-up nearest the median"
 }
