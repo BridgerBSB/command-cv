@@ -32,7 +32,8 @@ pitch, and this is ~8x fewer SIFT passes than one per frame. Every H is written 
 stab2_H_<game>.csv so a later change of reference costs one extra homography, not a rerun.
 
 SET-UPS are cached to output/setups_<game>.csv (stem, x, y, frame); a rerun reuses them and
-skips the mitt-detector pass, which is most of the runtime (~1.5 h for 327 clips).
+skips the mitt-detector pass, which is most of the runtime (~1.5 h for 327 clips when it
+sought every 3rd frame; ~4 s/clip on AC power since aadd50cc0, PROGRESS-LOG 122).
 
 FRAMES are decoded SEQUENTIALLY, never by seek (index-and-time-origins.md, instance 2).
 
@@ -141,8 +142,8 @@ def main():
                     help="stop chaining past this many composed hops (error accumulates)")
     ap.add_argument("--tag", default="", help="suffix on the stab2 outputs")
     ap.add_argument("--no-setups", action="store_true",
-                    help="LABELS-ONLY parks: skip the glove set-up pass (~30 min per 120 clips, it "
-                         "seeks every 3rd frame) and write no targets file. Track points map through "
+                    help="LABELS-ONLY parks: skip the glove set-up pass (~4 s/clip since aadd50cc0; "
+                         "was ~30 min per 120 clips) and write no targets file. Track points map through "
                          "the first/last track-frame H exactly as before; the reference, unless "
                          "given, is the clip whose track starts nearest the median start")
     a = ap.parse_args()
