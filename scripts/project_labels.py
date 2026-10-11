@@ -63,6 +63,9 @@ def main():
                          "Justified at 815443 by render (28 Sep): the unconfirmed frames show the "
                          "ball over low-contrast backgrounds (white uniform, red ad board), not "
                          "hidden - which is exactly what the detector needs to learn")
+    ap.add_argument("--out", default=None,
+                    help="labels csv (default output/proj_labels_<game>.csv, which OVERWRITES the "
+                         "park's labels -- pass --out for a variant pose)")
     a = ap.parse_args()
     d = a.dir if os.path.isabs(a.dir) else os.path.join(ROOT, a.dir)
     assert os.path.isdir(d), d
@@ -125,7 +128,7 @@ def main():
                                  det_dist=dist_k, det_conf=conf_k, confirmed=confirmed,
                                  in_chain=bool(((g.frame == fi)).any())))
     lab = pd.DataFrame(rows)
-    out = os.path.join(out_dir, "proj_labels_%d.csv" % a.game)
+    out = a.out or os.path.join(out_dir, "proj_labels_%d.csv" % a.game)
     lab.to_csv(out, index=False)
     print("game %d: %d fit-half clips anchored; %d projected flight frames; %d confirmed visible "
           "(%.0f%%)" % (a.game, n_clips, n_proj, n_seen, 100.0 * n_seen / max(n_proj, 1)))
