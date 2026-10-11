@@ -43,6 +43,16 @@ NEW = [
     ("827562", "data/clips/pull_827562", ["--window-pick"]),
     ("816989", "data/clips/pull_816989", ["--window-pick"]),
     ("822161", "data/clips/pull_822161", ["--window-pick"]),
+    # third batch (2026-10-11 overnight) - used once admitted, e.g. by a v8:
+    #   v7_run.py --name milb8_proj --tag _v8g --also milb7_proj:_v7g
+    ("814941", "data/clips/pull_814941", ["--window-pick"]),
+    ("815216", "data/clips/pull_815216", ["--window-pick"]),
+    ("815256", "data/clips/pull_815256", ["--window-pick"]),
+    ("817085", "data/clips/pull_817085", ["--window-pick"]),
+    ("817284", "data/clips/pull_817284", ["--window-pick"]),
+    ("817590", "data/clips/pull_817590", ["--window-pick"]),
+    ("821786", "data/clips/pull_821786", ["--window-pick"]),
+    ("827337", "data/clips/pull_827337", ["--window-pick"]),
 ]
 
 
