@@ -23,6 +23,7 @@ WHAT IT RUNS, each step skipped when its output exists (resumable, long-jobs rul
   5. labels   project_labels --all-frames          -> proj_labels_<g>.csv
   6. sheet    render_proj_labels                   -> proj_labels_<g>_sheet.png
   7. camera   render_ref_pose                      -> park_pose_<g>_ref.png
+  8. numbers  check_park_labels (prints confirmed %, per-clip offsets, misplacement signature)
 
 IT STOPS THERE. Admission is an eye check, recorded in docs/proj_label_admission.csv:
   park_pose_<g>_ref.png  plate / rubber / 9 ft mound circle / foul lines drawn from a camera that
@@ -103,6 +104,9 @@ def main():
     print("STEP 7  reference-view camera check", flush=True)
     if not have("park_pose_%d_ref.png" % g):
         sh(["scripts/render_ref_pose.py", "--game", str(g), "--dir", a.dir, "--pose", "output/" + pose])
+
+    print("STEP 8  admission numbers", flush=True)
+    sh(["scripts/check_park_labels.py", "--game", str(g)])   # prints only, writes nothing
 
     print("LABELS READY, NOT ADMITTED -> look at output/park_pose_%d_ref.png and "
           "output/proj_labels_%d_sheet.png, then add a row to docs/proj_label_admission.csv" % (g, g),
