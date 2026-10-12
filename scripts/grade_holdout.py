@@ -15,6 +15,20 @@ import pandas as pd
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 
+def grade(game, tag, src="auto"):
+    """One row of the table below, as a dict. miss_season.py gates on this, so the season
+    ledger and the printed table cannot disagree about what a game's camera scored."""
+    h = set(pd.read_csv(os.path.join(ROOT, "output", "holdout_%d.csv" % game)).stem)
+    d = pd.read_csv(os.path.join(ROOT, "output", "command_miss_%d%s.csv" % (game, tag)))
+    d = d[(d.target_src == src) & d.stem.isin(h)]
+    g = d.B_minus_A_in.dropna()
+    ok = d[d.B_ok].B_minus_A_in.dropna()
+    return dict(n_holdout=len(h), n=len(d), gap_med=g.median(), gap_p90=g.quantile(.9),
+                plaus=int(d.plaus.sum()), dx_mean=(d.B_dx - d.A_dx).mean(),
+                dz_mean=(d.B_dz - d.A_dz).mean(), b_ok=int(d.B_ok.sum()),
+                bok_gap=ok.median() if len(ok) else np.nan)
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--game", type=int, required=True)
@@ -26,14 +40,10 @@ def main():
     print("  %-8s %4s %6s %6s %6s %8s %8s %6s %6s" % ("tag", "n", "gapMed", "gapP90", "plaus",
                                                      "dx mean", "dz mean", "B_ok", "Bokgap"))
     for t in a.tags:
-        d = pd.read_csv(os.path.join(ROOT, "output", "command_miss_%d%s.csv" % (a.game, t)))
-        d = d[(d.target_src == a.src) & d.stem.isin(h)]
-        g = d.B_minus_A_in.dropna()
-        ok = d[d.B_ok].B_minus_A_in.dropna()
+        r = grade(a.game, t, a.src)
         print("  %-8s %4d %6.2f %6.2f %6d %8.2f %8.2f %6d %6.2f" % (
-            t, len(d), g.median(), g.quantile(.9), int(d.plaus.sum()),
-            (d.B_dx - d.A_dx).mean(), (d.B_dz - d.A_dz).mean(), int(d.B_ok.sum()),
-            ok.median() if len(ok) else np.nan))
+            t, r["n"], r["gap_med"], r["gap_p90"], r["plaus"], r["dx_mean"], r["dz_mean"],
+            r["b_ok"], r["bok_gap"]))
 
 
 if __name__ == "__main__":

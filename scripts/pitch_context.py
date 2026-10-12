@@ -63,10 +63,23 @@ def main():
     ctx = fetch(a.game)
     j = man[["stem", "play_id"]].merge(ctx, on="play_id", how="left")
     out = os.path.join(ROOT, "output", "pitch_context_%d.csv" % a.game)
+    matched = int(j.pitcher_id.notna().sum())      # THIS manifest only, before any kept rows
+    by_pitcher = j.groupby("pitcher_name", dropna=False).size().sort_values(ascending=False)
+    # ONE FILE PER GAME, MANY CLIP FOLDERS. The Ogando pilot pulled one pitcher's clips of a
+    # game (stems ogando_*) and the season run pulls every Houston pitch of the same game
+    # (stems pull_<g>_*). Overwriting would orphan the pilot's command_miss rows on the board,
+    # so rows for stems NOT in this manifest are kept. Stems carry their folder name, so the
+    # two sets cannot collide.
+    if os.path.exists(out):
+        old = pd.read_csv(out)
+        kept = old[~old.stem.isin(j.stem)]
+        if len(kept):
+            print("kept %d context rows from other clip folders of game %d" % (len(kept), a.game))
+            j = pd.concat([kept, j], ignore_index=True)
     j.to_csv(out, index=False)
     print("game %d: feed pitches %d, manifest clips %d, matched %d"
-          % (a.game, len(ctx), len(man), int(j.pitcher_id.notna().sum())))
-    print(j.groupby("pitcher_name", dropna=False).size().sort_values(ascending=False).to_string())
+          % (a.game, len(ctx), len(man), matched))
+    print(by_pitcher.to_string())
     print("->", out)
 
 

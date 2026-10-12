@@ -74,8 +74,13 @@ def run(cmd, label):
     return p.stdout or ""
 
 
-def fetch_game(csv_path, clip_dir, workers, max_clips):
-    """Download one game's clips and write the manifest detect_ball_tracks expects."""
+def fetch_game(csv_path, clip_dir, workers, max_clips, keep=None):
+    """Download one game's clips and write the manifest detect_ball_tracks expects.
+
+    keep: optional set of play_ids. Stems are numbered over the WHOLE game first and the
+    filter applied after, so a clip keeps the same stem whether it came down in a partial
+    or a full pull of that game (miss_season.py fetches only Houston's pitches).
+    """
     rows = list(_csv.DictReader(open(csv_path, newline="", encoding="utf-8")))
     rows = [r for r in rows if r.get("cf_url")]
     if max_clips:
@@ -84,6 +89,8 @@ def fetch_game(csv_path, clip_dir, workers, max_clips):
     name = os.path.basename(clip_dir)
     for i, r in enumerate(rows):
         r["stem"] = "%s_%04d" % (name, i)
+    if keep is not None:
+        rows = [r for r in rows if r.get("play_id") in keep]
 
     # A WIFI DROP MUST NOT BECOME A SILENTLY SHORT PARK. Before 2026-09-25 a failed download
     # returned False once and the game was labelled on whatever arrived -- 30 of 120 clips

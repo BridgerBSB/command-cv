@@ -34,10 +34,12 @@ gap is in the solved parks' range (0.15-0.47 in median). Boards come from comman
     python scripts/miss_new_park.py --game 814874 --dir data/clips/pull_814874
 """
 import argparse
+import json
 import os
 import shutil
 import subprocess
 import sys
+import time
 
 import pandas as pd
 
@@ -45,12 +47,33 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 OUT = os.path.join(ROOT, "output")
 V4 = "data/yolo_ball_runs/milb4_v4/weights/best.pt"
 
+# Every file a step below SKIPS ON, plus the files those steps write beside it and the set-up
+# cache stabilize_park reads back. A copy of any of these from a DIFFERENT clip folder of the
+# same game is silently reused: the Ogando pilot ran 822515 & co. on one pitcher's clips, and
+# a full-game run would have kept its tracks, its held-out half (make_holdout_split refuses to
+# redo one) and its set-up reference. miss_season.py moves these aside; a hand run refuses.
+STEP_OUTPUTS = ["detect_tracks_{g}_v4.csv", "dets_{g}_v4.csv", "setups_{g}.csv",
+                "targets_{g}_stab2c.csv", "detect_tracks_{g}_v4stab2c.csv",
+                "stab2_clips_{g}c.csv", "stab2_H_{g}c.csv", "holdout_{g}.csv",
+                "seeds_{g}_v4fit.csv", "park_pose_{g}_ballonly.npz", "park_pose_{g}_ref.png",
+                "command_miss_{g}_bo.csv"]
+
+
+def stale_outputs(g):
+    """STEP_OUTPUTS that exist although this script never ran on game g (no scope marker)."""
+    if os.path.exists(os.path.join(OUT, "miss_scope_%d.txt" % g)):
+        return []
+    return [n.format(g=g) for n in STEP_OUTPUTS if os.path.exists(os.path.join(OUT, n.format(g=g)))]
+
 
 def sh(args):
     print("  $ " + " ".join(args), flush=True)
+    t0 = time.time()
     r = subprocess.run([sys.executable, "-u"] + args, cwd=ROOT)
     if r.returncode:
         sys.exit("FAILED (%d): %s" % (r.returncode, " ".join(args)))
+    # Per-step wall clock: "30 min a game" is not actionable, "detect 9 + glove 12" is.
+    print("  [%s took %.1f min]" % (os.path.basename(args[0]), (time.time() - t0) / 60), flush=True)
 
 
 def have(name):
@@ -60,11 +83,15 @@ def have(name):
 def ours_only_dir(g, d):
     """data/clips/hou_<g>/ = hard links to the clips our pitchers threw, plus a filtered manifest."""
     ctx_p = os.path.join(OUT, "pitch_context_%d.csv" % g)
-    if not os.path.exists(ctx_p) or "pitch_team_org" not in pd.read_csv(ctx_p, nrows=1):
+    man = pd.read_csv(os.path.join(d, os.path.basename(d) + "_manifest.csv"))
+    # Refresh when the context predates pitch_team_org OR this clip folder: a context written
+    # for another folder of the same game (the Ogando pilot) has none of these stems, and the
+    # subset below would come out empty.
+    if (not os.path.exists(ctx_p) or "pitch_team_org" not in pd.read_csv(ctx_p, nrows=1)
+            or not set(man.stem[man.game_pk == g]) <= set(pd.read_csv(ctx_p).stem)):
         sh(["scripts/pitch_context.py", "--game", str(g), "--dir", d])
     ctx = pd.read_csv(ctx_p)
     ours = set(ctx.loc[ctx.pitch_team_org == 117, "stem"])
-    man = pd.read_csv(os.path.join(d, os.path.basename(d) + "_manifest.csv"))
     sub = man[(man.game_pk == g) & man.stem.isin(ours)]
     assert len(sub), "no Houston pitches in game %d" % g
     hd = os.path.join(ROOT, "data", "clips", "hou_%d" % g)
@@ -108,9 +135,17 @@ def main():
 
     man = pd.read_csv(os.path.join(d, os.path.basename(d) + "_manifest.csv"))
     man = man[man.game_pk == g]
+    ref_stem = json.load(open(lm, encoding="utf-8")).get("ref_stem")
+    assert not ref_stem or ref_stem in set(man.stem), (
+        "%s names ref_stem %s, which is not in this clip folder (a landmark file from another "
+        "pull of the game); stabilize_park would reference it" % (lm, ref_stem))
     scope = "ours-only" if a.ours_only else "all"
     if a.weights != V4:   # legacy markers say only the scope; v4 runs keep matching them
         scope += " weights=" + a.weights
+    stale = stale_outputs(g)
+    assert not stale, ("game %d has step outputs this script did not write (another clip folder "
+                       "of the game?) and every step would skip on them: %s. Move them aside "
+                       "first (miss_season.py does)." % (g, ", ".join(stale)))
     sp = os.path.join(OUT, "miss_scope_%d.txt" % g)
     if os.path.exists(sp):
         prev = open(sp).read().strip()

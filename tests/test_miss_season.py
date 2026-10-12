@@ -1,0 +1,212 @@
+"""miss_season.py decides which games run, which resume and which wait. DB-, GPU- and
+network-free: every check builds its own season / registry / ledger in a temp folder.
+
+Each check has been failed on purpose against the defect it exists for (grep-guard-criteria.md
+section 2); the injections are listed in INJECTIONS at the bottom and `--inject` replays them.
+
+    python tests/test_miss_season.py            # plain script, no pytest needed
+    python tests/test_miss_season.py --inject   # every injected defect must turn a check red
+"""
+import argparse
+import math
+import os
+import sys
+import tempfile
+
+import pandas as pd
+
+ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, os.path.join(ROOT, "scripts"))
+import miss_new_park  # noqa: E402
+import miss_season as S  # noqa: E402
+
+
+class Box:
+    """Points miss_season / miss_new_park at a temp output folder for one check."""
+
+    def __enter__(self):
+        self.tmp = tempfile.mkdtemp()
+        self.out = os.path.join(self.tmp, "output")
+        self.cvpull = os.path.join(self.out, "cvpull")
+        os.makedirs(self.cvpull)
+        self.saved = (S.OUT, S.CVPULL, miss_new_park.OUT)
+        S.OUT, S.CVPULL, miss_new_park.OUT = self.out, self.cvpull, self.out
+        return self
+
+    def __exit__(self, *exc):
+        S.OUT, S.CVPULL, miss_new_park.OUT = self.saved
+
+    def touch(self, name, text="x"):
+        p = os.path.join(self.out, name)
+        open(p, "w").write(text)
+        return p
+
+    def pull_csv(self, g):
+        open(os.path.join(self.cvpull, "cvpull_%d.csv" % g), "w").write("play_id\n")
+
+
+def season(rows):
+    return pd.DataFrame([dict(level="aa", team="T", game_pk=g, date=d, venue_id=v, venue="V%d" % v,
+                              side="home", opponent="O", day_night="night", banked=0)
+                         for g, d, v in rows])
+
+
+REG = {1: dict(status="ready", lo=165, hi=235), 2: dict(status="setup", lo=pd.NA, hi=pd.NA),
+       3: dict(status="blocked", lo=pd.NA, hi=pd.NA)}
+ARGS = argparse.Namespace(games="", venue_ids="", retry_failed=False, no_setup=False)
+
+
+def statuses(rows, ledger=None):
+    led = ledger if ledger is not None else pd.DataFrame(columns=S.LEDGER_COLS)
+    return {j["game_pk"]: j["status"] for j in S.plan(season(rows), REG, led, ARGS)}
+
+
+def check_plan_classifies_every_case():
+    with Box() as b:
+        for g in (101, 102, 201, 202, 301, 401):
+            b.pull_csv(g)
+        st = statuses([(101, "2026-04-01", 1), (102, "2026-04-02", 1), (103, "2026-04-03", 1),
+                       (201, "2026-04-01", 2), (202, "2026-04-02", 2), (301, "2026-04-01", 3),
+                       (401, "2026-04-01", 4)])
+    assert st[101] == "run" and st[102] == "run", st
+    assert st[103] == "awaiting pull", st
+    assert st[201] == "run setup", st                 # first game at a setup park is its trial
+    assert st[202] == "park in setup, awaiting review", st
+    assert st[301] == "park blocked", st
+    assert st[401] == "park needs scorebug boxes", st
+
+
+def check_setup_park_runs_once_across_runs():
+    """A park whose trial already ran (ledger role=setup) must not run a SECOND trial."""
+    with Box() as b:
+        b.pull_csv(202)
+        led = pd.DataFrame([dict(game_pk=201, venue_id=2, role="setup", verdict="PASS")])
+        st = statuses([(201, "2026-04-01", 2), (202, "2026-04-02", 2)], led)
+    assert st[201] == "done" and st[202] == "park in setup, awaiting review", st
+
+
+def check_killed_game_resumes_but_pilot_game_does_not():
+    """miss_new_park writes its scope marker at step 0. A SEASON game killed after that has a
+    season marker too and must resume; a PILOT game (scope marker only) is done."""
+    with Box() as b:
+        for g in (501, 502):
+            b.pull_csv(g)
+            b.touch("miss_scope_%d.txt" % g, "ours-only")
+        b.touch("miss_season_marker_502.txt", "season")
+        st = statuses([(501, "2026-04-01", 1), (502, "2026-04-02", 1)])
+    assert st[501] == "done", st
+    assert st[502] == "run", st
+
+
+def check_stale_outputs_only_without_scope_marker():
+    with Box() as b:
+        b.touch("holdout_601.csv")
+        b.touch("command_miss_601_bo.csv")
+        stale = miss_new_park.stale_outputs(601)
+        b.touch("miss_scope_601.txt", "ours-only")
+        after = miss_new_park.stale_outputs(601)
+    assert set(stale) == {"holdout_601.csv", "command_miss_601_bo.csv"}, stale
+    assert after == [], after
+
+
+def check_gate_fails_on_no_evidence():
+    assert S.gate(0.26) == "PASS" and S.gate(S.GATE_BOK_IN) == "PASS"
+    assert S.gate(0.48) == "FAIL" and S.gate(1.48) == "FAIL"
+    assert S.gate(float("nan")) == "FAIL"
+
+
+def check_window_measured_reads_last_line():
+    with Box() as b:
+        p = b.touch("g.log",
+                    "  chain ends: p05 174  median 189  p95 195   -> --lo 142 --hi 201 would have sufficed\n"
+                    "resumed\n"
+                    "  chain ends: p05 170  median 190  p95 199   -> --lo 140 --hi 205 would have sufficed\n")
+        got = S.window_measured(p)
+    assert got == "--lo 140 --hi 205", got
+
+
+def check_board_season_pass_supersedes_pilot():
+    led = pd.DataFrame([dict(game_pk=822515, verdict="PASS"), dict(game_pk=822512, verdict="FAIL")])
+    games = S.board_games(led)
+    assert games[822515] == "_bo", games            # full-game season run replaces the Ogando pull
+    assert games[822512] == "_s2c", games           # a FAIL keeps the pilot entry
+    assert games[814874] == "_bo", games            # admitted pilot cameras stay on
+
+
+CHECKS = [check_plan_classifies_every_case, check_setup_park_runs_once_across_runs,
+          check_killed_game_resumes_but_pilot_game_does_not,
+          check_stale_outputs_only_without_scope_marker, check_gate_fails_on_no_evidence,
+          check_window_measured_reads_last_line, check_board_season_pass_supersedes_pilot]
+
+
+# pytest discovery, same functions
+def test_all():
+    for c in CHECKS:
+        c()
+
+
+def run():
+    bad = 0
+    for c in CHECKS:
+        try:
+            c()
+            print("  ok    " + c.__name__)
+        except Exception as e:                           # noqa: BLE001  (attribute, never crash)
+            bad += 1
+            print("  FAIL  %s: %s: %s" % (c.__name__, type(e).__name__, e))
+    return bad
+
+
+# Each entry re-introduces one defect and names the check that must go red.
+INJECTIONS = {
+    "season marker written AFTER the run (killed game marked done)":
+        ("pilot_games", lambda: set(int(os.path.basename(p)[11:-4]) for p in
+                                    __import__("glob").glob(os.path.join(S.OUT, "miss_scope_*.txt"))),
+         "check_killed_game_resumes_but_pilot_game_does_not"),
+    "gate passes NaN":
+        ("gate", lambda x: "FAIL" if x > S.GATE_BOK_IN else "PASS",
+         "check_gate_fails_on_no_evidence"),
+    "every game at a setup park runs":
+        ("plan", None, "check_plan_classifies_every_case"),
+    "window parser keeps the first line":
+        ("window_measured", lambda p: next((l.split("->")[-1].replace("would have sufficed", "").strip()
+                                            for l in open(p) if "would have sufficed" in l), ""),
+         "check_window_measured_reads_last_line"),
+}
+
+
+def inject():
+    bad = 0
+    for name, (attr, fake, must_fail) in INJECTIONS.items():
+        orig = getattr(S, attr)
+        if attr == "plan":
+            def fake(season_, reg, ledger, a, _orig=orig):
+                rows = _orig(season_, reg, ledger.iloc[0:0], a)
+                for r in rows:
+                    if r["status"] == "park in setup, awaiting review":
+                        r["status"] = "run setup"
+                return rows
+        setattr(S, attr, fake)
+        try:
+            fn = next(c for c in CHECKS if c.__name__ == must_fail)
+            fn()
+            red = False
+        except Exception:                                # noqa: BLE001
+            red = True
+        finally:
+            setattr(S, attr, orig)
+        bad += not red
+        print("  %s  %s -> %s" % ("red " if red else "GREEN(!)", name, must_fail))
+    return bad
+
+
+if __name__ == "__main__":
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--inject", action="store_true")
+    a = ap.parse_args()
+    n = run()
+    if a.inject:
+        print("injected defects (each must be red):")
+        n += inject()
+    print("ALL PASS" if not n else "%d PROBLEM(S)" % n)
+    sys.exit(1 if n else 0)
