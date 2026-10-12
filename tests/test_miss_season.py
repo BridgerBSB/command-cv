@@ -133,10 +133,42 @@ def check_board_season_pass_supersedes_pilot():
     assert games[814874] == "_bo", games            # admitted pilot cameras stay on
 
 
+def check_order_ready_parks_before_trials():
+    """A ready-park game (straight onto the board) outranks an EARLIER setup trial."""
+    jobs = [dict(game_pk=1, date="2026-04-01", status="run setup"),
+            dict(game_pk=2, date="2026-06-01", status="run"),
+            dict(game_pk=3, date="2026-05-01", status="run"),
+            dict(game_pk=4, date="2026-04-01", status="awaiting pull")]
+    got = [j["game_pk"] for j in S.order(jobs)]
+    assert got == [3, 2, 1], got
+
+
+def check_delete_counts_hard_links_once():
+    """hou_<g> is hard links into pull_<g>: 2 files of 1000 bytes linked twice free 2000."""
+    tmp = tempfile.mkdtemp()
+    saved = S.ROOT
+    S.ROOT = tmp
+    try:
+        a = os.path.join(tmp, "data", "clips", "pull_9")
+        b = os.path.join(tmp, "data", "clips", "hou_9")
+        os.makedirs(a)
+        os.makedirs(b)
+        for k in range(2):
+            open(os.path.join(a, "c%d.mp4" % k), "wb").write(b"x" * 1000)
+            os.link(os.path.join(a, "c%d.mp4" % k), os.path.join(b, "c%d.mp4" % k))
+        freed = S.delete_clips(9) * 2 ** 30
+        left = os.listdir(a) + os.listdir(b)
+    finally:
+        S.ROOT = saved
+    assert left == [], left
+    assert math.isclose(freed, 2000), freed
+
+
 CHECKS = [check_plan_classifies_every_case, check_setup_park_runs_once_across_runs,
           check_killed_game_resumes_but_pilot_game_does_not,
           check_stale_outputs_only_without_scope_marker, check_gate_fails_on_no_evidence,
-          check_window_measured_reads_last_line, check_board_season_pass_supersedes_pilot]
+          check_window_measured_reads_last_line, check_board_season_pass_supersedes_pilot,
+          check_order_ready_parks_before_trials, check_delete_counts_hard_links_once]
 
 
 # pytest discovery, same functions
@@ -168,6 +200,16 @@ INJECTIONS = {
          "check_gate_fails_on_no_evidence"),
     "every game at a setup park runs":
         ("plan", None, "check_plan_classifies_every_case"),
+    "order by date only (trials ahead of ready games)":
+        ("order", lambda jobs: sorted([j for j in jobs if j["status"] in ("run", "run setup")],
+                                      key=lambda j: (j["date"], j["game_pk"])),
+         "check_order_ready_parks_before_trials"),
+    "every unlink counted as freed space":
+        ("delete_clips", lambda g: sum(
+            (os.path.getsize(p), os.remove(p))[0] for d in ("pull_%d" % g, "hou_%d" % g)
+            for p in __import__("glob").glob(os.path.join(S.ROOT, "data", "clips", d, "*.mp4")))
+            / 2 ** 30,
+         "check_delete_counts_hard_links_once"),
     "window parser keeps the first line":
         ("window_measured", lambda p: next((l.split("->")[-1].replace("would have sufficed", "").strip()
                                             for l in open(p) if "would have sufficed" in l), ""),

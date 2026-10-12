@@ -262,10 +262,14 @@ def retry_aside(g):
 
 
 def delete_clips(g):
+    """Both folders. hou_<g> holds HARD LINKS into pull_<g>, so a file's bytes are freed only
+    when its last link goes (st_nlink == 1) - counting every unlink reported twice the space."""
     freed = 0
     for d in ("pull_%d" % g, "hou_%d" % g):
         for p in glob.glob(os.path.join(ROOT, "data", "clips", d, "*.mp4")):
-            freed += os.path.getsize(p)
+            st = os.stat(p)
+            if st.st_nlink <= 1:
+                freed += st.st_size
             os.remove(p)
     return freed / 2 ** 30
 
@@ -396,6 +400,31 @@ def refs_sheet(ledger, per=12, cols=3):
         print("  " + p)
 
 
+def order(jobs):
+    """Runnable games, best first: games at READY parks before setup trials (a ready game goes
+    straight on the board; a trial needs an eye check before its park's other games can run),
+    then by date."""
+    run = [j for j in jobs if j["status"] in ("run", "run setup")]
+    return sorted(run, key=lambda j: (j["status"] != "run", j["date"], j["game_pk"]))
+
+
+def report_plan(jobs, a, swept):
+    counts = pd.Series([j["status"] for j in jobs]).value_counts()
+    print("season plan (%d games%s; %d new pull CSV(s) copied from Downloads):"
+          % (len(jobs), ", filtered" if a.games or a.venue_ids else "", swept))
+    for st, k in counts.items():
+        print("  %-34s %4d" % (st, k))
+    runnable = order(jobs)
+    by_park = pd.Series([j["venue"] for j in runnable]).value_counts()
+    if len(by_park):
+        print("runnable by park: " + ", ".join("%s %d" % kv for kv in by_park.items()))
+    waiting = [j for j in jobs if j["status"].startswith("park ")]
+    if waiting:
+        print("waiting parks: " + ", ".join(
+            "%s (%s) %d" % (v, s.replace("park ", ""), k) for (v, s), k in
+            pd.Series([(j["venue"], j["status"]) for j in waiting]).value_counts().items()))
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--dry-run", action="store_true", help="print the plan and stop")
@@ -408,6 +437,9 @@ def main():
     ap.add_argument("--min-free-gb", type=float, default=6.0)
     ap.add_argument("--keep-clips", action="store_true", help="debugging one game only")
     ap.add_argument("--pass-every", type=int, default=10, help="rebuild the board every N passes")
+    ap.add_argument("--idle-exit-min", type=float, default=0,
+                    help="when nothing is runnable, keep checking Downloads for new pull CSVs "
+                         "this many minutes before exiting (0 = exit at once)")
     ap.add_argument("--refs-sheet", action="store_true", help="eye-check sheets and stop")
     ap.add_argument("--board", action="store_true", help="rebuild the board and stop")
     a = ap.parse_args()
@@ -418,55 +450,69 @@ def main():
     if a.board:
         return rebuild_board(ledger)
 
-    swept = sweep_downloads()
     season = pd.read_csv(SEASON)
+    swept = sweep_downloads()
     jobs = plan(season, read_registry(), ledger, a)
-    counts = pd.Series([j["status"] for j in jobs]).value_counts()
-    print("season plan (%d games%s; %d new pull CSV(s) copied from Downloads):"
-          % (len(jobs), ", filtered" if a.games or a.venue_ids else "", swept))
-    for st, k in counts.items():
-        print("  %-34s %4d" % (st, k))
-    runnable = [j for j in jobs if j["status"] in ("run", "run setup")]
-    if a.max_games:
-        runnable = runnable[:a.max_games]
-    by_park = pd.Series([j["venue"] for j in runnable]).value_counts()
-    if len(by_park):
-        print("runnable by park: " + ", ".join("%s %d" % kv for kv in by_park.items()))
-    waiting = [j for j in jobs if j["status"].startswith("park ")]
-    if waiting:
-        print("waiting parks: " + ", ".join(
-            "%s (%s) %d" % (v, s.replace("park ", ""), k) for (v, s), k in
-            pd.Series([(j["venue"], j["status"]) for j in waiting]).value_counts().items()))
-    if a.dry_run or not runnable:
+    report_plan(jobs, a, swept)
+    if a.dry_run:
         return 0
 
     print("\n%.1f GB free, floor %.1f GB\n" % (free_gb(), a.min_free_gb))
-    passes = 0
+    # RE-PLAN AFTER EVERY GAME. Pull CSVs land in Downloads while this runs (the Chrome pull
+    # is hours), and a home game at a ready park must not wait behind a day of setup trials,
+    # so each step re-reads the ledger, the registry and the CSVs and takes the best game.
+    # `tried` holds every game attempted this run: a download that keeps failing, or a FAIL
+    # under --retry-failed, is not picked twice.
+    tried, ran, passes, idle_since = set(), 0, 0, None
+    nxt, nxt_g = None, None
     with ThreadPoolExecutor(1) as pool:
-        nxt = pool.submit(fetch, runnable[0])
-        for i, job in enumerate(runnable):
+        while not (a.max_games and ran >= a.max_games):
+            ledger = read_ledger()
+            got = sweep_downloads()
+            if got:
+                print("    %d new pull CSV(s) copied from Downloads" % got)
+            runnable = order([j for j in plan(season, read_registry(), ledger, a)
+                              if j["game_pk"] not in tried])
+            if not runnable:
+                idle_since = idle_since or time.time()
+                if (time.time() - idle_since) / 60 >= a.idle_exit_min:
+                    break
+                time.sleep(60)
+                continue
+            idle_since = None
+            job = runnable[0]
             g = job["game_pk"]
+            tried.add(g)
             if a.retry_failed and g in set(ledger.game_pk.astype(int)):
                 retry_aside(g)
             moved = aside_stale(g, job["park"])
             if moved:
                 print("    moved aside (another pull of %d): %s" % (g, ", ".join(moved)))
+            if nxt_g is not None and nxt_g != g:
+                # The plan changed under the prefetch (new CSVs, a park made ready). Let it
+                # finish; its clips stay cached for when that game's turn comes. Its own
+                # failure is its own, never this game's.
+                try:
+                    nxt.result()
+                except Exception as e:                 # noqa: BLE001
+                    print("    (stale prefetch of %d failed: %s)" % (nxt_g, e))
             try:
-                dl = nxt.result() if nxt is not None else fetch(job)
+                dl = nxt.result() if nxt_g == g else fetch(job)
             except Exception as e:                     # noqa: BLE001  (feed / network)
-                print("== %d  fetch failed: %s -- retried next run" % (g, e))
+                print("== %d  fetch failed: %s -- left for the next run" % (g, e))
                 dl = None
-            # Prefetch the NEXT game while this one runs: the download is network-bound and
-            # the run is GPU/CPU-bound, so the overlap is free (~5 of ~30 min a game). Under
-            # the disk floor it is fetched in line instead, after this game's clips are gone.
-            nxt = None
-            if i + 1 < len(runnable) and free_gb() > a.min_free_gb + 2 * GAME_GB:
-                nxt = pool.submit(fetch, runnable[i + 1])
+            # Prefetch the next game while this one runs: the download is network-bound and
+            # the run is GPU/CPU-bound, so the overlap is free. Under the disk floor it is
+            # fetched in line instead, after this game's clips are gone.
+            nxt, nxt_g = None, None
+            if len(runnable) > 1 and free_gb() > a.min_free_gb + 2 * GAME_GB:
+                nxt, nxt_g = pool.submit(fetch, runnable[1]), runnable[1]["game_pk"]
             if dl is None:
                 continue
-            print("== %d  %s %s %-24s %s  (%d of %d)" % (g, job["date"], job["level"],
-                                                         job["venue"][:24], job["status"], i + 1,
-                                                         len(runnable)), flush=True)
+            ran += 1
+            print("== %d  %s %s %-24s %s  (%d runnable)" % (g, job["date"], job["level"],
+                                                           job["venue"][:24], job["status"],
+                                                           len(runnable)), flush=True)
             row = run_game(job, dl, a)
             if row is None:
                 continue
@@ -475,7 +521,7 @@ def main():
             ledger = read_ledger()
             gap = row.get("bok_gap_in")
             print("    %s  held-out %s in (B_ok n %s)  run %.1f min, download %.1f min, "
-                  "%.2f GB deleted -> %.1f GB free"
+                  "%.2f GB freed -> %.1f GB free"
                   % (row["verdict"], "-" if gap is None or gap != gap else "%.2f" % gap,
                      row.get("b_ok", "-"), row.get("run_min") or 0, row.get("dl_min") or 0, gb,
                      free_gb()), flush=True)
@@ -493,9 +539,15 @@ def main():
                 print("\nSTOPPING: %.1f GB free is under the floor. Nothing was half-written."
                       % free_gb())
                 break
+        if nxt is not None:
+            try:
+                nxt.result()                       # an unused prefetch; its clips stay cached
+            except Exception:                      # noqa: BLE001
+                pass
     if passes:
-        rebuild_board(ledger)
-    print("\n%s" % read_ledger().verdict.value_counts().to_string())
+        rebuild_board(read_ledger())
+    print("\nthis run: %d game(s) attempted, %d passed" % (ran, passes))
+    print("ledger:\n%s" % read_ledger().verdict.value_counts().to_string())
     return 0
 
 

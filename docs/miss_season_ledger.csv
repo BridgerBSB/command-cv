@@ -1,0 +1,2 @@
+game_pk,date,level,team,side,venue_id,venue,role,clips_ours,clips_missing,heldout_n,b_ok,bok_gap_in,gap_med_in,gap_p90_in,plaus,verdict,window_used,window_measured,dl_min,run_min,ref_png,eye,finished_ct,note
+822517,2026-04-22,aplus,Asheville Tourists,home,2807,HomeTrust Park,setup,171,0,74,56,0.46010845406553136,0.637479103244234,5.2028285653305915,72,PASS,default,--lo 203 --hi 270,0.9,62.8,output/park_pose_822517_ref.png,ok 2026-10-11,2026-10-11 23:16,
