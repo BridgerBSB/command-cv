@@ -85,6 +85,20 @@ def check_setup_park_runs_once_across_runs():
     assert st[201] == "done" and st[202] == "park in setup, awaiting review", st
 
 
+def check_failed_trial_reruns_only_under_retry():
+    """A FAILED trial leaves its park waiting; --retry-failed reruns that same game."""
+    led = pd.DataFrame([dict(game_pk=201, venue_id=2, role="setup", verdict="FAIL")])
+    with Box() as b:
+        b.pull_csv(201)
+        b.pull_csv(202)
+        plain = statuses([(201, "2026-04-01", 2), (202, "2026-04-02", 2)], led)
+        retry = {j["game_pk"]: j["status"] for j in S.plan(
+            season([(201, "2026-04-01", 2), (202, "2026-04-02", 2)]), REG, led,
+            argparse.Namespace(games="", venue_ids="", retry_failed=True, no_setup=False))}
+    assert plain[201] == "done" and plain[202] == "park in setup, awaiting review", plain
+    assert retry[201] == "run setup" and retry[202] == "park in setup, awaiting review", retry
+
+
 def check_killed_game_resumes_but_pilot_game_does_not():
     """miss_new_park writes its scope marker at step 0. A SEASON game killed after that has a
     season marker too and must resume; a PILOT game (scope marker only) is done."""
@@ -165,6 +179,7 @@ def check_delete_counts_hard_links_once():
 
 
 CHECKS = [check_plan_classifies_every_case, check_setup_park_runs_once_across_runs,
+          check_failed_trial_reruns_only_under_retry,
           check_killed_game_resumes_but_pilot_game_does_not,
           check_stale_outputs_only_without_scope_marker, check_gate_fails_on_no_evidence,
           check_window_measured_reads_last_line, check_board_season_pass_supersedes_pilot,

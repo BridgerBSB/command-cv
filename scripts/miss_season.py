@@ -117,6 +117,47 @@ def append_ledger(row):
         w.writerow(row)
 
 
+def write_atomic(df, path):
+    """Temp file + os.replace. The running job re-reads the registry and the ledger before
+    every game; a half-written ledger would drop games from its done-set and re-run them."""
+    tmp = path + ".tmp"
+    df.to_csv(tmp, index=False)
+    os.replace(tmp, path)
+
+
+def mark_eye(games):
+    led = pd.read_csv(LEDGER, dtype=str)
+    for g in games:
+        i = led.index[(led.game_pk == str(g)) & (led.verdict == "PASS")]
+        assert len(i), "%d has no PASS row in the ledger" % g
+        led.loc[i, "eye"] = "ok " + now_ct()[:10]
+    write_atomic(led, LEDGER)
+    print("eye check recorded for %s" % ", ".join(map(str, games)))
+
+
+def set_ready(venue_id, note=""):
+    """Setup -> ready, at the window the park's PASSING trial measured. Run only after its
+    reference render has been looked at (and recorded with --eye-ok)."""
+    led = pd.read_csv(LEDGER, dtype=str)
+    t = led[(led.venue_id == str(venue_id)) & (led.role == "setup") & (led.verdict == "PASS")]
+    assert len(t), "venue %d has no PASSING trial" % venue_id
+    t = t.iloc[-1]
+    assert str(t.eye).startswith("ok"), "trial %s's render has not been eye-checked (--eye-ok)" % t.game_pk
+    w = str(t.window_measured).split()
+    assert len(w) == 4 and w[0] == "--lo" and w[2] == "--hi", "no measured window: %r" % t.window_measured
+    reg = pd.read_csv(REGISTRY, dtype=str)
+    i = reg.index[reg.venue_id == str(venue_id)]
+    assert len(i) == 1 and reg.loc[i, "status"].iloc[0] == "setup", "venue %d is not in setup" % venue_id
+    reg.loc[i, ["status", "lo", "hi"]] = ["ready", w[1], w[3]]
+    reg.loc[i, "source_games"] = reg.loc[i, "source_games"].iloc[0] + " " + t.game_pk
+    reg.loc[i, "note"] = reg.loc[i, "note"].iloc[0] + (
+        " TRIAL %s (%s): PASS held-out %.2f in (B_ok n %s), render eye-checked. Window = the one it "
+        "measured.%s" % (t.game_pk, now_ct()[:10], float(t.bok_gap_in), t.b_ok,
+                         (" " + note) if note else ""))
+    write_atomic(reg, REGISTRY)
+    print("%s ready at --lo %s --hi %s" % (reg.loc[i, "venue"].iloc[0], w[1], w[3]))
+
+
 def read_registry():
     r = pd.read_csv(REGISTRY, dtype={"lo": "Int64", "hi": "Int64"})
     return {int(x.venue_id): x._asdict() for x in r.itertuples(index=False)}
@@ -156,7 +197,12 @@ def done_games(ledger, retry_failed):
 def plan(season, reg, ledger, a):
     """Every season game with a status. Runnable rows carry the park and the role."""
     done = done_games(ledger, a.retry_failed)
-    setup_taken = set(ledger.loc[ledger.role == "setup", "venue_id"].astype(int))
+    # A park's trial is used up by any trial row - except under --retry-failed, where only a
+    # PASSING trial counts, so a failed trial reruns (at the window now in the registry).
+    setup_rows = ledger[ledger.role == "setup"]
+    if a.retry_failed:
+        setup_rows = setup_rows[setup_rows.verdict == "PASS"]
+    setup_taken = set(setup_rows.venue_id.astype(int))
     want = {int(x) for x in a.games.split(",") if x.strip()}
     vids = {int(x) for x in a.venue_ids.split(",") if x.strip()}
     rows = []
@@ -308,7 +354,9 @@ def run_game(job, dl, a):
     missing = trim_manifest(g)
 
     flags = "--window-pick"
-    if role == "season" and not pd.isna(park["lo"]):
+    # The park's window whenever the registry has one: a ready park's games, and a setup park's
+    # RETRIED trial (its first trial ran at the default window and measured this one).
+    if not pd.isna(park["lo"]):
         flags += " --lo %d --hi %d" % (park["lo"], park["hi"])
     weights = WEIGHTS.get(str(park["weights"]), str(park["weights"]))
     cmd = [sys.executable, "-u", os.path.join(ROOT, "scripts", "miss_new_park.py"),
@@ -442,8 +490,16 @@ def main():
                          "this many minutes before exiting (0 = exit at once)")
     ap.add_argument("--refs-sheet", action="store_true", help="eye-check sheets and stop")
     ap.add_argument("--board", action="store_true", help="rebuild the board and stop")
+    ap.add_argument("--eye-ok", default="", help="comma-separated PASS games whose ref render "
+                                                 "was looked at and is right; records it and stops")
+    ap.add_argument("--ready", type=int, default=0,
+                    help="venue_id: setup -> ready at its eye-checked passing trial's window; stops")
     a = ap.parse_args()
 
+    if a.eye_ok:
+        return mark_eye([int(x) for x in a.eye_ok.split(",") if x.strip()])
+    if a.ready:
+        return set_ready(a.ready)
     ledger = read_ledger()
     if a.refs_sheet:
         return refs_sheet(ledger)
