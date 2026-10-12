@@ -75,7 +75,7 @@ Create `data/landmarks/<g>.json`:
 python scripts/stabilize_park.py --game g --dir D --tracks output/detect_tracks_<g>_v4.csv --chain --tag c
 ```
 (`--ref-clip <mp4> --ref-frame N` when the reference lives at another game of the same park, e.g.
-Isotopes 815443 -> 815419_0284 f135.) Runtime: the mitt pass dominates, ~1.5 h for 327 clips,
+Isotopes 815443 -> 815419_0284 f135.) Runtime: the mitt pass dominates, ~4 s/clip on AC power since `aadd50cc0` (was ~1.5 h for 327 clips),
 cached to `setups_<g>.csv` for reruns. Writes `stab2_H_<g>c.csv`, `detect_tracks_<g>_v4stab2c.csv`,
 `targets_<g>_stab2c.csv`, `stab2_clips_<g>c.csv`.
 
