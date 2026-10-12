@@ -150,7 +150,7 @@ def main():
             clip = os.path.join(d, stem + ".mp4")
             if not os.path.exists(clip):
                 continue
-            r = detect_setup_catch(clip, mitt)
+            r = detect_setup_catch(clip, mitt, setup_only=True)   # reads ok + setup only
             if r.get("ok"):
                 auto[stem] = r["setup"][:2]
             if i % 10 == 0:

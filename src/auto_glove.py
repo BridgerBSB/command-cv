@@ -29,8 +29,11 @@ from __future__ import annotations
 import numpy as np
 
 
+SETUP_CUTOFF_FRAC = 0.65     # a set-up run's centre frame must sit in the first 65% of the clip
+
+
 def _glove_track(clip_path: str, model, step: int = 3, conf: float = 0.25,
-                 imgsz: int = 640, half: bool = True):
+                 imgsz: int = 640, half: bool = True, stop=None):
     """[(frame, x, y, conf)] — highest-conf glove per sampled frame.
 
     Frames are read STRAIGHT THROUGH (grab the skipped ones, decode every `step`-th), so
@@ -44,6 +47,10 @@ def _glove_track(clip_path: str, model, step: int = 3, conf: float = 0.25,
     laptop, box centres a median 0.19 px / max 0.50 px from FP32 over 60 frames
     (2026-10-11). Ultralytics ignores it on CPU. Batching frames was tried and is SLOWER
     on this GPU (batch 16: 0.051 s/frame), so frames go one at a time.
+
+    stop(track, frame) -> bool is asked after every sampled frame; True ends the read there.
+    The track up to that frame is exactly what a full read would have produced (sequential
+    decode is deterministic), which is what makes an early stop provably equivalent.
     """
     import cv2
     cap = cv2.VideoCapture(clip_path)
@@ -78,6 +85,8 @@ def _glove_track(clip_path: str, model, step: int = 3, conf: float = 0.25,
             i = int(np.argmax(r.boxes.conf.cpu().numpy()))
             x, y = r.boxes.xywh[i][:2].cpu().numpy()
             track.append((fi, float(x), float(y), float(r.boxes.conf[i])))
+        if stop is not None and stop(track, fi):
+            break
     cap.release()
     return track, n
 
@@ -109,34 +118,83 @@ def _run_center(run):
             int(run[len(run) // 2][0]))  # (x, y, mid_frame)
 
 
+def _setup_candidates(runs, n, min_setup_len):
+    cutoff = SETUP_CUTOFF_FRAC * n
+    return [r for r in runs if len(r) >= min_setup_len and r[len(r) // 2][0] <= cutoff]
+
+
+def _select_setup(track, n, radius, max_gap_frames, min_setup_len):
+    """The SET-UP half of detect_setup_catch: (fail_reason or None, setup_run, after)."""
+    if len(track) < 6:
+        return f"only {len(track)} glove frames", None, None
+    runs = _stable_runs(track, radius, max_gap_frames)
+    # SETUP: longest stable run whose CENTER frame is in the first 65% of the clip.
+    setup_cands = _setup_candidates(runs, n, min_setup_len)
+    if not setup_cands:
+        return "no stable setup run", None, None
+    setup_run = max(setup_cands, key=len)
+    after = [p for p in track if p[0] > setup_run[-1][0]]
+    if len(after) < 2:
+        return "no detections after setup", None, None
+    return None, setup_run, after
+
+
+def _setup_settled(track, fi, n, radius, max_gap_frames, min_setup_len):
+    """True once no glove detection after frame `fi` can change _select_setup's verdict or
+    set-up. The miss chain reads only those, and the rest of a clip (the catch, the
+    throw-back, the between-pitch shot) was ~35%+ of every glove pass.
+
+    Why each condition is enough, given that a later point can only APPEND to the track:
+      * fi past the cutoff, and no run still OPEN (last point within max_gap of fi) that
+        began at or before the cutoff: every future run starts after the cutoff, so its
+        centre does too, and the candidate list is final.
+      * no candidates: the verdict is a failure whatever follows (ok=False both ways).
+      * candidates: the chosen run is final; ok needs >= 6 track points and >= 2 points
+        after the run's end, and once true both stay true.
+    """
+    cutoff = SETUP_CUTOFF_FRAC * n
+    if fi <= cutoff or not track:
+        return False
+    runs = _stable_runs(track, radius, max_gap_frames)
+    last = runs[-1]
+    if fi - last[-1][0] <= max_gap_frames and last[0][0] <= cutoff:
+        return False
+    cands = _setup_candidates(runs, n, min_setup_len)
+    if not cands:
+        return True
+    best = max(cands, key=len)
+    return len(track) >= 6 and sum(p[0] > best[-1][0] for p in track) >= 2
+
+
 def detect_setup_catch(clip_path: str, model, radius: float = 22.0,
-                       max_gap_frames: int = 8, min_setup_len: int = 4):
+                       max_gap_frames: int = 8, min_setup_len: int = 4,
+                       setup_only: bool = False):
     """Return dict(setup=(x,y,frame), catch=(x,y,frame), ok=bool, reason=str).
 
     ok=False when the trajectory is too sparse/ambiguous to trust — caller drops
     that pitch from the calibration set (we have plenty of pitches).
+
+    setup_only=True stops reading the clip once the set-up is settled (_setup_settled) and
+    returns catch=None: same ok and set-up as a full read, fewer frames. For callers that
+    read only ok + setup (stabilize_park, command_miss); the catch scripts keep the default.
     """
-    track, n = _glove_track(clip_path, model)
-    if len(track) < 6:
-        return {"ok": False, "reason": f"only {len(track)} glove frames"}
-
-    runs = _stable_runs(track, radius, max_gap_frames)
-
-    # SETUP: longest stable run whose CENTER frame is in the first 65% of the clip.
-    cutoff = 0.65 * n
-    setup_cands = [r for r in runs if len(r) >= min_setup_len
-                   and r[len(r) // 2][0] <= cutoff]
-    if not setup_cands:
-        return {"ok": False, "reason": "no stable setup run"}
-    setup_run = max(setup_cands, key=len)
+    stop, last_read = None, [0]
+    if setup_only:
+        def stop(track, fi):
+            last_read[0] = fi
+            return _setup_settled(track, fi, n_frames[0], radius, max_gap_frames, min_setup_len)
+        import cv2
+        cap = cv2.VideoCapture(clip_path)
+        n_frames = [int(cap.get(cv2.CAP_PROP_FRAME_COUNT))]
+        cap.release()
+    track, n = _glove_track(clip_path, model, stop=stop)
+    reason, setup_run, after = _select_setup(track, n, radius, max_gap_frames, min_setup_len)
+    if reason:
+        return {"ok": False, "reason": reason}
     sx, sy, sframe = _run_center(setup_run)
-    setup_end = setup_run[-1][0]
-
-    # The pitch flight blurs/occludes the glove -> a big detection GAP right after
-    # the setup hold. The CATCH is the first place the glove SETTLES after it.
-    after = [p for p in track if p[0] > setup_end]
-    if len(after) < 2:
-        return {"ok": False, "reason": "no detections after setup"}
+    if setup_only:
+        return {"ok": True, "reason": "ok (setup only)", "setup": (sx, sy, sframe),
+                "catch": None, "frames_read": last_read[0] + 1, "n_frames": n}
 
     # First inter-detection gap >= pitch_gap after the setup hold = the pitch flight.
     pitch_gap = 15

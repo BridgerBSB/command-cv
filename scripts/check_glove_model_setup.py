@@ -13,7 +13,13 @@ class GloveOnly:
     def predict(self, fr, imgsz=None, **k):
         k.pop("device", None)
         return oc.predict(fr, imgsz=self.imgsz, classes=[0], device=0, **k)
-tg = pd.read_csv(r"C:\Users\Owner\bsb-resources\command-cv\output\targets_822515_stab2c.csv").set_index("stem")
+# The validated targets are the OGANDO pull of 822515. The season run (miss_season.py) moves
+# that file to _aside_822515_preseason/ and writes a full-game one in its place, so the aside
+# copy wins when it exists, and the stems must be Ogando's either way.
+_ref = r"C:\Users\Owner\bsb-resources\command-cv\output\targets_822515_stab2c.csv"
+_aside = r"C:\Users\Owner\bsb-resources\command-cv\output\_aside_822515_preseason\targets_822515_stab2c.csv"
+tg = pd.read_csv(_aside if os.path.exists(_aside) else _ref).set_index("stem")
+assert len(tg) and all(s.startswith("ogando") for s in tg.index), "not the Ogando reference targets"
 imgsz = int(sys.argv[1])
 d = []
 for s in tg.index:

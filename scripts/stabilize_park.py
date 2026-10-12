@@ -180,7 +180,9 @@ def main():
         from src.auto_glove import detect_setup_catch
         mitt = YOLO(os.path.join(ROOT, a.mitt_weights))
         for i, s in enumerate(todo, 1):
-            r = detect_setup_catch(os.path.join(d, s + ".mp4"), mitt)
+            # setup_only: stops reading once the set-up is settled; identical set-ups on 40/40
+            # Sugar Land clips at 66% of the frames (scripts/check_glove_setup_only.py).
+            r = detect_setup_catch(os.path.join(d, s + ".mp4"), mitt, setup_only=True)
             if r.get("ok"):
                 setups[s] = r["setup"]
             if i % 20 == 0:
