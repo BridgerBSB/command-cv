@@ -8,17 +8,17 @@ venue_id,venue,status,overlay_boxes,lo,hi,weights,source_games,note
 3329,Arvest Ballpark,setup,"[[0, 0, 460, 72], [1090, 5, 1280, 70]]",,,v4,817284,Road park; boxes from the detector-label pull of 817284.
 2843,Chickasaw Bricktown Ballpark,setup,"[[40, 30, 360, 120]]",,,v4,815216,Road park; boxes from the detector-label pull of 815216.
 2528,Dell Diamond,setup,"[[105, 525, 380, 635]]",,,v4,815046,Road park; boxes from the detector-label pull of 815046.
-3389,Dickey-Stephens Park,setup,"[[830, 575, 1210, 690]]",,,v4,817590,Road park; boxes from the detector-label pull of 817590.
+3389,Dickey-Stephens Park,ready,"[[830, 575, 1210, 690]]",178,230,v4,817590 817596,"Road park; boxes from the detector-label pull of 817590. TRIAL 817596 (2026-10-12): PASS held-out 0.20 in (B_ok n 38), render eye-checked. Window = the one it measured."
 5450,Equity Bank Park,setup,"[[40, 15, 360, 175]]",,,v4,816989,Road park; boxes from the detector-label pull of 816989.
 2723,First National Bank Field,blocked,"[[60, 28, 292, 148]]",,,v4,822246,"Road park; boxes from the detector-label pull of 822246. Shot from BEHIND the pitcher (onboard_park.py): side-view gates do not apply; expect the ball-only fit to struggle. TRIAL 822253 (2026-10-12): FAIL held-out 1.32 in (B_ok n 29), as expected for a behind-the-pitcher view. Blocked like SEGRA."
-3429,Fluor Field at the West End,setup,"[[40, 20, 445, 175]]",,,v4,822161,Road park; boxes from the detector-label pull of 822161.
-2793,Frawley Stadium,setup,"[[360, 555, 920, 680], [195, 288, 365, 372]]",,,v4,821848,Road park; boxes from the detector-label pull of 821848.
+3429,Fluor Field at the West End,ready,"[[40, 20, 445, 175]]",177,228,v4,822161 822166,"Road park; boxes from the detector-label pull of 822161. TRIAL 822166 (2026-10-12): PASS held-out 0.24 in (B_ok n 81), render eye-checked. Window = the one it measured."
+2793,Frawley Stadium,ready,"[[360, 555, 920, 680], [195, 288, 365, 372]]",178,230,v4,821848 821850,"Road park; boxes from the detector-label pull of 821848. TRIAL 821850 (2026-10-12): PASS held-out 0.29 in (B_ok n 70), render eye-checked. Window = the one it measured."
 5415,Hodgetown,setup,"[[855, 20, 1275, 102]]",,,v4,817611,Road park; boxes from the detector-label pull of 817611.
 2683,Isotopes Park,setup,"[[1003, 595, 1203, 712]]",,,v4,815443,Road park; boxes from the detector-label pull of 815443.
 5355,Las Vegas Ballpark,setup,"[[40, 30, 510, 170]]",,,v4,815256,Road park; boxes from the detector-label pull of 815256.
 2818,Nelson Wolff Stadium,ready,"[[975, 575, 1225, 715]]",182,234,v4,817256 817254,"Road park; boxes from the detector-label pull of 817256. TRIAL 817254 (2026-10-12): PASS 0.27 in (B_ok n 50); render right (rubber / plate / circle on the dirt edge), track fit 0.73 px. Window = the one it measured."
 4149,ONEOK Field,setup,"[[40, 20, 440, 170]]",,,v4,817085,Road park; boxes from the detector-label pull of 817085.
-5345,SRP Park,setup,"[[945, 570, 1220, 700]]",,,v4,827562,Road park; boxes from the detector-label pull of 827562.
+5345,SRP Park,ready,"[[945, 570, 1220, 700]]",170,223,v4,827562 827564,"Road park; boxes from the detector-label pull of 827562. TRIAL 827564 (2026-10-12): PASS held-out 0.31 in (B_ok n 35), render eye-checked. Window = the one it measured."
 6135,The Ballpark at America First Square,ready,"[[40, 30, 360, 155]]",171,232,v4,814941 814942,"Road park; boxes from the detector-label pull of 814941. TRIAL 814942 (2026-10-12): PASS 0.29 in (B_ok n 49); render right, track fit 0.71 px; 33 of 179 clips no homography (zoom p95 1.10). Window = the one it measured."
 4089,Truist Stadium,ready,"[[20, 10, 300, 165]]",180,230,v4,821786 821785,"Road park; boxes from the detector-label pull of 821786. TRIAL 821785 (2026-10-12): PASS 0.24 in (B_ok n 93); render right, track fit 0.86 px, camera locked. Window = the one it measured."
 7254,Wilson Ballpark,setup,"[[0, 0, 345, 118]]",,,v4,826785,Road park; boxes from the detector-label pull of 826785.

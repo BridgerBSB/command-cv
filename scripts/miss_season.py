@@ -164,9 +164,14 @@ def read_registry():
 
 
 def sweep_downloads():
-    """Copy cvpull_<pk>.csv files the Chrome pull left in Downloads into output/cvpull/."""
+    """Copy cvpull_<pk>.csv files the Chrome pull left in Downloads into output/cvpull/.
+
+    EVERY profile's Downloads, not just this process's: on this laptop Claude Code runs as
+    `Owner` while Zac's Chrome saves to C:\\Users\\zbrid\\Downloads (2026-10-12; a sweep of `~`
+    alone would have waited forever on files sitting in the other folder)."""
     got = 0
-    for p in glob.glob(os.path.join(os.path.expanduser("~"), "Downloads", "cvpull_*.csv")):
+    for p in glob.glob(os.path.join(os.path.dirname(os.path.expanduser("~")), "*", "Downloads",
+                                    "cvpull_*.csv")):
         b = os.path.basename(p)
         if not b[7:-4].isdigit():                       # "cvpull_123 (1).csv" duplicates
             continue
