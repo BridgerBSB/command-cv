@@ -77,7 +77,8 @@ LEDGER = os.path.join(ROOT, "docs", "miss_season_ledger.csv")
 LOGS = os.path.join(OUT, "miss_season", "logs")
 HOU = 117
 GATE_BOK_IN = 0.47
-WEIGHTS = {"v4": V4, "v8r": "data/yolo_ball_runs/milb8r_proj/weights/best.pt"}
+WEIGHTS = {"v4": V4, "v8r": "data/yolo_ball_runs/milb8r_proj/weights/best.pt",
+           "v9s": "data/yolo_ball_runs/milb9s_segra/weights/best.pt"}     # SEGRA fine-tune (row 131)
 GAME_GB = 1.3            # Houston's half of a game, ~170-200 clips at ~6 MB, plus headroom
 BOARD_NAME = "season2026"
 
@@ -462,6 +463,11 @@ def run_game(job, dl, a):
         flags += " --lo %d --hi %d" % (park["lo"], park["hi"])
     elif job.get("trial_window"):
         flags += " " + job["trial_window"]
+    # per-park detector extras from the registry's optional detect_extra column (e.g. SEGRA's
+    # "--bridge 10", PROGRESS-LOG 129); empty for every park that does not need one
+    extra = str(park.get("detect_extra", "") or "")
+    if extra and extra != "nan":
+        flags += " " + extra
     weights = WEIGHTS.get(str(park["weights"]), str(park["weights"]))
     cmd = [sys.executable, "-u", os.path.join(ROOT, "scripts", "miss_new_park.py"),
            "--game", str(g), "--dir", "data/clips/pull_%d" % g, "--ours-only",
