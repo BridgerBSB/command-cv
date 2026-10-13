@@ -516,6 +516,14 @@ def rebuild_board(ledger):
     tail = (p.stdout or "").strip().splitlines()[-3:] if p.returncode == 0 else \
         (p.stderr or "").strip().splitlines()[-3:]
     print("    board (%d games): %s" % (len(games), " | ".join(tail)))
+    if p.returncode == 0:
+        # the per-pitcher season cards + coverage page read the board's pitches csv, so they
+        # refresh with it (season_cards.py, ~40 s): the deliverable is never staler than the board
+        c = subprocess.run([sys.executable, "-u", os.path.join(ROOT, "scripts", "season_cards.py"),
+                            "--board", BOARD_NAME], cwd=ROOT, capture_output=True, text=True)
+        out = (c.stdout or "").strip().splitlines() if c.returncode == 0 else \
+            (c.stderr or "").strip().splitlines()[-2:]
+        print("    cards: %s" % (out[0] if out else "rc %d" % c.returncode))
 
 
 def refs_sheet(ledger, per=12, cols=3):
