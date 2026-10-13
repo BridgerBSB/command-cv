@@ -289,7 +289,17 @@
       try {
         var r = await window.__cvGame(pks[j], want);
         log.push([pks[j], r.venue || "", r.withUrl]);
-        if (!r.withUrl) { console.warn("stopping: session looks dead"); break; }
+        if (!r.withUrl) {
+          // A game with NO VIDEO looks exactly like a dead session (zero clip URLs).
+          // Re-probe on a known game: stop only if the session is really gone.
+          // 2026-10-12: 817475 (Final, 312 pitches, no video) stopped a 105-game batch.
+          var a = await window.__cvAuth();
+          if (!a || (a.cookie !== 200 && a.bearer !== 200)) {
+            console.warn("stopping: session looks dead");
+            break;
+          }
+          console.warn("game " + pks[j] + ": no clip URLs but the session is live -- no video, continuing");
+        }
       } catch (e) {
         log.push([pks[j], "ERROR", String(e)]);
       }
