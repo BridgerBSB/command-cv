@@ -79,13 +79,22 @@ function Get-JobTree {
 }
 
 if ($Stop) {
-  try { Stop-ScheduledTask       -TaskName $Task -ErrorAction Stop } catch {}
-  try { Unregister-ScheduledTask -TaskName $Task -Confirm:$false -ErrorAction Stop } catch {}
-  $tree = Get-JobTree -WrapperPath $Wrapper
+  # FIND THE TREE BEFORE STOPPING THE TASK. Stop-ScheduledTask ends the cmd shim -- the
+  # only process Get-JobTree can anchor on -- and leaves the python worker orphaned, so
+  # the old order found nothing, killed nothing and still printed "task removed".
+  # 2026-10-12: a season job kept running 5 h after such a -Stop and collided with its
+  # replacement on the same games' downloads.
+  $tree = @(Get-JobTree -WrapperPath $Wrapper)
   # Children first, so a shell cannot respawn a worker we already killed.
   foreach ($p in ($tree | Sort-Object CreationDate -Descending)) {
     Stop-Process -Id $p.ProcessId -Force -ErrorAction SilentlyContinue
     "stopped $($p.Name) pid=$($p.ProcessId)"
+  }
+  try { Stop-ScheduledTask       -TaskName $Task -ErrorAction Stop } catch {}
+  try { Unregister-ScheduledTask -TaskName $Task -Confirm:$false -ErrorAction Stop } catch {}
+  if (-not $tree.Count) {
+    "WARNING: no process tree found for '$Name'. If it was running, its worker may be orphaned:"
+    "  Get-CimInstance Win32_Process -Filter ""Name='python.exe'"" | Select ProcessId, CommandLine"
   }
   "task '$Task' removed"
   return

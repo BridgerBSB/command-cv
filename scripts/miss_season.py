@@ -117,6 +117,30 @@ def append_ledger(row):
         w.writerow(row)
 
 
+def acquire_run_lock():
+    """ONE season run at a time. 2026-10-12: a -Stop that left its worker orphaned meant two
+    runs re-planned the same queue for 5 hours - both downloaded the same games into the same
+    .part files (40 'WinError 32' skips) and both ran El Paso and Sugar Land 814876, writing
+    one set of outputs from two processes. An OS byte-range lock, not a pid file: Windows drops
+    it when the process dies, so a killed run can never leave a stale lock behind. The file
+    handle is returned and must stay referenced for the life of the run."""
+    os.makedirs(OUT, exist_ok=True)
+    f = open(os.path.join(OUT, "miss_season.lock"), "a+")
+    f.seek(0)
+    try:
+        if os.name == "nt":
+            import msvcrt
+            msvcrt.locking(f.fileno(), msvcrt.LK_NBLCK, 1)
+        else:
+            import fcntl
+            fcntl.flock(f.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
+    except OSError:
+        sys.exit("REFUSING: another miss_season.py run holds output/miss_season.lock. Two runs "
+                 "would download and process the same games. Stop it first "
+                 "(scripts/run_detached.ps1 -Stop -Name <its name>).")
+    return f
+
+
 def write_atomic(df, path):
     """Temp file + os.replace. The running job re-reads the registry and the ledger before
     every game; a half-written ledger would drop games from its done-set and re-run them."""
@@ -517,6 +541,7 @@ def main():
     report_plan(jobs, a, swept)
     if a.dry_run:
         return 0
+    _lock = acquire_run_lock()      # noqa: F841  (held until the process exits)
 
     print("\n%.1f GB free, floor %.1f GB\n" % (free_gb(), a.min_free_gb))
     # RE-PLAN AFTER EVERY GAME. Pull CSVs land in Downloads while this runs (the Chrome pull
