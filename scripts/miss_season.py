@@ -140,6 +140,38 @@ def acquire_run_lock(worker=0, workers=1):
     os.makedirs(OUT, exist_ok=True)
     f = open(os.path.join(OUT, "miss_season.lock"), "a+")
     off, n = (0, MAX_WORKERS) if workers == 1 else (worker, 1)
+    if not _try_lock(f, off, n):
+        sys.exit("REFUSING: another miss_season.py run holds %s of output/miss_season.lock. Two "
+                 "runs would download and process the same games. Stop it first "
+                 "(scripts/run_detached.ps1 -Stop -Name <its name>)."
+                 % ("the whole run" if workers == 1 else "worker %d" % worker))
+    if workers > 1:
+        # MIXED SHARD COUNTS. Worker 1 of 2 and worker 2 of 3 lock different bytes above, yet
+        # both take game 827001 (odd, and 2 mod 3): 2026-10-13 a stale restart brought worker 1
+        # back with --workers 2 beside two --workers 3 workers and it downloaded and ran the game
+        # worker 0 was running. Each worker also holds a byte for its (N, K) and refuses if a
+        # worker with any OTHER N holds one. Own byte first, so two that start together both see it.
+        if not _try_lock(f, _shard_byte(workers, worker), 1):
+            sys.exit("REFUSING: worker %d of %d is already running." % (worker, workers))
+        for n_other in range(2, MAX_WORKERS + 1):
+            if n_other == workers:
+                continue
+            for k in range(n_other):
+                b = _shard_byte(n_other, k)
+                if not _try_lock(f, b, 1):
+                    sys.exit("REFUSING: a worker started with --workers %d (worker %d) is running; "
+                             "this one has --workers %d, so the two shard the season differently "
+                             "and would take the same games. Restart every worker with one N."
+                             % (n_other, k, workers))
+                _unlock(f, b, 1)
+    return f
+
+
+def _shard_byte(workers, worker):
+    return 64 + workers * MAX_WORKERS + worker
+
+
+def _try_lock(f, off, n):
     f.seek(off)
     try:
         if os.name == "nt":
@@ -148,12 +180,19 @@ def acquire_run_lock(worker=0, workers=1):
         else:
             import fcntl
             fcntl.lockf(f.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB, n, off)
+        return True
     except OSError:
-        sys.exit("REFUSING: another miss_season.py run holds %s of output/miss_season.lock. Two "
-                 "runs would download and process the same games. Stop it first "
-                 "(scripts/run_detached.ps1 -Stop -Name <its name>)."
-                 % ("the whole run" if workers == 1 else "worker %d" % worker))
-    return f
+        return False
+
+
+def _unlock(f, off, n):
+    f.seek(off)
+    if os.name == "nt":
+        import msvcrt
+        msvcrt.locking(f.fileno(), msvcrt.LK_UNLCK, n)
+    else:
+        import fcntl
+        fcntl.lockf(f.fileno(), fcntl.LOCK_UN, n, off)
 
 
 @contextmanager

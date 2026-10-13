@@ -301,13 +301,14 @@ def check_run_lock_shards():
         assert hold.stdout.readline().strip() == "GOT"
         try:
             got = {}
-            for name, (w, n) in {"w0": (0, 2), "w1": (1, 2), "whole": (0, 1)}.items():
+            for name, (w, n) in {"w0": (0, 2), "w1": (1, 2), "whole": (0, 1), "w2of3": (2, 3)}.items():
                 r = subprocess.run([sys.executable, "-c", code % (scripts, b.out, w, n, 0)],
                                    capture_output=True, text=True)
                 got[name] = "GOT" in r.stdout
         finally:
             hold.kill()
-    assert got == {"w0": True, "w1": False, "whole": False}, got
+    # w2of3: a different shard count beside a running worker (827001, 2026-10-13) must refuse
+    assert got == {"w0": True, "w1": False, "whole": False, "w2of3": False}, got
 
 
 def check_disk_dip_waits_then_resumes():
@@ -388,6 +389,8 @@ INJECTIONS = {
         ("in_shard", lambda g, a: True, "check_shards_partition_the_season"),
     "a whole run locks only byte 0 (the pre-worker lock)":
         ("_lock_byte0", None, "check_run_lock_shards"),
+    "workers with different --workers both start (827001 collision)":
+        ("_mixed_n", None, "check_run_lock_shards"),
     "a disk dip stops the worker (the pre-fix behaviour)":
         ("wait_for_disk", lambda a, poll_s=300: False, "check_disk_dip_waits_then_resumes"),
     "ladder keeps shifting on edge junk (814869)":
@@ -427,6 +430,22 @@ def inject():
                 red = True
             finally:
                 M.truncation = orig_t
+            bad += not red
+            print("  %s  %s -> %s" % ("red " if red else "GREEN(!)", name, must_fail))
+            continue
+        if attr == "_mixed_n":                      # the pre-fix lock: no shard-count bytes
+            src = os.path.join(ROOT, "scripts", "miss_season.py")
+            text = open(src, encoding="utf-8").read()
+            old_loop = "for n_other in range(2, MAX_WORKERS + 1):"
+            assert old_loop in text
+            open(src, "w", encoding="utf-8").write(text.replace(old_loop, "for n_other in range(0):", 1))
+            try:
+                check_run_lock_shards()
+                red = False
+            except Exception:                        # noqa: BLE001
+                red = True
+            finally:
+                open(src, "w", encoding="utf-8").write(text)
             bad += not red
             print("  %s  %s -> %s" % ("red " if red else "GREEN(!)", name, must_fail))
             continue
