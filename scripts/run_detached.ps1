@@ -41,7 +41,10 @@ param(
   [string]$Command = "",
   [string]$Name    = "cv-detached",
   [switch]$Status,
-  [switch]$Stop
+  [switch]$Stop,
+  # The Task Scheduler stops the task at this limit. 12 h was the old fixed value, and a
+  # season run measured in days hit it without saying so (2026-10-13).
+  [int]$Hours = 12
 )
 
 $ErrorActionPreference = "Stop"
@@ -161,7 +164,7 @@ try { Unregister-ScheduledTask -TaskName $Task -Confirm:$false -ErrorAction Stop
 
 $action   = New-ScheduledTaskAction -Execute "cmd.exe" -Argument "/c `"$Wrapper`"" -WorkingDirectory $Root
 $settings = New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries `
-              -ExecutionTimeLimit ([TimeSpan]::FromHours(12)) -MultipleInstances IgnoreNew
+              -ExecutionTimeLimit ([TimeSpan]::FromHours($Hours)) -MultipleInstances IgnoreNew
 $principal = New-ScheduledTaskPrincipal -UserId "$env:USERDOMAIN\$env:USERNAME" -LogonType Interactive
 
 Register-ScheduledTask -TaskName $Task -Action $action -Settings $settings -Principal $principal | Out-Null

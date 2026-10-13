@@ -211,13 +211,86 @@ def check_delete_counts_hard_links_once():
     assert math.isclose(freed, 2000), freed
 
 
+def check_shards_partition_the_season():
+    """Every runnable game lands in exactly ONE worker's shard, and a setup park's trial is
+    chosen over the WHOLE season (one trial per park), not once per shard."""
+    rows = [(1000 + k, "2026-04-%02d" % (k + 1), 1) for k in range(7)] +            [(2001, "2026-04-01", 2), (2002, "2026-04-02", 2)]
+    with Box() as b:
+        for g, _, _ in rows:
+            b.pull_csv(g)
+        jobs = S.plan(season(rows), REG, pd.DataFrame(columns=S.LEDGER_COLS), ARGS)
+    picks = []
+    for k in range(3):
+        a = argparse.Namespace(workers=3, worker=k)
+        picks.append({j["game_pk"] for j in S.order([j for j in jobs if S.in_shard(j["game_pk"], a)])})
+    allrun = {j["game_pk"] for j in S.order(jobs)}
+    assert set().union(*picks) == allrun and sum(map(len, picks)) == len(allrun), (picks, allrun)
+    assert sum(j["status"] == "run setup" for j in jobs) == 1, jobs
+
+
+def check_second_trial_runs_at_measured_window():
+    """--trials-per-park 2: a park whose first trial FAILED gets one more trial, on its NEXT
+    game, carrying the window the failed trial measured. One is the default."""
+    led = pd.DataFrame([dict(game_pk=201, venue_id=2, role="setup", verdict="FAIL",
+                             window_measured="--lo 158 --hi 237")])
+    rows = [(201, "2026-04-01", 2), (202, "2026-04-02", 2), (203, "2026-04-03", 2)]
+    with Box() as b:
+        for g in (201, 202, 203):
+            b.pull_csv(g)
+        two = {j["game_pk"]: j for j in S.plan(season(rows), REG, led, argparse.Namespace(
+            games="", venue_ids="", retry_failed=False, no_setup=False, trials_per_park=2))}
+        one = {j["game_pk"]: j["status"] for j in S.plan(season(rows), REG, led, ARGS)}
+        led2 = pd.concat([led, pd.DataFrame([dict(game_pk=202, venue_id=2, role="setup",
+                                                  verdict="FAIL", window_measured="")])])
+        after = {j["game_pk"]: j["status"] for j in S.plan(season(rows), REG, led2, argparse.Namespace(
+            games="", venue_ids="", retry_failed=False, no_setup=False, trials_per_park=2))}
+    assert two[202]["status"] == "run setup", two
+    assert two[202]["trial_window"] == "--lo 158 --hi 237", two[202]
+    assert two[203]["status"] == "park in setup, awaiting review", two
+    assert one[202] == "park in setup, awaiting review", one
+    assert after[203] == "park in setup, awaiting review", after      # two used, none passed
+
+
+def check_setup_first_order():
+    jobs = [dict(game_pk=1, date="2026-05-01", status="run setup"),
+            dict(game_pk=2, date="2026-04-01", status="run")]
+    assert [j["game_pk"] for j in S.order(jobs, setup_first=True)] == [1, 2]
+    assert [j["game_pk"] for j in S.order(jobs)] == [2, 1]
+
+
+def check_run_lock_shards():
+    """Worker locks coexist; a whole (unsharded) run refuses while any worker holds its byte, and
+    a second copy of one worker refuses. Each case runs in a child process (a lock is per
+    process on Windows, and sys.exit is the refusal)."""
+    import subprocess
+    code = ("import sys; sys.path.insert(0, %r); import miss_season as S; S.OUT = %r; "
+            "f = S.acquire_run_lock(%d, %d); print('GOT'); sys.stdout.flush(); "
+            "import time; time.sleep(%d)")
+    with Box() as b:
+        scripts = os.path.join(ROOT, "scripts")
+        hold = subprocess.Popen([sys.executable, "-c", code % (scripts, b.out, 1, 2, 20)],
+                                stdout=subprocess.PIPE, text=True)
+        assert hold.stdout.readline().strip() == "GOT"
+        try:
+            got = {}
+            for name, (w, n) in {"w0": (0, 2), "w1": (1, 2), "whole": (0, 1)}.items():
+                r = subprocess.run([sys.executable, "-c", code % (scripts, b.out, w, n, 0)],
+                                   capture_output=True, text=True)
+                got[name] = "GOT" in r.stdout
+        finally:
+            hold.kill()
+    assert got == {"w0": True, "w1": False, "whole": False}, got
+
+
 CHECKS = [check_plan_classifies_every_case, check_setup_park_runs_once_across_runs,
           check_failed_trial_reruns_only_under_retry,
           check_killed_game_resumes_but_pilot_game_does_not,
           check_stale_outputs_only_without_scope_marker, check_gate_fails_on_no_evidence,
           check_window_measured_reads_last_line, check_board_season_pass_supersedes_pilot,
           check_order_ready_parks_before_trials, check_delete_counts_hard_links_once,
-          check_ladder_shifts_a_cut_off_window]
+          check_ladder_shifts_a_cut_off_window, check_shards_partition_the_season,
+          check_second_trial_runs_at_measured_window, check_setup_first_order,
+          check_run_lock_shards]
 
 
 # pytest discovery, same functions
@@ -261,6 +334,10 @@ INJECTIONS = {
          "check_delete_counts_hard_links_once"),
     "ladder never shifts (the pre-fix behaviour)":
         ("_ladder_noop", None, "check_ladder_shifts_a_cut_off_window"),
+    "shard by game_pk % workers ignored (every worker takes every game)":
+        ("in_shard", lambda g, a: True, "check_shards_partition_the_season"),
+    "a whole run locks only byte 0 (the pre-worker lock)":
+        ("_lock_byte0", None, "check_run_lock_shards"),
     "window parser keeps the first line":
         ("window_measured", lambda p: next((l.split("->")[-1].replace("would have sufficed", "").strip()
                                             for l in open(p) if "would have sufficed" in l), ""),
@@ -282,6 +359,21 @@ def inject():
                 red = True
             finally:
                 M.truncation = orig_t
+            bad += not red
+            print("  %s  %s -> %s" % ("red " if red else "GREEN(!)", name, must_fail))
+            continue
+        if attr == "_lock_byte0":                   # the child processes import miss_season fresh,
+            src = os.path.join(ROOT, "scripts", "miss_season.py")     # so inject on disk
+            text = open(src, encoding="utf-8").read()
+            assert "MAX_WORKERS = 16" in text
+            open(src, "w", encoding="utf-8").write(text.replace("MAX_WORKERS = 16", "MAX_WORKERS = 1", 1))
+            try:
+                check_run_lock_shards()
+                red = False
+            except Exception:                        # noqa: BLE001
+                red = True
+            finally:
+                open(src, "w", encoding="utf-8").write(text)
             bad += not red
             print("  %s  %s -> %s" % ("red " if red else "GREEN(!)", name, must_fail))
             continue

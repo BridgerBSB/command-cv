@@ -56,6 +56,7 @@ import subprocess
 import sys
 import time
 from concurrent.futures import ThreadPoolExecutor
+from contextlib import contextmanager
 from datetime import datetime
 
 import pandas as pd
@@ -105,40 +106,84 @@ def now_ct():
 def read_ledger():
     if not os.path.exists(LEDGER):
         return pd.DataFrame(columns=LEDGER_COLS)
-    return pd.read_csv(LEDGER, dtype={"eye": str, "note": str})
+    with ledger_lock():
+        return pd.read_csv(LEDGER, dtype={"eye": str, "note": str})
 
 
 def append_ledger(row):
-    new = not os.path.exists(LEDGER)
-    with open(LEDGER, "a", newline="", encoding="utf-8") as f:
-        w = _csv.DictWriter(f, fieldnames=LEDGER_COLS, extrasaction="ignore")
-        if new:
-            w.writeheader()
-        w.writerow(row)
+    with ledger_lock():
+        new = not os.path.exists(LEDGER)
+        with open(LEDGER, "a", newline="", encoding="utf-8") as f:
+            w = _csv.DictWriter(f, fieldnames=LEDGER_COLS, extrasaction="ignore")
+            if new:
+                w.writeheader()
+            w.writerow(row)
 
 
-def acquire_run_lock():
-    """ONE season run at a time. 2026-10-12: a -Stop that left its worker orphaned meant two
+MAX_WORKERS = 16
+
+
+def acquire_run_lock(worker=0, workers=1):
+    """ONE season run per shard. 2026-10-12: a -Stop that left its worker orphaned meant two
     runs re-planned the same queue for 5 hours - both downloaded the same games into the same
     .part files (40 'WinError 32' skips) and both ran El Paso and Sugar Land 814876, writing
     one set of outputs from two processes. An OS byte-range lock, not a pid file: Windows drops
     it when the process dies, so a killed run can never leave a stale lock behind. The file
-    handle is returned and must stay referenced for the life of the run."""
+    handle is returned and must stay referenced for the life of the run.
+
+    WORKERS (2026-10-13). A run measured ~17% CPU with half the GPU idle, so the season splits
+    into shards by game_pk % workers. Worker K locks BYTE K; an unsharded run locks bytes
+    0..MAX_WORKERS-1, so it refuses while any worker runs and every worker refuses while it
+    runs. Two copies of the same worker id collide on their byte. Every worker of one season
+    must be started with the same --workers."""
     os.makedirs(OUT, exist_ok=True)
     f = open(os.path.join(OUT, "miss_season.lock"), "a+")
-    f.seek(0)
+    off, n = (0, MAX_WORKERS) if workers == 1 else (worker, 1)
+    f.seek(off)
     try:
         if os.name == "nt":
             import msvcrt
-            msvcrt.locking(f.fileno(), msvcrt.LK_NBLCK, 1)
+            msvcrt.locking(f.fileno(), msvcrt.LK_NBLCK, n)
         else:
             import fcntl
-            fcntl.flock(f.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
+            fcntl.lockf(f.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB, n, off)
     except OSError:
-        sys.exit("REFUSING: another miss_season.py run holds output/miss_season.lock. Two runs "
-                 "would download and process the same games. Stop it first "
-                 "(scripts/run_detached.ps1 -Stop -Name <its name>).")
+        sys.exit("REFUSING: another miss_season.py run holds %s of output/miss_season.lock. Two "
+                 "runs would download and process the same games. Stop it first "
+                 "(scripts/run_detached.ps1 -Stop -Name <its name>)."
+                 % ("the whole run" if workers == 1 else "worker %d" % worker))
     return f
+
+
+@contextmanager
+def ledger_lock():
+    """Workers append to one ledger, and --eye-ok rewrites it with os.replace. A blocking lock on
+    a sidecar file (waits up to ~60 s) so an append never lands on a file being replaced."""
+    os.makedirs(os.path.dirname(LEDGER), exist_ok=True)
+    f = open(LEDGER + ".lock", "a+")
+    f.seek(0)
+    for _ in range(120):
+        try:
+            if os.name == "nt":
+                import msvcrt
+                msvcrt.locking(f.fileno(), msvcrt.LK_NBLCK, 1)
+            else:
+                import fcntl
+                fcntl.lockf(f.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB, 1, 0)
+            break
+        except OSError:
+            time.sleep(0.5)
+    else:
+        f.close()
+        raise RuntimeError("ledger lock held for 60 s: %s.lock" % LEDGER)
+    try:
+        yield
+    finally:
+        f.seek(0)
+        if os.name == "nt":
+            import msvcrt
+            msvcrt.locking(f.fileno(), msvcrt.LK_UNLCK, 1)
+        f.close()
 
 
 def write_atomic(df, path):
@@ -150,19 +195,21 @@ def write_atomic(df, path):
 
 
 def mark_eye(games):
-    led = pd.read_csv(LEDGER, dtype=str)
-    for g in games:
-        i = led.index[(led.game_pk == str(g)) & (led.verdict == "PASS")]
-        assert len(i), "%d has no PASS row in the ledger" % g
-        led.loc[i, "eye"] = "ok " + now_ct()[:10]
-    write_atomic(led, LEDGER)
+    with ledger_lock():
+        led = pd.read_csv(LEDGER, dtype=str)
+        for g in games:
+            i = led.index[(led.game_pk == str(g)) & (led.verdict == "PASS")]
+            assert len(i), "%d has no PASS row in the ledger" % g
+            led.loc[i, "eye"] = "ok " + now_ct()[:10]
+        write_atomic(led, LEDGER)
     print("eye check recorded for %s" % ", ".join(map(str, games)))
 
 
 def set_ready(venue_id, note=""):
     """Setup -> ready, at the window the park's PASSING trial measured. Run only after its
     reference render has been looked at (and recorded with --eye-ok)."""
-    led = pd.read_csv(LEDGER, dtype=str)
+    with ledger_lock():
+        led = pd.read_csv(LEDGER, dtype=str)
     t = led[(led.venue_id == str(venue_id)) & (led.role == "setup") & (led.verdict == "PASS")]
     assert len(t), "venue %d has no PASSING trial" % venue_id
     t = t.iloc[-1]
@@ -227,12 +274,24 @@ def done_games(ledger, retry_failed, retry_games=()):
 def plan(season, reg, ledger, a):
     """Every season game with a status. Runnable rows carry the park and the role."""
     done = done_games(ledger, a.retry_failed, retry_set(a))
-    # A park's trial is used up by any trial row - except under --retry-failed, where only a
-    # PASSING trial counts, so a failed trial reruns (at the window now in the registry).
+    # A park's trial is used up by a PASSING trial, or once it has had --trials-per-park trials
+    # (default 1). Under --retry-failed only a PASSING trial counts, so a failed trial reruns
+    # (at the window now in the registry).
     setup_rows = ledger[ledger.role == "setup"]
     if a.retry_failed:
         setup_rows = setup_rows[setup_rows.verdict == "PASS"]
-    setup_taken = set(setup_rows.venue_id.astype(int))
+    per_park = max(1, int(getattr(a, "trials_per_park", 1) or 1))
+    n_trials = setup_rows.venue_id.astype(int).value_counts()
+    passed = set(setup_rows.loc[setup_rows.verdict == "PASS", "venue_id"].astype(int))
+    setup_taken = passed | set(n_trials[n_trials >= per_park].index)
+    # A LATER trial at a park whose first one failed runs at the window that trial MEASURED, not
+    # the default: the default window is what let post-pitch chains wreck the home parks' second
+    # games (PROGRESS-LOG 125) and Jacksonville's first trial (3.71 in -> 0.48 at its window).
+    trial_window = {}
+    for r in ledger[(ledger.role == "setup")].itertuples(index=False):
+        w = str(getattr(r, "window_measured", "") or "")
+        if w.startswith("--lo") and w != "nan":
+            trial_window[int(r.venue_id)] = w
     want = {int(x) for x in a.games.split(",") if x.strip()}
     vids = {int(x) for x in a.venue_ids.split(",") if x.strip()}
     rows = []
@@ -262,7 +321,8 @@ def plan(season, reg, ledger, a):
         else:
             st = "park in setup, awaiting review"
         rows.append(dict(game_pk=g, date=r.date, level=r.level, team=r.team, side=r.side,
-                         venue_id=vid, venue=r.venue, status=st, park=park, csv=csv_p))
+                         venue_id=vid, venue=r.venue, status=st, park=park, csv=csv_p,
+                         trial_window=trial_window.get(vid, "") if st == "run setup" else ""))
     return rows
 
 
@@ -400,6 +460,8 @@ def run_game(job, dl, a):
     # RETRIED trial (its first trial ran at the default window and measured this one).
     if not pd.isna(park["lo"]):
         flags += " --lo %d --hi %d" % (park["lo"], park["hi"])
+    elif job.get("trial_window"):
+        flags += " " + job["trial_window"]
     weights = WEIGHTS.get(str(park["weights"]), str(park["weights"]))
     cmd = [sys.executable, "-u", os.path.join(ROOT, "scripts", "miss_new_park.py"),
            "--game", str(g), "--dir", "data/clips/pull_%d" % g, "--ours-only",
@@ -490,12 +552,20 @@ def refs_sheet(ledger, per=12, cols=3):
         print("  " + p)
 
 
-def order(jobs):
+def order(jobs, setup_first=False):
     """Runnable games, best first: games at READY parks before setup trials (a ready game goes
     straight on the board; a trial needs an eye check before its park's other games can run),
-    then by date."""
+    then by date. --setup-first flips it: once the ready parks hold days of work, a trial run
+    early lets its eye check happen while that work runs, so the park's games are not left
+    waiting behind the whole queue."""
     run = [j for j in jobs if j["status"] in ("run", "run setup")]
-    return sorted(run, key=lambda j: (j["status"] != "run", j["date"], j["game_pk"]))
+    first = "run setup" if setup_first else "run"
+    return sorted(run, key=lambda j: (j["status"] != first, j["date"], j["game_pk"]))
+
+
+def in_shard(g, a):
+    workers = max(1, int(getattr(a, "workers", 1) or 1))
+    return workers == 1 or int(g) % workers == int(getattr(a, "worker", 0) or 0)
 
 
 def report_plan(jobs, a, swept):
@@ -504,7 +574,7 @@ def report_plan(jobs, a, swept):
           % (len(jobs), ", filtered" if a.games or a.venue_ids else "", swept))
     for st, k in counts.items():
         print("  %-34s %4d" % (st, k))
-    runnable = order(jobs)
+    runnable = order([j for j in jobs if in_shard(j["game_pk"], a)], a.setup_first)
     by_park = pd.Series([j["venue"] for j in runnable]).value_counts()
     if len(by_park):
         print("runnable by park: " + ", ".join("%s %d" % kv for kv in by_park.items()))
@@ -539,7 +609,16 @@ def main():
                                                  "was looked at and is right; records it and stops")
     ap.add_argument("--ready", type=int, default=0,
                     help="venue_id: setup -> ready at its eye-checked passing trial's window; stops")
+    ap.add_argument("--workers", type=int, default=1,
+                    help="shard the season into N runs by game_pk %% N (start each with --worker K)")
+    ap.add_argument("--worker", type=int, default=0, help="this run's shard, 0..workers-1")
+    ap.add_argument("--setup-first", action="store_true",
+                    help="run setup parks' trial games ahead of ready-park games")
+    ap.add_argument("--trials-per-park", type=int, default=1,
+                    help="trials a setup park gets before it waits for review; a later trial runs "
+                         "at the window the failed one measured")
     a = ap.parse_args()
+    assert 1 <= a.workers <= MAX_WORKERS and 0 <= a.worker < a.workers, (a.worker, a.workers)
 
     if a.eye_ok:
         return mark_eye([int(x) for x in a.eye_ok.split(",") if x.strip()])
@@ -557,7 +636,10 @@ def main():
     report_plan(jobs, a, swept)
     if a.dry_run:
         return 0
-    _lock = acquire_run_lock()      # noqa: F841  (held until the process exits)
+    _lock = acquire_run_lock(a.worker, a.workers)   # noqa: F841  (held until the process exits)
+    if a.workers > 1:
+        print("worker %d of %d: games with game_pk %% %d == %d" % (a.worker, a.workers, a.workers,
+                                                                 a.worker))
 
     print("\n%.1f GB free, floor %.1f GB\n" % (free_gb(), a.min_free_gb))
     # RE-PLAN AFTER EVERY GAME. Pull CSVs land in Downloads while this runs (the Chrome pull
@@ -573,8 +655,11 @@ def main():
             got = sweep_downloads()
             if got:
                 print("    %d new pull CSV(s) copied from Downloads" % got)
+            # The plan is GLOBAL (one trial per park across all workers); only the pick is
+            # sharded, so two workers never hold the same game or the same pull folder.
             runnable = order([j for j in plan(season, read_registry(), ledger, a)
-                              if j["game_pk"] not in tried])
+                              if j["game_pk"] not in tried and in_shard(j["game_pk"], a)],
+                             a.setup_first)
             if not runnable:
                 idle_since = idle_since or time.time()
                 if (time.time() - idle_since) / 60 >= a.idle_exit_min:
@@ -635,7 +720,7 @@ def main():
                       % (job["venue"], row.get("window_measured", ""), row.get("ref_png", "")))
             if row["verdict"] == "PASS":
                 passes += 1
-                if passes % a.pass_every == 0:
+                if passes % a.pass_every == 0 and a.worker == 0:     # one board writer
                     rebuild_board(ledger)
             if free_gb() < a.min_free_gb:
                 print("\nSTOPPING: %.1f GB free is under the floor. Nothing was half-written."
@@ -646,7 +731,7 @@ def main():
                 nxt.result()                       # an unused prefetch; its clips stay cached
             except Exception:                      # noqa: BLE001
                 pass
-    if passes:
+    if passes and a.worker == 0:
         rebuild_board(read_ledger())
     print("\nthis run: %d game(s) attempted, %d passed" % (ran, passes))
     print("ledger:\n%s" % read_ledger().verdict.value_counts().to_string())
