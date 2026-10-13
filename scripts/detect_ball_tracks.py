@@ -54,6 +54,16 @@ STEP_LO, STEP_HI = 2.0, 30.0      # px per frame, wide enough for both camera ar
 MIN_RUN = 6
 MIN_WINDOW_CLIPS = 8      # pass 2 needs a real distribution of plate frames, not 3 points
 WINDOW_MAX_TOL = 18.0     # a flight is ~26 frames; a wider window cannot exclude the delivery
+MAX_GAP = 3               # frames a chain may skip without a candidate
+# --bridge N (0 = off, the default, byte-identical to before): a chain may also skip up to N
+# frames, but ONLY to a candidate where constant velocity from its last two points puts the
+# ball - within BRIDGE_R0 + BRIDGE_R1 px per skipped frame, at 0.6-1.6x its last step speed.
+# SEGRA 827289 (2026-10-13): 60 of 62 chains that stopped before the plate stopped on the gap
+# rule - the ball undetected for a median 6 frames mid-flight, then detected again IN LINE
+# (direction cos ~1.0, same step) and at rank 1. A wider plain gap would let a chain jump to
+# anything moving; the prediction gate only lets it continue the flight it is on.
+BRIDGE = 0
+BRIDGE_R0, BRIDGE_R1 = 4.0, 1.5
 
 
 def best_chain(dets, step_lo=STEP_LO, step_hi=STEP_HI):
@@ -82,7 +92,8 @@ def all_chains(dets, step_lo=STEP_LO, step_hi=STEP_HI):
         for c0 in dets[f0]:
             chain = [(f0, c0[0], c0[1], c0[2])]
             for f1 in frames[si + 1:]:
-                if f1 - chain[-1][0] > 3:
+                gap = f1 - chain[-1][0]
+                if gap > MAX_GAP and not (BRIDGE and len(chain) >= 2 and gap <= BRIDGE):
                     break
                 prev = chain[-1]
                 cands = []
@@ -91,6 +102,12 @@ def all_chains(dets, step_lo=STEP_LO, step_hi=STEP_HI):
                     st = np.hypot(x - prev[1], y - prev[2]) / dt
                     if not (step_lo <= st <= step_hi):
                         continue
+                    if dt > MAX_GAP:         # a bridge: only where the flight it is on predicts
+                        p0 = chain[-2]
+                        v = ((prev[1] - p0[1]) / (prev[0] - p0[0]), (prev[2] - p0[2]) / (prev[0] - p0[0]))
+                        sp = np.hypot(*v)
+                        if np.hypot(x - prev[1] - v[0] * dt, y - prev[2] - v[1] * dt) > BRIDGE_R0 + BRIDGE_R1 * dt                                 or not (0.6 * sp <= st <= 1.6 * sp):
+                            continue
                     if len(chain) >= 2:      # keep going the same way
                         vx, vy = chain[-1][1] - chain[-2][1], chain[-1][2] - chain[-2][2]
                         nx, ny = x - prev[1], y - prev[2]
@@ -161,7 +178,15 @@ def main():
                          "without touching its own training clips). The pass-1 consensus window "
                          "is then fitted on that subset, so compare two models only when both "
                          "ran with the SAME file")
+    ap.add_argument("--bridge", type=int, default=0,
+                    help="let a chain skip up to N frames to a candidate its own constant-velocity "
+                         "flight predicts (0 = off). Per park, from docs/miss_park_registry.csv")
     a = ap.parse_args()
+    global BRIDGE
+    BRIDGE = a.bridge
+    if BRIDGE:
+        assert BRIDGE > MAX_GAP, "--bridge %d is not longer than the plain gap rule (%d)" % (BRIDGE, MAX_GAP)
+        print("bridge: chains may skip up to %d frames along their own flight" % BRIDGE, flush=True)
 
     d = a.dir if os.path.isabs(a.dir) else os.path.join(ROOT, a.dir)
     man = pd.read_csv(os.path.join(d, os.path.basename(d) + "_manifest.csv"))

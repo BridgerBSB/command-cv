@@ -282,6 +282,28 @@ def check_run_lock_shards():
     assert got == {"w0": True, "w1": False, "whole": False}, got
 
 
+def check_disk_dip_waits_then_resumes():
+    """Under the floor the worker WAITS for space (a transient dip) and resumes; it stops only
+    when space stays low for --disk-wait-min. Fake clock and disk, no sleeping."""
+    clock = {"t": 0.0}
+    saved = (S.free_gb, S.time.time, S.time.sleep)
+    try:
+        S.time.time = lambda: clock["t"]
+        S.time.sleep = lambda s: clock.__setitem__("t", clock["t"] + s)
+        a = argparse.Namespace(disk_wait_min=60, min_free_gb=6.0)
+        disk = iter([4.0, 4.5, 18.0, 18.0, 18.0])
+        S.free_gb = lambda: next(disk)
+        back = S.wait_for_disk(a)
+        waited = clock["t"]
+        clock["t"] = 0.0
+        S.free_gb = lambda: 4.0
+        stuck = S.wait_for_disk(a)
+    finally:
+        S.free_gb, S.time.time, S.time.sleep = saved
+    assert back is True and 0 < waited <= 600, (back, waited)
+    assert stuck is False and clock["t"] >= 3600, (stuck, clock["t"])
+
+
 CHECKS = [check_plan_classifies_every_case, check_setup_park_runs_once_across_runs,
           check_failed_trial_reruns_only_under_retry,
           check_killed_game_resumes_but_pilot_game_does_not,
@@ -290,7 +312,7 @@ CHECKS = [check_plan_classifies_every_case, check_setup_park_runs_once_across_ru
           check_order_ready_parks_before_trials, check_delete_counts_hard_links_once,
           check_ladder_shifts_a_cut_off_window, check_shards_partition_the_season,
           check_second_trial_runs_at_measured_window, check_setup_first_order,
-          check_run_lock_shards]
+          check_run_lock_shards, check_disk_dip_waits_then_resumes]
 
 
 # pytest discovery, same functions
@@ -338,6 +360,8 @@ INJECTIONS = {
         ("in_shard", lambda g, a: True, "check_shards_partition_the_season"),
     "a whole run locks only byte 0 (the pre-worker lock)":
         ("_lock_byte0", None, "check_run_lock_shards"),
+    "a disk dip stops the worker (the pre-fix behaviour)":
+        ("wait_for_disk", lambda a, poll_s=300: False, "check_disk_dip_waits_then_resumes"),
     "window parser keeps the first line":
         ("window_measured", lambda p: next((l.split("->")[-1].replace("would have sufficed", "").strip()
                                             for l in open(p) if "would have sufficed" in l), ""),

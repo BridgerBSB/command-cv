@@ -552,6 +552,20 @@ def refs_sheet(ledger, per=12, cols=3):
         print("  " + p)
 
 
+def wait_for_disk(a, poll_s=300):
+    """True once free space is back over the floor, False after --disk-wait-min. 2026-10-13: a
+    worker stopped for good at 4.7 GB free, and minutes later the disk was back at 18 GB (a
+    transient - the pagefile, or the other worker's downloads). A dip is not a full disk."""
+    t0 = time.time()
+    while (time.time() - t0) / 60 < a.disk_wait_min:
+        print("    %.1f GB free, under the %.1f GB floor; waiting (%.0f of %.0f min)"
+              % (free_gb(), a.min_free_gb, (time.time() - t0) / 60, a.disk_wait_min), flush=True)
+        time.sleep(poll_s)
+        if free_gb() >= a.min_free_gb:
+            return True
+    return free_gb() >= a.min_free_gb
+
+
 def order(jobs, setup_first=False):
     """Runnable games, best first: games at READY parks before setup trials (a ready game goes
     straight on the board; a trial needs an eye check before its park's other games can run),
@@ -598,6 +612,8 @@ def main():
     ap.add_argument("--retry-failed", action="store_true",
                     help="re-run FAIL / ERROR games (their outputs move to _aside_<g>_retry<k>/)")
     ap.add_argument("--min-free-gb", type=float, default=6.0)
+    ap.add_argument("--disk-wait-min", type=float, default=60,
+                    help="under the floor, wait this long for space before stopping")
     ap.add_argument("--keep-clips", action="store_true", help="debugging one game only")
     ap.add_argument("--pass-every", type=int, default=10, help="rebuild the board every N passes")
     ap.add_argument("--idle-exit-min", type=float, default=0,
@@ -722,7 +738,7 @@ def main():
                 passes += 1
                 if passes % a.pass_every == 0 and a.worker == 0:     # one board writer
                     rebuild_board(ledger)
-            if free_gb() < a.min_free_gb:
+            if free_gb() < a.min_free_gb and not wait_for_disk(a):
                 print("\nSTOPPING: %.1f GB free is under the floor. Nothing was half-written."
                       % free_gb())
                 break

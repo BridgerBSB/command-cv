@@ -9,5 +9,17 @@
     ]
   ],
   "overlay_note": "SEGRA Stadium (Fayetteville): 1B-side broadcast, pitcher RIGHT / catcher LEFT (mirror of Sugar Land and Corpus); bottom-left scorebug only (teams / score / count / inning / pitch count). Some clips cut to a wide outfield night camera after the pitch (0170). Boxes marked by eye on frames 150 and 205 of clips 0058/0154/0250/0330, 2026-10-11.",
-  "purpose": "miss distance with the v8r detector (v4 tracks the pitcher's cleat and catcher gear here, docs/park_admission.csv)"
+  "purpose": "miss distance with the v8r detector (v4 tracks the pitcher's cleat and catcher gear here, docs/park_admission.csv)",
+  "ref_stem": "pull_827289_0033",
+  "ref_frame": 81,
+  "features_npz": "data/landmarks/827289_feats.npz",
+  "features": {
+    "mound": "dirt/grass edge by HSV (grass H30-90 S>60) on pull_827289_0033 f81 (sequential decode, the stab2 reference with the identity H); NEAR edge only (lower image boundary, x 331-1247): the camera is low, behind the pitcher and off to the 1B side, so the upper dirt boundary is the mound CREST (the pitcher's feet sit on it), not the circle - same archetype as AdventHealth 821922. Rolling-median (31 px) filter, 2 px. mound_all keeps every point. 2026-10-13.",
+    "plate_ends": "white plate bar read off a 6x zoom with a pixel grid: x 477.5-537, y 434 (sequential f81)."
+  },
+  "rejected": {
+    "rubber": "under the pitcher's feet on the reference frame; the striped slab ~2 ft right of the pivot foot (x 900-955, y 568) is the AdventHealth-type mat, not the rubber",
+    "foul": "chalk not visible from this angle",
+    "batters_box": "visible, but fit_pose_landmarks has no residual for it"
+  }
 }
