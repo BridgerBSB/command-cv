@@ -52,35 +52,43 @@ def load(games):
     return pd.concat(parts, ignore_index=True), log
 
 
+LIM = 30
+
+
+def draw_panel(ax, s, M, hand, title, lim=LIM, ms=14, fs=(8.5, 6.5)):
+    """One pitcher's misses around the set-up glove, catcher's view, inches. The ONE drawing of a
+    miss panel: the org board and the per-pitcher season cards (season_cards.py) both call it."""
+    ax.add_patch(plt.Circle((0, 0), 6, fill=False, ls=":", lw=0.8, color="#888"))
+    ax.add_patch(plt.Circle((0, 0), 12, fill=False, ls=":", lw=0.8, color="#bbb"))
+    ax.axhline(0, color="#ddd", lw=0.6, zorder=0)
+    ax.axvline(0, color="#ddd", lw=0.6, zorder=0)
+    for pt, q in s.groupby("pitch_type"):
+        q = q[q[M + "_miss"].notna()]
+        ax.scatter(q[M + "_dx"].clip(-lim, lim), q[M + "_dz"].clip(-lim, lim), s=ms,
+                   color=PT_COLOR.get(pt, "#777"), edgecolor="k", lw=0.3, label=pt, zorder=3)
+    ax.plot(0, 0, marker="+", color=NAVY, ms=10, mew=2, zorder=4)
+    ax.set_title(title, fontsize=fs[0], color=NAVY)
+    ax.set_xlim(-lim, lim)
+    ax.set_ylim(-lim, lim)
+    ax.set_aspect("equal")
+    ax.tick_params(labelsize=fs[1])
+    armx = -lim * 0.95 if hand == "R" else lim * 0.95
+    ax.text(armx, -lim * 0.92, "arm side", fontsize=fs[1], color="#666",
+            ha="left" if hand == "R" else "right")
+
+
 def draw(d, pit, M, title, png):
     names = list(pit.index.get_level_values(0))
     ncol = min(5, len(names))
     nrow = int(np.ceil(len(names) / ncol))
     # cells near square: the panels are equal-aspect, so a taller cell is only white space
     fig, axes = plt.subplots(nrow, ncol, figsize=(max(3.1 * ncol, 8.0), 3.0 * nrow + 2.15), squeeze=False)
-    lim = 30
     for ax, name in zip(axes.ravel(), names):
-        s = d[d.pitcher_name == name]
-        ax.add_patch(plt.Circle((0, 0), 6, fill=False, ls=":", lw=0.8, color="#888"))
-        ax.add_patch(plt.Circle((0, 0), 12, fill=False, ls=":", lw=0.8, color="#bbb"))
-        ax.axhline(0, color="#ddd", lw=0.6, zorder=0)
-        ax.axvline(0, color="#ddd", lw=0.6, zorder=0)
-        for pt, q in s.groupby("pitch_type"):
-            q = q[q[M + "_miss"].notna()]
-            ax.scatter(q[M + "_dx"].clip(-lim, lim), q[M + "_dz"].clip(-lim, lim), s=14,
-                       color=PT_COLOR.get(pt, "#777"), edgecolor="k", lw=0.3, label=pt, zorder=3)
-        ax.plot(0, 0, marker="+", color=NAVY, ms=10, mew=2, zorder=4)
         r = pit.loc[name].iloc[0]
         hand = pit.loc[name].index[0]
-        ax.set_title("%s (%sHP), %s\nn %d   median miss %.1f in"
-                     % (name, hand, r["team"], r["n_" + M], r[M + "_miss_med"]), fontsize=8.5, color=NAVY)
-        ax.set_xlim(-lim, lim)
-        ax.set_ylim(-lim, lim)
-        ax.set_aspect("equal")
-        ax.tick_params(labelsize=6.5)
-        armx = -lim * 0.95 if hand == "R" else lim * 0.95
-        ax.text(armx, -lim * 0.92, "arm side", fontsize=6.5, color="#666",
-                ha="left" if hand == "R" else "right")
+        draw_panel(ax, d[d.pitcher_name == name], M, hand,
+                   "%s (%sHP), %s\nn %d   median miss %.1f in"
+                   % (name, hand, r["team"], r["n_" + M], r[M + "_miss_med"]))
     for ax in axes.ravel()[len(names):]:
         ax.axis("off")
     handles = {}
