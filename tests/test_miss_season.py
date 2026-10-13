@@ -147,6 +147,39 @@ def check_board_season_pass_supersedes_pilot():
     assert games[814874] == "_bo", games            # admitted pilot cameras stay on
 
 
+def _ladder_run(true_end):
+    """Drive miss_new_park.detect_with_ladder with a fake detector whose every chain ends at
+    min(true_end, --hi). Returns (final window file, the windows it detected at)."""
+    calls = []
+    with Box() as b:
+        def fake_sh(args):
+            lo, hi = miss_new_park._flag(args, "--lo"), miss_new_park._flag(args, "--hi")
+            calls.append((lo, hi))
+            end = min(true_end, hi)
+            pd.DataFrame([dict(stem="s%02d" % k, game_pk=9, frame=f, x=0, y=0, conf=1, window_pick=0)
+                          for k in range(20) for f in range(end - 12, end + 1)]).to_csv(
+                os.path.join(b.out, "detect_tracks_9_v4.csv"), index=False)
+        saved = miss_new_park.sh
+        miss_new_park.sh = fake_sh
+        try:
+            a = argparse.Namespace(detect_flags="--window-pick --lo 146 --hi 225", dir="x", weights="w")
+            miss_new_park.detect_with_ladder(9, a)
+            final = open(os.path.join(b.out, "miss_window_9.txt")).read()
+        finally:
+            miss_new_park.sh = saved
+    return final, calls
+
+
+def check_ladder_shifts_a_cut_off_window():
+    """Flights ending at f235 under --hi 225 are cut off: shift once to 186/265 and stop there.
+    Flights ending at f200 are not: one detection, window unchanged."""
+    final, calls = _ladder_run(235)
+    assert calls == [(146, 225), (186, 265)], calls
+    assert final == "--window-pick --lo 186 --hi 265", final
+    final, calls = _ladder_run(200)
+    assert calls == [(146, 225)] and final == "--window-pick --lo 146 --hi 225", (calls, final)
+
+
 def check_order_ready_parks_before_trials():
     """A ready-park game (straight onto the board) outranks an EARLIER setup trial."""
     jobs = [dict(game_pk=1, date="2026-04-01", status="run setup"),
@@ -183,7 +216,8 @@ CHECKS = [check_plan_classifies_every_case, check_setup_park_runs_once_across_ru
           check_killed_game_resumes_but_pilot_game_does_not,
           check_stale_outputs_only_without_scope_marker, check_gate_fails_on_no_evidence,
           check_window_measured_reads_last_line, check_board_season_pass_supersedes_pilot,
-          check_order_ready_parks_before_trials, check_delete_counts_hard_links_once]
+          check_order_ready_parks_before_trials, check_delete_counts_hard_links_once,
+          check_ladder_shifts_a_cut_off_window]
 
 
 # pytest discovery, same functions
@@ -225,6 +259,8 @@ INJECTIONS = {
             for p in __import__("glob").glob(os.path.join(S.ROOT, "data", "clips", d, "*.mp4")))
             / 2 ** 30,
          "check_delete_counts_hard_links_once"),
+    "ladder never shifts (the pre-fix behaviour)":
+        ("_ladder_noop", None, "check_ladder_shifts_a_cut_off_window"),
     "window parser keeps the first line":
         ("window_measured", lambda p: next((l.split("->")[-1].replace("would have sufficed", "").strip()
                                             for l in open(p) if "would have sufficed" in l), ""),
@@ -235,6 +271,20 @@ INJECTIONS = {
 def inject():
     bad = 0
     for name, (attr, fake, must_fail) in INJECTIONS.items():
+        if attr == "_ladder_noop":                  # lives in miss_new_park, not miss_season
+            import miss_new_park as M
+            orig_t = M.truncation
+            M.truncation = lambda g, hi: (0.0, 0)
+            try:
+                check_ladder_shifts_a_cut_off_window()
+                red = False
+            except Exception:                        # noqa: BLE001
+                red = True
+            finally:
+                M.truncation = orig_t
+            bad += not red
+            print("  %s  %s -> %s" % ("red " if red else "GREEN(!)", name, must_fail))
+            continue
         orig = getattr(S, attr)
         if attr == "plan":
             def fake(season_, reg, ledger, a, _orig=orig):

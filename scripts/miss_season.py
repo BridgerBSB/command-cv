@@ -218,14 +218,15 @@ def pilot_games():
     return out
 
 
-def done_games(ledger, retry_failed):
+def done_games(ledger, retry_failed, retry_games=()):
     keep = ledger if not retry_failed else ledger[ledger.verdict == "PASS"]
+    keep = keep[~keep.game_pk.astype(int).isin(set(retry_games))]      # named reruns
     return set(keep.game_pk.astype(int)) | PILOT_COMPLETE | pilot_games()
 
 
 def plan(season, reg, ledger, a):
     """Every season game with a status. Runnable rows carry the park and the role."""
-    done = done_games(ledger, a.retry_failed)
+    done = done_games(ledger, a.retry_failed, retry_set(a))
     # A park's trial is used up by any trial row - except under --retry-failed, where only a
     # PASSING trial counts, so a failed trial reruns (at the window now in the registry).
     setup_rows = ledger[ledger.role == "setup"]
@@ -329,7 +330,8 @@ def retry_aside(g):
         k += 1
     dst = os.path.join(OUT, "_aside_%d_retry%d" % (g, k))
     names = [n.format(g=g) for n in STEP_OUTPUTS] + ["miss_scope_%d.txt" % g,
-                                                      "miss_season_marker_%d.txt" % g]
+                                                      "miss_season_marker_%d.txt" % g,
+                                                      "miss_window_%d.txt" % g]
     for n in names:
         if os.path.exists(os.path.join(OUT, n)):
             os.makedirs(dst, exist_ok=True)
@@ -360,6 +362,17 @@ def window_measured(log_path):
     except OSError:
         pass
     return found
+
+
+def retry_set(a):
+    return {int(x) for x in (getattr(a, "retry_games", "") or "").split(",") if x.strip()}
+
+
+def window_used(g, flags):
+    """The window detection ended on: miss_new_park's ladder may have shifted the park's."""
+    wp = os.path.join(OUT, "miss_window_%d.txt" % g)
+    w = open(wp).read() if os.path.exists(wp) else flags
+    return w.replace("--window-pick", "").strip() or "default"
 
 
 def gate(bok_gap):
@@ -405,7 +418,7 @@ def run_game(job, dl, a):
         rc = subprocess.run(cmd, cwd=ROOT, stdout=log, stderr=subprocess.STDOUT).returncode
     run_min = (time.time() - t0) / 60
     row = dict(base, clips_ours=ok - missing, clips_missing=(n - ok) + missing,
-               window_used=flags.replace("--window-pick", "").strip() or "default",
+               window_used=window_used(g, flags),
                window_measured=window_measured(log_p), dl_min=round(dl_min, 1),
                run_min=round(run_min, 1), finished_ct=now_ct())
     if rc:
@@ -509,6 +522,9 @@ def main():
     ap.add_argument("--venue-ids", default="", help="comma-separated venue_ids")
     ap.add_argument("--max-games", type=int, default=0, help="stop after this many games run")
     ap.add_argument("--no-setup", action="store_true", help="skip setup parks' trial games")
+    ap.add_argument("--retry-games", default="",
+                    help="comma-separated games to rerun whatever their verdict (outputs move to "
+                         "_aside_<g>_retry<k>/)")
     ap.add_argument("--retry-failed", action="store_true",
                     help="re-run FAIL / ERROR games (their outputs move to _aside_<g>_retry<k>/)")
     ap.add_argument("--min-free-gb", type=float, default=6.0)
@@ -569,7 +585,7 @@ def main():
             job = runnable[0]
             g = job["game_pk"]
             tried.add(g)
-            if a.retry_failed and g in set(ledger.game_pk.astype(int)):
+            if (a.retry_failed or g in retry_set(a)) and g in set(ledger.game_pk.astype(int)):
                 retry_aside(g)
             moved = aside_stale(g, job["park"])
             if moved:

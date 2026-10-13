@@ -113,6 +113,68 @@ def ours_only_dir(g, d):
     return hd
 
 
+# THE WINDOW LADDER (2026-10-13). A park window measured on ONE game does not hold for the next:
+# broadcast clip timing shifts game to game, so at Sugar Land the pitch crossed around f189 in
+# 814875 and at or past f225 in 814868 - where --hi 225 cut 76% of the flights off before the
+# plate and the camera failed (0.91 / 1.56 / 1543 in on three of seven games). detect_ball_tracks
+# PRINTS "WINDOW TRUNCATION" past 5% of chains ending within 4 frames of --hi, and nothing read it.
+# Now: past that same threshold the whole window SHIFTS later and detection re-runs. Shifting,
+# not widening, keeps the window as narrow as the park needed - its narrowness is what keeps
+# post-pitch junk chains out (PROGRESS-LOG 125).
+TRUNC_FRAC = 0.05            # detect_ball_tracks' own WINDOW TRUNCATION threshold
+TRUNC_MARGIN = 4             # ... and its "within 4 frames of --hi"
+LADDER_SHIFT = 40
+LADDER_STEPS = 3
+
+
+def _flag(flags, name):
+    return int(flags[flags.index(name) + 1]) if name in flags else None
+
+
+def truncation(g, hi):
+    """Share of chains ending within TRUNC_MARGIN frames of --hi: flights cut off, not finished.
+
+    Counted on the tracks the camera will use, AFTER the detector's consensus filter; the
+    detector's own warning counts every chain before it. Same test, different rows: 814868 reads
+    88% of 165 here vs 76% of 173 there, 814871 27% vs 20%, Corpus 817528 0.7% vs no warning."""
+    t = pd.read_csv(os.path.join(OUT, "detect_tracks_%d_v4.csv" % g), usecols=["stem", "frame"])
+    ends = t.groupby("stem").frame.max()
+    return (float((ends >= hi - TRUNC_MARGIN).mean()) if len(ends) else 0.0), len(ends)
+
+
+def detect_with_ladder(g, a):
+    flags = a.detect_flags.split()
+    wp = os.path.join(OUT, "miss_window_%d.txt" % g)
+    if os.path.exists(wp) and have("detect_tracks_%d_v4.csv" % g):
+        flags = open(wp).read().split()          # resume: the window the existing tracks used
+    lo, hi = _flag(flags, "--lo"), _flag(flags, "--hi")
+    for step in range(LADDER_STEPS + 1):
+        if not have("detect_tracks_%d_v4.csv" % g):
+            sh(["scripts/detect_ball_tracks.py", "--dir", a.dir, "--game", str(g), "--weights",
+                a.weights, "--device", "0", "--tag", "_v4"] + flags)
+        if lo is None or hi is None:
+            break                                # the default window: a trial, no park window yet
+        open(wp, "w").write(" ".join(flags))
+        frac, n = truncation(g, hi)
+        if frac <= TRUNC_FRAC:
+            break
+        if step == LADDER_STEPS:
+            print("WINDOW LADDER: still %.0f%% of %d chains cut off at --hi %d after %d shifts; "
+                  "the gate decides" % (100 * frac, n, hi, LADDER_STEPS), flush=True)
+            break
+        dst = os.path.join(OUT, "_aside_%d_trunc_hi%d" % (g, hi))
+        os.makedirs(dst, exist_ok=True)
+        for f in ("detect_tracks_%d_v4.csv" % g, "dets_%d_v4.csv" % g):
+            if os.path.exists(os.path.join(OUT, f)):
+                shutil.move(os.path.join(OUT, f), os.path.join(dst, f))
+        flags = [str(lo + LADDER_SHIFT) if f == str(lo) and i and flags[i - 1] == "--lo" else
+                 str(hi + LADDER_SHIFT) if f == str(hi) and i and flags[i - 1] == "--hi" else f
+                 for i, f in enumerate(flags)]
+        print("WINDOW LADDER: %.0f%% of %d chains end at --hi %d (cut off); re-detecting at "
+              "--lo %d --hi %d" % (100 * frac, n, hi, lo + LADDER_SHIFT, hi + LADDER_SHIFT), flush=True)
+        lo, hi = lo + LADDER_SHIFT, hi + LADDER_SHIFT
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--game", type=int, required=True)
@@ -160,9 +222,7 @@ def main():
         a.dir = os.path.relpath(d, ROOT)
 
     print("STEP 1  detect (%s)" % a.weights, flush=True)
-    if not have("detect_tracks_%d_v4.csv" % g):
-        sh(["scripts/detect_ball_tracks.py", "--dir", a.dir, "--game", str(g), "--weights", a.weights,
-            "--device", "0", "--tag", "_v4"] + a.detect_flags.split())
+    detect_with_ladder(g, a)
 
     print("STEP 2  stabilize + glove set-ups", flush=True)
     if not have("targets_%d_stab2c.csv" % g):
