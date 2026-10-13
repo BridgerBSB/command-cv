@@ -125,6 +125,7 @@ TRUNC_FRAC = 0.05            # detect_ball_tracks' own WINDOW TRUNCATION thresho
 TRUNC_MARGIN = 4             # ... and its "within 4 frames of --hi"
 LADDER_SHIFT = 40
 LADDER_STEPS = 3
+LADDER_RESOLVED = 0.5          # a shift that cuts the clipped share below this fraction found the end
 
 
 def _flag(flags, name):
@@ -158,6 +159,15 @@ def detect_with_ladder(g, a):
         frac, n = truncation(g, hi)
         if frac <= TRUNC_FRAC:
             break
+        # After a shift, a share that fell by more than half means the flights now finish inside
+        # the window; what still ends at the new --hi is post-pitch motion, not a cut-off pitch.
+        # 814869 (2026-10-13): 62% -> 5% at 186/265, then 5% / 10% / 12% of junk at each new edge
+        # walked the window to 266/345, past the pitch, and the camera fit collapsed (5,343 in).
+        if step and frac < prev_frac * LADDER_RESOLVED:
+            print("WINDOW LADDER: %.0f%% end at --hi %d after the shift (was %.0f%%); the flights "
+                  "finish inside it now - stopping here" % (100 * frac, hi, 100 * prev_frac), flush=True)
+            break
+        prev_frac = frac
         if step == LADDER_STEPS:
             print("WINDOW LADDER: still %.0f%% of %d chains cut off at --hi %d after %d shifts; "
                   "the gate decides" % (100 * frac, n, hi, LADDER_STEPS), flush=True)

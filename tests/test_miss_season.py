@@ -170,6 +170,34 @@ def _ladder_run(true_end):
     return final, calls
 
 
+def _ladder_junk_run():
+    """14 pitches whose flights end at f235 plus 2 junk chains that always end at --hi."""
+    calls = []
+    with Box() as b:
+        def fake_sh(args):
+            lo, hi = miss_new_park._flag(args, "--lo"), miss_new_park._flag(args, "--hi")
+            calls.append((lo, hi))
+            ends = [min(235, hi)] * 14 + [hi] * 2
+            pd.DataFrame([dict(stem="s%02d" % k, game_pk=9, frame=f, x=0, y=0, conf=1, window_pick=0)
+                          for k, e in enumerate(ends) for f in range(e - 12, e + 1)]).to_csv(
+                os.path.join(b.out, "detect_tracks_9_v4.csv"), index=False)
+        saved = miss_new_park.sh
+        miss_new_park.sh = fake_sh
+        try:
+            a = argparse.Namespace(detect_flags="--window-pick --lo 146 --hi 225", dir="x", weights="w")
+            miss_new_park.detect_with_ladder(9, a)
+        finally:
+            miss_new_park.sh = saved
+    return calls
+
+
+def check_ladder_stops_on_edge_junk():
+    """One shift clears the cut-off pitches (100% -> 12.5% at the new edge, all junk): stop there.
+    814869 kept shifting on edge junk to 266/345 and lost the pitch."""
+    calls = _ladder_junk_run()
+    assert calls == [(146, 225), (186, 265)], calls
+
+
 def check_ladder_shifts_a_cut_off_window():
     """Flights ending at f235 under --hi 225 are cut off: shift once to 186/265 and stop there.
     Flights ending at f200 are not: one detection, window unchanged."""
@@ -312,7 +340,7 @@ CHECKS = [check_plan_classifies_every_case, check_setup_park_runs_once_across_ru
           check_order_ready_parks_before_trials, check_delete_counts_hard_links_once,
           check_ladder_shifts_a_cut_off_window, check_shards_partition_the_season,
           check_second_trial_runs_at_measured_window, check_setup_first_order,
-          check_run_lock_shards, check_disk_dip_waits_then_resumes]
+          check_run_lock_shards, check_disk_dip_waits_then_resumes, check_ladder_stops_on_edge_junk]
 
 
 # pytest discovery, same functions
@@ -362,6 +390,8 @@ INJECTIONS = {
         ("_lock_byte0", None, "check_run_lock_shards"),
     "a disk dip stops the worker (the pre-fix behaviour)":
         ("wait_for_disk", lambda a, poll_s=300: False, "check_disk_dip_waits_then_resumes"),
+    "ladder keeps shifting on edge junk (814869)":
+        ("_ladder_never_stops", None, "check_ladder_stops_on_edge_junk"),
     "window parser keeps the first line":
         ("window_measured", lambda p: next((l.split("->")[-1].replace("would have sufficed", "").strip()
                                             for l in open(p) if "would have sufficed" in l), ""),
@@ -372,6 +402,20 @@ INJECTIONS = {
 def inject():
     bad = 0
     for name, (attr, fake, must_fail) in INJECTIONS.items():
+        if attr == "_ladder_never_stops":           # the pre-fix ladder: shifts on any share > 5%
+            import miss_new_park as M
+            orig_r = M.LADDER_RESOLVED
+            M.LADDER_RESOLVED = 0.0
+            try:
+                check_ladder_stops_on_edge_junk()
+                red = False
+            except Exception:                        # noqa: BLE001
+                red = True
+            finally:
+                M.LADDER_RESOLVED = orig_r
+            bad += not red
+            print("  %s  %s -> %s" % ("red " if red else "GREEN(!)", name, must_fail))
+            continue
         if attr == "_ladder_noop":                  # lives in miss_new_park, not miss_season
             import miss_new_park as M
             orig_t = M.truncation
