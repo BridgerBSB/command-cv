@@ -569,6 +569,13 @@ def rebuild_board(ledger):
         out = (c.stdout or "").strip().splitlines() if c.returncode == 0 else \
             (c.stderr or "").strip().splitlines()[-2:]
         print("    cards: %s" % (out[0] if out else "rc %d" % c.returncode))
+        # Zac's copy, so a fresh set reaches him without a session (only where the folder exists)
+        desk = r"C:\Users\zbrid\OneDrive\Desktop\command-cv-season-cards"
+        if c.returncode == 0 and os.path.isdir(desk):
+            src = os.path.join(OUT, "season_cards")
+            for n in os.listdir(src):
+                if n.endswith((".pdf", ".csv")) or n == "_coverage.png":
+                    shutil.copy2(os.path.join(src, n), os.path.join(desk, n))
 
 
 def refs_sheet(ledger, per=12, cols=3):
