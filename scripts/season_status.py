@@ -51,6 +51,18 @@ def main():
     print("games graded %d: %d PASS, %d FAIL; last finished %s"
           % (len(last), (last.verdict == "PASS").sum(), (last.verdict != "PASS").sum(), led.finished_ct.iloc[-1]))
     print("parks: %s" % ", ".join("%s %d" % kv for kv in reg.status.value_counts().items()))
+    # DONE = nothing runnable left. Workers then idle (--idle-exit-min 600) before they exit, so
+    # "workers alive" alone does not say whether the work is finished; this line does.
+    sys.path.insert(0, os.path.join(ROOT, "scripts"))
+    import argparse
+    import miss_season as S
+    a = argparse.Namespace(games="", venue_ids="", retry_failed=False, no_setup=False,
+                           trials_per_park=3, retry_games="")
+    st = pd.Series([j["status"] for j in S.plan(pd.read_csv(S.SEASON), S.read_registry(), led, a)])
+    run = int(st.isin(["run", "run setup"]).sum())
+    print("QUEUE: %s  (%d games still to run; %s)"
+          % ("DONE" if run == 0 else "working", run,
+             ", ".join("%s %d" % kv for kv in st[~st.isin(["run", "run setup"])].value_counts().items())))
     if os.path.exists(CARDS):
         ix = pd.read_csv(CARDS)
         print("cards: %d of %d in-org pitchers, %d of %d pitches measured (%.0f%%)"
