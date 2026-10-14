@@ -1,0 +1,255 @@
+date,command_cv_sha,bsb_resources_sha,subject
+2026-10-14,0e318ab588eca97c9ebf410ba346d43cfc15ffea,e6708ede71c237bffd4bec04f39748771481fea9,command-cv: 7 setup parks ready after eye check; season workers restarted after a Windows Update reboot
+2026-10-13,fb8ac8a727f8f1752c2b490877aace76591663ed,b3c5cf7cba8db2b61b626eeae73ad2caa721bf46,command-cv: ONEOK Field (Tulsa) ready - trial PASS 0.39 in; mound-depth caveat noted
+2026-10-13,f18bed84cc50fa2ee8cbab5ac412160bcfff04bc,49b29a9beacafc4eb8fd436e7fc82936ecda15a2,command-cv: season_status.py one-screen check-in; board rebuild copies cards to Desktop; Salem + Wichita ready
+2026-10-13,e74219ca5e44d00e22b6c3f0eb023feac2ffaa1f,32b5e933ce2c0ebf30d8eabf48603d855f261ffd,command-cv: season_status prints QUEUE DONE/working with games left to run
+2026-10-13,e2e4c13cb38d7ce15df020ad27a40dc60ba58049,f4df8e0d019582590960820ac500c5adc059e6a8,command-cv: window ladder - a clipped detection shifts its window and re-detects
+2026-10-13,c1f179af8adf36837493dc571ff8f55306e9c243,2855da24db01cb482eb73bbe56038716103e13cb,command-cv: per-pitcher season command cards + coverage page
+2026-10-13,b48abe83cb0a1144e832807a4fd02ea80530d42c,6d1f1613f9604e1901de476301e83346d47cf6eb,command-cv: Route 66 Stadium (Springfield) ready - v8r third trial PASS 0.23 in (v4 trials 0.81 / 1.60)
+2026-10-13,b10364419991fe88db6db50aeb43851c24537643,f199b969ceb9926962d8e86ae2c727f71ac747da,"command-cv: PROGRESS-LOG 130 - season cards + coverage page, ladder stop, 3 workers"
+2026-10-13,a8d971d5bb12efcef59327be448138bee43ad605,59097082f93f176e232fa60ec7d9e779c1cf1e40,command-cv: Chickasaw Bricktown Ballpark (OKC) ready - trial PASS 0.29 in
+2026-10-13,a27adb533520980bfca93864f58c086f589f0de1,5b442ded97fae4a6e236f9662930aea4a7405cc6,command-cv: Riders Field (Frisco) ready - trial PASS 0.34 in
+2026-10-13,9ac51b4ba8c740eaaf6aaae38d3e9ec8cd4f59cb,ecfe6531a8c04ea172f5e0368fb58c056b658ec2,command-cv: second trials at 4 failed-once parks run with v8r
+2026-10-13,91dca1a2b166a0c9100c6fa7c40c7ce6ed342c69,6bd19808dca65d75307746188989781ada9fe4b8,command-cv: board rebuild also refreshes the season cards; 3 workers; 15 PASS refs eye-checked
+2026-10-13,8eee5f83dc97c4c8a73de4deec1f0d41c58d0771,f97b2c38a3eedbbb4b2dc76660df6b7e646371f3,command-cv: Dell Diamond (Round Rock) ready - trial PASS 0.15 in
+2026-10-13,7737932c931f83b95b44d97fed344ea8e740f000,546f513d774a9295dc80af9a6619f230cef0786e,"command-cv: Hodgetown (Amarillo) ready - trial PASS 0.17 in, drawn rubber on the real one"
+2026-10-13,706fd4bf1854dcca8ece1a38818abd6ba2527e49,f679ebaee9bb81638e9160824ef040e57c168f28,command-cv: Pelicans Ballpark next trial on v8r (v4 trial 0.69 in)
+2026-10-13,6402eecb55740b325eab7514e832360265f55fdf,f4480ee8993605bec19d073fd9514c4315e38ee5,"command-cv: Sutter Health ready - v8r second trial PASS 0.25 in (v4 trial was 1,325 in)"
+2026-10-13,5a36548bbba7b73124a9b0735be9e7a66b3f7b34,1968aa238f78b18499afdb0ad39b2a5fe5f9b0a7,command-cv: v9s - v8r fine-tuned on SEGRA projected labels (running)
+2026-10-13,595dbe3090dffc5efb048527acee842e4fc72bab,4761f1565da551551da6d18b807fe3ed7406604c,command-cv: window ladder stops once a shift finds the flight's end; Sutter Health boxes
+2026-10-13,5055ab1617ef8c4c84da93892472f2c012e62790,562172a09959222b5d539daaaee1c2d20caebd96,command-cv: PROGRESS-LOG 127 - window ladder; season run collision fixed
+2026-10-13,502e635b7bb95607c79bb6840d2d9b6b206ea78e,8ec59e014e769821ef3d7ea6ccbcc4c2456e80f6,command-cv: run lock refuses workers with a different --workers (827001 collision)
+2026-10-13,2f5a2373761bedaa4eee66a8abf7084178bec57d,d739876fffa487a1fc9213d4f73bf7d5ccd6e1c3,command-cv: v9s takes SEGRA to 0.71 in (still blocked); detect_extra registry column; Tacoma ready
+2026-10-13,2e91e3e1bb662161535ad06c4b6e1c6f56bed74e,1b90d08d4400aa4bd7ffaf424977c42414826e4e,"command-cv: season run in 2 sharded workers, setup trials first, 2 trials per park; season pitcher denominator"
+2026-10-13,2505f1033a5786bda9735cb239058bbe9fced488,ae714da76578a7a5f6644819d6134ce56dba075a,command-cv: Vystar Ballpark (Jacksonville) ready - v8r third trial PASS 0.21 in (v4 trials 3.71 / 0.48)
+2026-10-13,2422aa558c643eeee363eed1e4c569e0532d54b7,2a62d20a2d554b59383a7a243b2e07adcbcad6fe,command-cv: Bowling Green ready (v8r 3rd trial 0.26 in); PROGRESS-LOG 132 parks + disk cleanup
+2026-10-13,1e33e42cfdde457883e82a62adc347e59a751ff0,4120c6970932cfc111381994523be21d7679d1d5,"command-cv: chain gap bridge (opt-in), SEGRA diagnosed, disk dip waits; Reno + Charleston ready"
+2026-10-13,1befe1d996122afb006e385114c0f32562b6261f,a161524253c41f8d086b9bc6efed56d6b21976e6,command-cv: third trial on v8r at parks whose two v4 trials failed; workers at --trials-per-park 3
+2026-10-13,1bcf23d010925dab667695ce00b75207120336d1,4556d0f7627576c08b9f64feb466a5be24721fab,command-cv: Wilson Ballpark ready - trial PASS 0.27 in; Bowling Green v8r trial FAIL (foreground fielder)
+2026-10-13,0ef1edd663da32b8dd6bec5ccd48ce84a492cdb8,26356c87efc7a1b1ccc0f5774dd52099bfdb84d6,command-cv: Virginia Credit Union Stadium (Fredericksburg) ready - trial PASS 0.31 in
+2026-10-12,b9df149e140980fab4d945bd9e2498e67d2bacc5,bec9b78626c6e21cd3b962f68d64951ec4378ffb,"command-cv: 4 more parks ready, Greensboro blocked, failed trials can retry at their window"
+2026-10-12,991a369b19d48cbe45f72389ea688caba2c4f707,8569e69d9530ea4906f4866575590bdc42ecdc6f,command-cv: browser pull skips a no-video game instead of stopping the batch
+2026-10-12,4ffb1dc69bcadad4464fbb2823e5875d57d39e9b,f08fdf8c9a34e2c782b911bd05e736b2ba8df3b5,command-cv: run_detached -Stop kills the worker; one season run at a time
+2026-10-12,1012e0a545cdc11573329398afaa149e6494812d,3af8c316eb29402218082bfcd8bc18ffe3d09e2d,command-cv: 4 more parks ready; sweep every profile's Downloads
+2026-10-11,fb53c0cc60f65abba26d5ce1e0e556fba540763e,ad3b40ba424f283308666e7ca9e527f057e69b54,command-cv: labels admitted (confirmed only) at Dickey-Stephens 817590 and Truist 821786
+2026-10-11,f7f46a7f960f4d6aa9a377e634ef7d88e540b0d8,122ab89753d26e7bcc351fa0efea612dd64bac2e,"command-cv: PROGRESS-LOG 118 - third batch labelled (7 of 8 admitted, Perdue rejected); v8 training"
+2026-10-11,f50e758d4605de2b74e69daff0deb76b556bb033,2b3db937a247fc0f6db7f2bfee2a12b179c33976,command-cv: org board labels levels not clubs; title pinned and wrapped
+2026-10-11,e6c0d687c73491b4fb510c9d38d878be2134f02f,953684a8fb90677a0a7c5e7eb7aa8885ae3e4fe8,command-cv: check_park_labels.py - the numbers behind a label admission; label_new_park step 8
+2026-10-11,e506889835c039ec384433f1dde847eec885f5dc,600dc314247b9fea2ef997068a60e8dce94862c9,command-cv: labels admitted at Equity Bank 816989 (confirmed only) and Fluor Field 822161 (both)
+2026-10-11,e38d78afcf16dd76d763dfa8d130058696e5a6a8,f23e5b9fcf0dd6b198e979f03b7c8d8565c49dfc,command-cv: overlay masks for 815046 / 817611 / 826785 (force-added like the other park jsons)
+2026-10-11,dc4ed3314850781325d13bc1ed5a1cf312e7f22f,3ef1c079c2444d66e395fe0f21cdccf7a0163448,command-cv: glove set-up pass stops once the set-up is settled (~1/3 fewer frames)
+2026-10-11,da2b7717471a31b85940acd2511209ff081d0605,07ec7cc1c5f07559c55b6849d9e83b19c3cdfc46,command-cv: glove pass uses quantize=16 (ultralytics 8.4 name for half)
+2026-10-11,cdbe454143c13fc5e1940999db63c92abab935f5,f109aad96140acfe1381a1737fb467a3ecaa57e7,command-cv: v7_run.py (v6 recipe + admitted new-park labels; --name/--tag/--also for a v8) + 4 more overlay masks
+2026-10-11,c6af5e1eb4e47b949f13333c368c9c6d09c56f5c,ae0d9efdf87597954a9a2243bf7ad10f95b87fa0,command-cv: Sugar Land camera admitted for misses; --ours-only halves a game
+2026-10-11,c24c57a1938d4b11ee5d35339ddcfad06a033f13,b0923157c47d6aae052b53637f7afca6e3b2d3d8,command-cv: Perdue 827337 REJECT - two broadcast cameras during pitches broke the ball-only camera fit
+2026-10-11,b609f5589ce7a7b24394948282386632b13ccdac,560f783c649764c8dbe733580180516006f4aece,command-cv: ball-only camera is enough for misses; per-park miss driver + org board
+2026-10-11,af0222b7605e14250245317218d215e1096000f5,02978c83120481a69009b30d94c6d758754a9e95,command-cv: labels admitted at ONEOK 817085 (both) and Arvest 817284 (confirmed only)
+2026-10-11,a95bab2874880365147642ff7deb8c779bf7dc8f,96d7c2ac00ecfab59c908c834939d94f3119f8c0,"command-cv: v7_run candidate list adds the third batch (8 parks, active once admitted; for a v8)"
+2026-10-11,a83ae2fe019c6ac26340f25f588ec4cbdd3a6b9d,1aaecfd977ba17e7bb247e2b951c5981242bddc8,command-cv: label_new_park.py + render_ref_pose.py; Dell Diamond 815046 labels admitted (confirmed only)
+2026-10-11,a3b15849001cdc01a4bbb629f310c13dd69e06a4,82f882c763986d4cdaf277bcb587550663e8cfd8,command-cv: fit_park_pose re-searches the basin when stage 3 rejects a seed; Corpus admitted
+2026-10-11,a1dd331c60071fa0b2eda1428d87d14eeb342349,cc20226c3dea9781406c113342bfcd5e178340c0,command-cv: make_holdout_split.py - park held-out split + fit seeds by the rule every solved park used
+2026-10-11,9f76b3201eb2c5655b79d9fa5d035abb3cb91059,dae5a4bf723a1ba0e108e08708aaa28c48d5d937,"command-cv: PROGRESS-LOG 120 - v8r (18 parks, 40% replay) is the best detector; v8's loss was the replay share"
+2026-10-11,9f33c688b45a1d8b3e1d28013c838c1fd35fb44f,0d7449c754cb19fdd9452aa0700ba9ee6b0b3e11,lineage: Command CV miss pilot - ball-only cameras replace landmark fits for misses
+2026-10-11,9d05baabb9d3250d474a453fc0df8c4f9ff8454e,ec23d81b9bc739cb047bad1c78ad1d5287d4dcfe,command-cv: Sugar Land game 2 own camera admitted (0.26 in); log names the real detector
+2026-10-11,93b48c86d14ccdb22088428476592df8462aa084,60c73fe28f8624bb096bf46ee8d41f477838c878,command-cv: labels admitted (confirmed only) at Hodgetown 817611 and Wilson 826785
+2026-10-11,9315137b67a3781319b987b321d721c8e9ac971f,aadd50cc0c368366175edb2c261b156ccb18cc38,command-cv: glove set-up pass ~4x faster - straight-through decode + FP16
+2026-10-11,8adec1fd253b8ac2275b4eddfe13205ae6fbae81,45c24cc6b039212e5c17211dca2c0390ad18d6e4,"command-cv: miss_season.py - every 2026 game's misses, park by park"
+2026-10-11,8637d43d7b42097718161a88d69900c0efab835d,9080b6447e229e79ab843c4b63c0760ca8467c5a,command-cv: Corpus game 2 admitted (narrowed detect window); miss_new_park --weights for SEGRA
+2026-10-11,77e61d8584a5a5c9ecf23342c72d58361304ed37,e5c9ab0f74513dcb0a44a902ce6e9b9fac62a37a,command-cv: labels admitted at Nelson Wolff 817256 (confirmed only) and SRP Park 827562 (both)
+2026-10-11,620f8f1c11e83c3671d78932d6f80507ab4b0b47,553f68872da82bb0a068617c22746f92439bc1c2,command-cv: stabilize_park --no-setups for labels-only parks (62 s vs ~30 min per 120 clips)
+2026-10-11,60cced7972db722b88fd4d1a0bce76a3b1657531,4c5cb70982fa6f8d19723c570425b2ae9296b274,command-cv: v6 graded (row 114) + ball-only camera is enough for labels (row 115)
+2026-10-11,602796061e5aee06186f87adc180b063a098beae,e85d9a1e9df6cf16bb04bdf6f2ead534931e2eab,"command-cv: compare_models_at_plate prints the PAIRED per-clip test (better/worse, median diff, Wilcoxon)"
+2026-10-11,5e516bf729ec0ef97e016c1ff8ef36b52ac41283,dc3b77886ba34179c65c09bfccd699000213ef90,command-cv: PROGRESS-LOG 116 - seven new parks labelled with ball-only cameras (v7 training on them now)
+2026-10-11,5dacbbb40c9120c1bb3bd1778f6d662820c229ea,9cfc6f2f6ab6a75ee422a96e769ed915561d39e6,"command-cv: camera-projected labels at all solved parks + v6 (train on them, grade held-out)"
+2026-10-11,589c80a35a97b5e7ace33ee504cb52831a97e2e6,4bfbeff4903cd3ae4e3517c04f520e6f3b52344e,command-cv: fix stray comma in the SEGRA ledger row (CSV parsed 13 fields)
+2026-10-11,5886405346d6b7182bf5ef1a257472d088921afc,c468e2cd405d8a550fc6e52be92d5e29e8fb1059,"command-cv: PROGRESS-LOG 126 - season run built, Asheville home camera passes"
+2026-10-11,572cdb5b3a60ed820e33c88262281d8090c1fbdd,c30e970ce7a865f6f5dcee42a0866657350fb1c2,"command-cv: fit_park_pose --stab (seed rows from --seeds, pixels from the stabilized tracks)"
+2026-10-11,5320b3b7047e9cc54da7dbb0c784d17818f70fe1,33dba7d5e1cd766a52ce488e2a14162611be13d4,command-cv: labels admitted at Las Vegas 815256 (both)
+2026-10-11,50119b8e6aa3056d4327c3e2509d41f6304ee387,82a64336d345d73160a92184ff112e97bb8c16b7,command-cv: PROGRESS-LOG 119 - v8 (18 parks) does not beat v7; keep v7; replay-share confound next
+2026-10-11,498e94a80c1968834b46b3b9719e3ee9c1ea18df,51b2492a387782de0167577982dd6f3bd3310a1b,command-cv: labels admitted (confirmed only) at America First 814941 and Chickasaw 815216
+2026-10-11,46d8c14f193ee6f8ed73a1e31d92d307c172cc37,6c6864f76d27130d16ed43bbd5480af9ab190027,command-cv: PROGRESS-LOG 125 - a park's 2nd game needs the park's detection window
+2026-10-11,3f67ae4e6bc004b5c636e383f02e6e22095115e5,29ce09c5f895adee0ab0949329f7b6ddc9af2607,"command-cv: overlay masks for 8 more admitted parks (third labelling batch, queued behind v7)"
+2026-10-11,3d453069b53af731ee36bf86d0d611430e036f44,314aa55b1c5ccea0e8ebab4d27c1baaa49e78fca,command-cv: PROGRESS-LOG 117 - v7 at least as good as v4 at all 13 graded parks; breadth fixed the unseen-park loss
+2026-10-11,3a141e4594d59a6e515032ff9dee726c15b02a79,cd07d7e4a3cf250ea28bca6d2222fa57a255622d,command-cv: SEGRA (Fayetteville) camera not admitted - distance unidentified with v8r tracks
+2026-10-11,250587793e04da9f04653fdc9e25d6e986f58c30,fba4ba3089dcbd82e1b73de60019f9ff46d8d5dc,"command-cv: park camera-solve recipe doc (10 steps, 2 unscripted gaps named)"
+2026-10-11,24ee8cbab8f568e4791f58722b183f9b5ebea336,13d6dd679aad1a6746550935e3cb1733c7a000a7,command-cv: project_labels --out (label a variant pose without overwriting the park's labels)
+2026-10-11,1cc1d74c0070ac28e0e65b15e0314f0b63c88e0d,356cc056013913973fecba223e59f4a25d69fbe3,command-cv: recipe doc - second-camera-during-pitch trap (Perdue) and the batter-vs-pitcher pants admission check
+2026-10-11,1783e580840fbf1c06da5728ce28cf2caec19321,d46e9511f9f12841307aadb46a94ff56c5908d59,command-cv: PROGRESS-LOG 123-124 - home cameras graded; a 2nd game reuses the park camera
+2026-10-11,0bbdc066a737c7f34f42ee4c0c372560d6ac01e7,7845a608f8187fa417caf3c0f27b2656743241ae,command-cv: Asheville home camera passes; season run re-plans after every game
+2026-10-10,a40a45f99e6eda34516ba817fffd9b33a14a3a47,33bf2c7e2f757858430b9097d7dffef7555ba4eb,"command-cv: train on the new laptop's AMD GPU (ROCm), ~20 s/epoch vs ~54 on the 3050 Ti"
+2026-09-29,e3b619a473f1bdd004d4930a1d545dc3b14c5645,b814de21def176a045270dc4f6ead5fcb12b2be8,"command-cv: AdventHealth 821922 landmarks (mound edge, eye-checked)"
+2026-09-29,d13440c32e31a97a18d4fa861cd4a5b86a7e9144,db3f5d877071958c14b314f5e37f2b2ee16c035c,command-cv: AdventHealth 821922 camera solved - held-out video vs data 0.15 in
+2026-09-29,cabf9803678e543cbe4d2132a7f26b64214fdef5,ced8612124cbd19d4ae0ccd94682f2900bf67130,"command-cv: v5 graded - does not beat v4, v4 stays (progress log 111)"
+2026-09-29,c6e3a305a99d4e699751e885b1d1517b9c6b1be4,eaa5892c7c1aca0bdc32835ff7d9ed126dd197b8,command-cv: glove-model set-up agreement check (OC vs validated Asheville targets)
+2026-09-29,a8f9d44ba45475b350071bf1b3c54e743062e078,11602a7d0a6df65a8a6dbead629552b281b816b9,command-cv: OpenCommand glove model is the set-up default; AdventHealth 821922 landmarks
+2026-09-29,a1282481c6fd09add40117b86033a92cb3fe7cf9,05404f39233d64882472f41fa16bcdbdf67352e6,command-cv: Greensboro camera = ball-only fit (landmark fits rejected); reel takes per-game targets/miss + glove class filter
+2026-09-29,9664e2f908e650c6776d830a532726b3760d3fd1,c4a6108c2409d03e6594f66ed581e3a42dd39d4a,"command-cv: glove check writes to output/, not a session scratchpad"
+2026-09-29,7f4e5b21099a95b2cd97048b0be25cf383bc5b82,2dae4cad3c780591fcc86679b336934bd0768382,"command-cv: stream_games.py - grow the training set one game at a time, video deleted after"
+2026-09-29,7e687e012d7fb0c23830cffa8bfad8271afa35b3,3cd85f1883c7c4f000bda4140fdb97ebd1e0a8a5,"command-cv: v5_run.py (fine-tune v4 on admitted streamed games, grade in inches) + Constellation Field ADMIT"
+2026-09-29,6945310c99f7ebd3fc553774e9a97fa7fa433fcf,8b92df0e6b6aab73534b0ab333bcc73f01f2d096,command-cv: reel says 'ball not tracked to the plate' instead of printing a short-track video miss
+2026-09-29,35180574ada3d8b3cd16424385971834ae77fb22,c316fef74b09d336cc70de50257a8a6f6ddf21b1,"command-cv: progress log 103-110; Vystar + Whataburger ADMIT, SEGRA REJECT; v5 = replay fine-tune"
+2026-09-29,08401f0861086c9fc99e72923fc6b91deec69a2a,214316cb1ac380bd9292647647da3748c8d67fb2,"command-cv: Greensboro 822246 landmarks (mound edge + plate bar, eye-checked)"
+2026-09-28,ed35c8e31786d431a20f7f8568d7ca34f33f99bd,b3759ee38a19d77d90974e9162516560a605bd30,"command-cv: log correction - four parks, not five"
+2026-09-28,e74820d771c5b2dc995bc2cfe9b46d5938033f2a,10641662364a61cced0c6501c4c0f2d408f69395,"command-cv: detector fine-tuned on camera-projected labels - 815443 held-out usable 11 -> 31 of 37, gap 1.36 -> 0.97 in"
+2026-09-28,c4e5d74a69d3ba325c2ce73e39c3b1c7fe7a4d31,360540eacb46d35d95c6a93483f77244ee13f17d,"command-cv: Isotopes cross-game transfer graded (1.35 in on 24 usable, lateral bias)"
+2026-09-28,a6ccf2eb06f5de6bba1f9d7503acaaf73ff6f9fa,550134927b40ceabb9a15edf43f18ad232edb0f1,"command-cv: track_px flag on every pitch (11 of ~550 usable video tracks are not the pitch); gate proposed, not applied"
+2026-09-28,a0e56bccb8f2b677ca4d93527bcef53b3e32e4d6,efe5090702e8c79bcab08dbd403db96935a20602,command-cv: render_pitch_reel - watch the model on real video (ball trail + glove target + miss both roots)
+2026-09-28,929dffccc2198eaf596d0cc57f1a97fcb665220d,f70166a5d2f4b276b02963f745bde1c048d18eaa,command-cv: reel MISS headline smaller (1.5 -> 1.0)
+2026-09-28,9235e8ce8631ea947dc690773ba9a69f1fde77af,ee92e5c50e7f036184e3b9d3c192232847366f5a,command-cv: chained stabilization at Isotopes (held-out p90 1.69 -> 1.21) and Durham
+2026-09-28,89018a87a5d17a40a1cbf96cae90dea62c2f592a,a98c573431c32a52bdc7fd46aba6dd6f5adcfac2,command-cv: v5 detector regression check on Frawley 821848 - unchanged
+2026-09-28,80da007bd5918b29a9aa603e326f3d1569b3dd9b,1284ee6de31305ae7b53c6bc66751bfa88e1a5ca,"command-cv: reel renderer - season order, per-park ball-only caption"
+2026-09-28,73cf4b207d7e5b6e6a11304ef0fc687aabcfd30e,cba027b47b203b7c766bd00755c83a09cfd4f2c0,"command-cv: cross-game Frawley transfer graded (2.01 in, lateral bias from the Frawley camera)"
+2026-09-28,6ca9f0ca73300f6bd70444f0520c482d711bb47c,0f26e123fe6588c4dfed12dd7db2fca2a515eca1,command-cv: Asheville on stab2 + landmark camera (usable held-out 0.58 -> 0.30 in)
+2026-09-28,67d35fd63a98c6dd65eaa1d9bdb60beb2048d4d5,1bfc7f736ee436d8ab14b43ccf4528afce94cbdb,"command-cv: Frawley on fixed stabilization - 0.38 in held-out, 0.40 in on a second game it never saw"
+2026-09-28,61ac4efdb01fb57931a75a3438cd5cadb35ab0f5,d185c33824d342c4bb884c29eccd7ff1fde162b5,command-cv: write-up - the scorebug was the stabilizer
+2026-09-28,5886a9b015b7e2e450407635e27a7ada9f2567d0,58a263e0897226c8fcd2aa6a3c0a22ae529c5d8e,"command-cv: 815443 own-camera test - limit is tracks, not mount"
+2026-09-28,323cb8369d7d34ef704f8cd96a25e221e534aa8f,be9b2df947a2408a00c8cb4c50256d768f58f3d5,command-cv: stabilize --chain (compose through the last matched clip when lighting drifts)
+2026-09-28,2641fcf6954015a80061e3ba3cbb61c86c40efb2,1f7cc9512335f641a585f0487e951e9bcf114009,"command-cv: chained stabilization recovers Frawley's late-inning clips (57 -> 0 unmatched, 0.37 in held-out)"
+2026-09-28,0d9be134f076030f8582ce9b62d267340d7a5254,74df426a17860ea1ef028b48117f5e78f10a7cf9,command-cv: glove circle + MISS headline on the reel; --window-pick recovers pitches lost to the return throw
+2026-09-27,a80ad0a5086e8e7cc730372c3ae8c2ca889dac14,c6ee0c3efb8b223b48d4e28ae59eec3743a2f0e3,"command-cv: cross-game stabilization reference, Frawley landmarks + pitch-clock mask, joint fit from init"
+2026-09-27,903cae421f1d48aa85ae43cb95d5404f73c8ce8b,b430d805eefb92faddce5853d8709d3cc63b64e1,"command-cv: Isotopes on fixed stabilization - held-out video vs data 0.33 in (was 3.40), boards"
+2026-09-27,8dc11ed0e7e48c159cd9c2f1ab655a1e9524b151,7a2e478ea79f9202d203f9695d9efa52f963b4b1,"command-cv: two location models side by side (video primary, plate_x/z secondary), Isotopes landmark fit graded - not adopted"
+2026-09-27,6c87ac551a128ef8061e66f40acac97efc1cd442,b7d8d915d3b697a876eda64bcf5549c2022f29f4,command-cv: Durham camera on fixed stabilization - held-out video vs data 0.45 in (was 8.35); retract CF timing-limit claim
+2026-09-27,69e52577d54e6b9238d5dc27b0fe680fcfd9c31a,89d753d62834fe407bc8d301ee05bfe1cd5fabea,command-cv: stabilization v2 - SIFT + overlay mask; v1 ORB locked onto the scorebug (27% zoom error on Isotopes wide clips)
+2026-09-27,0b5e3fc0ffc25432d848edce961532badde09f05,fbdfb416933f11c351c8e1e9115a94b7b3bf524f,command-cv: log Frawley ground-geometry finding
+2026-09-26,f77b7403780c90ac9b0ab3be07d7270df82c734d,0fd91b99ca840abf7484bc7924b170bc058d596c,"command-cv: pose refit from clean v4 tracks, graded on held-out clips - modest gain, pose still the limit"
+2026-09-26,af9466aee66ee58da970d2bc98b0c671d2b9c020,b39f4b28c180bb57c3c87c13eba623078dc39c59,"command-cv: v4 (53k images, 20 eye-admitted parks) is the best detector at all three grading parks"
+2026-09-26,9ea9370ce2e04cdb1ec921f62066f1c2c7082802,a9f77a40b268713cc971f5e80038910179df0855,command-cv: command miss at 6 parks - works where the camera is locked and well posed
+2026-09-26,76676c551d2fe8d122b516d241336675f4e129c3,af6fdc03eba60841a213370e49480287247ef56a,"command-cv: Durham camera pinned by field landmarks (held-out gap 8.35 -> 5.12 in), per-pitcher command board for Asheville + Frawley"
+2026-09-26,07329ee5b78058cbce8ecd257e8a829b03649fc3,043a6113cfd5866d8c941092dcbb07a006084c16,"command-cv: first command miss from video, measured both ways off one glove target"
+2026-09-26,0509148777e2012630928c7a267189e9d68719a0,3f84940e9d1e23a1e885d1f40f86a967ba58794d,"command-cv: video where the track reaches the plate, plate_x/z fallback otherwise"
+2026-09-25,87fa8abcd07022db614b660318a1af1f45bcceb0,a174092134ddb99095d9bc9c9928a2b83f364181,command-cv: record the three retired training sets before deleting them
+2026-09-25,7e70ca1ca8bf8b7d83bfba6d7bb4db744834350e,77991acacd69fbea402d9ddb8f39fd76539bdcaf,command-cv: a wifi drop can no longer turn into a silently short park
+2026-09-25,5b8a5566c056e4ae9ace8392b08251b8ac5f229a,7a5662c7f5c8401f375ad079256b97676077b325,command-cv: all 33 swept parks reviewed (20 admit / 8 hold / 7 reject); v4 training set built and training
+2026-09-25,4c7635e8bcde82ccf4cbbc35c7c69c037ed9ed53,b3aba7257f7781d4f3a65c91271f408f2508461a,command-cv: overnight watchdog + resumable v4 finisher
+2026-09-25,09d51963b10954aa3f678a59077a06218d9a82c8,d1fa9342645f00a39ba4a6e5602fd262423d5322,"command-cv: per-park admission ledger for the v3 sweep (4 admit, 2 hold, 3 reject so far)"
+2026-09-25,0910c76f728a082fab3f44ee4a30b482617d7334,d2f656bb60ef9146a7aebe0064329eb6334e766d,"command-cv: graded fairly, the clean-park detector (v3) is the best all-round; tracker detections now replayable"
+2026-09-24,d7ac99a395d983d1f114f182bc385b307dccb27a,a68c9365af552bcce58d4eca3212d628e52d0612,"command-cv: clean-park v3 did not recover v1, so junk labels are not the whole story"
+2026-09-24,c8cfd5c308d7419de7a437ebc7624a46dcdf0a17,25e1a5af6d872383d2505a45201733beec792c9b,"command-cv: at Isotopes v2 follows a fielder's cleats, which is what its junk labels taught it"
+2026-09-24,b025daf4a4c031f20d79ff7e042b74f471f05d20,3e0f8f67312ab6f2f2e3db1f3daf54eacef0e83e,"command-cv: graded in inches against the tracking system, v2 beats v1 -- the pixel exam ranked them backwards"
+2026-09-24,1140f736d78e0ab786f25c53bfb0e28c09c75874,6b4dfc86fdf79647f038d98a79ae75196bf54e20,"command-cv: v2's training set is ~30% not-baseballs, concentrated in 4 parks; clean-park v3 is the test"
+2026-09-22,e64e74cb9dd08dde96f52dad028a0c6331dc4050,61f31bebe1958de253a5eedee6b8ff83bca1b06e,command-cv: the comparison guard cried wolf on the one run it existed for
+2026-09-19,f2cbe7c02cf35c280ee4f4651eebab07f5f869ab,171aa1b2a9ee751ee1c1587fe08a928cdc36c8e4,command-cv: Root B v2 -- fit the ball's path and evaluate it at the receive time
+2026-09-19,d8750548ca43ac068fd38ceb576120b65d520a9b,07962a70792c970aa497ed6c4c26959974620e0b,"command-cv: correcting my own footprint claim -- the detached job is 1.3 GB, not 77 MB"
+2026-09-19,c288ea4b8f622920fa2ed591b7a282560d333b41,14b3974321e3776f8ce0e5d154ffda1e99b2a7c9,command-cv: arm the whole v2 decision chain to fire when the recovery releases the GPU
+2026-09-19,b46331b09241d9dc01e46f519f353b4b88433006,72dbb18e5137ac144f0e60799fa11aa98c55f7dc,"command-cv: the rolling pull drained its queue, and a yield over 100% caught a wrong denominator"
+2026-09-19,a58c7ce300f834d04cbfa9f402a3cfde4f5af7ab,ff4d978e37cab8fe234ab5c3378507106a736a99,"command-cv: the token snippet is a committed file now, and the angle line that cost Sutter is corrected"
+2026-09-19,907f3f94d8f8f8a7eb6bc234a7e7087b90ae43e6,7612979a45a791452ed89869646adc2c3371969f,"command-cv: refuse to blend two parks into one val split, because the blended number keeps the old name"
+2026-09-19,89bc0e7b9aaad23ac8903c5baa8cb347a9fa7c22,4c5d34bec50076a1d062c5a18610c66390e41db7,command-cv: two-pass works where the window is real and REFUSES where it is not
+2026-09-19,87c6c70222d8ef5bdd17c328b5a73fb3a523a012,3ba4f40ecd72107f5fec476f1d556796e20ff4eb,command-cv: the held-out split is now byte-identical to the one that produced 2.15 px
+2026-09-19,8280abcaa97d3cda6889d0685850eba6e682ae3c,0cdb3261eb6cc92a39bf6f9ccc98c24bc09b9e86,"command-cv: correct the Greensboro narrative, and name the error a second inference job throws"
+2026-09-19,78acea78292075b316bbe443a0f9949b5d7cc0cf,23fcaa609e20c3a1d4c3c033fc38ad147315e287,"command-cv: run a long job outside Claude Code's process tree, because closing VS Code is not always an option"
+2026-09-19,75d202ba790cf7c2a4b6d4adc34e5346408525c1,264ee5ad0345005e4f4525ec8bd5b7097fe27897,"command-cv: a two-pass chain gate for tight-camera parks, and the progress log for 09-19"
+2026-09-19,6e83bc535f75ffcf45ae320a6a8421e4a4aaf787,6e3215c512cb2051b0a2052ff6e2e61060bf9844,"command-cv: the pull works end to end -- 4,813 clips banked, and my CENTERFIELD default was silently splitting the dataset"
+2026-09-19,475a7337f5adc6f594cd5c1345d6d01bc50431a4,e05dcb436270cfdc2a8fc5c84218b9e555d29a4b,command-cv: the rolling loop refuses to sweep in a camera the detector has never seen
+2026-09-19,4496fc779e49679ca1940c8bb555097000a6f4fc,168c37969f84c485faf0549609462efb94e8fab2,command-cv: the dataset rebuild is incremental and order-independent
+2026-09-19,43afb98af5f543b1731ac4de4f1cda809d5d7e6d,17df22c0e6fca5300a6e8cf929c7d72bf5f761c9,"command-cv: a standing audit for flights the scan window cut off, instead of rediscovering it per park"
+2026-09-19,3a04480f1eab82659c95f8088ccb846e998e8b82,f6c5f19e97c742df9b54e4985fb7b7a5da7110df,command-cv: a park scoreboard -- and it caught a cv2 seek in its own first version
+2026-09-19,38f29a786af4971168b887a5355a92f05c4986c4,445ff6dfb1306bcf9f4af03b8c7595b29b49b87d,"command-cv: record the eval's figures, and refuse to race two numbers measured on different images"
+2026-09-19,358f5eeab53f08db9f6463df661bcf751248c5a9,5d87067d1e957b090724688ed4a8b96e4f76d8f4,"command-cv: split the rolling loop's timing, and 8 download workers"
+2026-09-19,2093ebe8575362843981391acc967d0373eccb25,c557cdfbdad96c6303d680402074a1006afc41e8,"command-cv: the rolling loop deleted the video BEFORE cutting the crops, so its labels could not become training data"
+2026-09-19,1e968549b636f7074b0dd819702e0a5d55e4cba2,f27e16766ca5ead04e29f2cdff9df60043acdcc4,"command-cv: two parks I called gate failures were WINDOW failures, and the window was silently cutting flights off"
+2026-09-19,07f1292360206549735da066ae8534eb90f232b4,2473c1b8585686288c20c63c36ceb9b351c13a8d,command-cv: a detached python job that block-buffers its log looks exactly like a hung one
+2026-09-18,f63f6fc4fa62cf994b8c4ece9bd692a5ef393188,838a756e0bdf4455cd76e18afb2a75e72743b5fe,"command-cv: one filename convention, and NAME the held-out park instead of drawing it"
+2026-09-18,eaec318fcf9204d0d1f98471cfff3b20bc51eee4,c85167744091eead31974ac4a24f006645f111fd,"command-cv: one definition of ball diameter, and the audit now emits the labels it passed"
+2026-09-18,e6ec987abd634eec0328ba6414cd7fcfe61c9421,749732b9db7f4e65473ecec5bf73cb5a0d926750,"command-cv: two blockers retracted -- the GPU was always here, and inches were never blocked"
+2026-09-18,d335620fb1baafedbb80d4aa6c1321e86b27e08f,af26dceeb570912f6efdc5dacc25747bad9d6b42,"command-cv: audit the seed tracks before they become labels, and unblock the MiLB dataset"
+2026-09-18,cc5d1242ac8a3799299be6a04a63380f87da1f6d,62babd3a3d6d41a44237a28343aab7a032f9d1f7,"command-cv: ""one pose per park"" does NOT generalise, and Riders is still unexplained"
+2026-09-18,bacf862111a256d13845854279066f3db61201e0,606b7a41b5ba436b9998b339204c2fac674537ae,"command-cv: the scale plan -- 63 venues enumerated, and the browser pull committed so it cannot be lost again"
+2026-09-18,b648e81c8f3b08ae6f7d302388713fb14e76553c,608f335e46a51c18e87e544bf33f998b708c556b,command-cv: batch the detector's inference -- it was calling the model once per frame
+2026-09-18,b1154bc04c7d4f1b0b1b323b065afe96bae1301b,ffd53f617e0268f9459d38fae9a39d59ac69960e,command-cv: measured -- the browser SESSION alone does not open the analytics endpoint
+2026-09-18,9ea3e1ef23c9abbeb88f146561daab327cabd5dc,e9f4e8d40ea95719b06437e01b977f60aceac7e4,"command-cv: build tracks from the DETECTOR, which needs no pose and ignores frame cadence"
+2026-09-18,8eb9034e0d8df395912dffc476b2c05590c57833,0115820e7b2e05f9b0e903fe9f7d7e26a3bc1231,"command-cv: a second snap pass, and an along-track bias at one park I could NOT explain"
+2026-09-18,8a84dc7bd56114f15d7be52547aa56726e2a63a2,b2ebe9902050fc1741906f1e32c5919521fe09e6,"docs: progress log 52-53 (consensus flight window, Durham fully recovered)"
+2026-09-18,874f391f7b3791cc5b892d1a32c6a46849350dea,2feaa1b660452cf773fe361c1ddb9c766d22cbe5,"command-cv: Rome is in, Greensboro is a chaining failure not a blind one, and the glove experiment killed its own design"
+2026-09-18,76e1633a1ad1e2f2959562f5d6525c36bab0dba2,526fbe841c64abe990a585753a03b62b3199b5d4,"command-cv: the detector rescues Durham, and the flight window is now derived not guessed"
+2026-09-18,730e183dcedeb09f4fce9a58172a318b15d7ab49,cbe55ed21bffa78ebd5bf076019ac6e809ac969b,docs: progress log 44-49 for the training + detector-tracks half of 09-18
+2026-09-18,720ea34a96734f9e76a6498964d01fb789dae48b,693497f17e90caeb922a662e9e17a9f648cc3e25,"command-cv: the glove root written down, and its first experiment built"
+2026-09-18,55c9c9644c033f6c80f2ee0ee919a0b9ee8ebe4f,dfce6b8cdfb89ec55a0a863f4c1283711372213d,"command-cv: LINEAGE + progress log for the MiLB training-set session, and an honest split report"
+2026-09-18,55935695b331d7d43d6de42ec3990a79f2853bf0,81eaf65cc8c98707885ff9f6d32611132eb2bad7,"command-cv: the pose must not veto a detector track -- 10,004 points across 6 parks, and AA + A have data at last"
+2026-09-18,53150722ddc843838f5c15c935d0aae41626ba57,80b9e3df1649b85e5ce509c2db7710763ead6342,command-cv: the MiLB detector trains in 33 minutes and lands 2.15 px on a park it never saw
+2026-09-18,4ed6893cccde4275fc7bb01a1e8a9509f19a59e2,d9cd3b0f50adb49d49e4db11297a176be541507f,"command-cv: the first MiLB training set exists, and two checks that disagree on purpose"
+2026-09-18,14f666f6677cd383670298db20737e3af30d0223,00a91f9887d7d3a1f0cf12a5fd158edf040ed4ba,"command-cv: a consensus flight window, because confidence does NOT separate Riders' junk"
+2026-09-18,0c89da9d1e8c4897835f0d645ecfc303149af7b4,320e9000aad6c440aaf9bc2002e5a5908a6cdc3d,"command-cv: --game FILTERS the manifest, which makes four ballparks we already had reachable"
+2026-09-18,056895969381717994da5393c6191655539cf5d6,d4e6936f91ee9e88f91fb6065c5e48332647ee4e,"command-cv: one differencing implementation, and Asheville widens the size-check range"
+2026-09-18,049d36a2c6e788e9297235a987bd788d711d4706,c7a197e4e73b34e2bc013d8d8f73c9bb81ed3811,"command-cv: snap the park-wide harvest onto real ball pixels -- 3x the labels, still measured"
+2026-09-17,fca7090c1f7757294fe40307905f66e3a947554f,73f57a613a535482e0fc867695643ff971de05d5,"command-cv: first A+ ball track recovered and confirmed by eye, with the answer as the gate"
+2026-09-17,f7e051bbdcc6698b456b12707caf872b4f201021,7ab77fc929f0486592853cbdf3b3ca8eb97c6b63,"command-cv: the A+ camera is LOCKED between pitches - one pose per park, not per clip"
+2026-09-17,f7b566129c48ba27344c3db916e31772ca038270,5485a0d6a7d65e60a0edbf73bf42cf8721ca363a,"command-cv: MiLB has TWO camera archetypes, and the hard half also has broken frame cadence"
+2026-09-17,d2bc6fa6792a00ceb90a37b8afba658cd5fca24e,76a0a92a87c283faf6dfa11b95814c72adb7e1b1,"command-cv: pull MiLB through the signed-in browser (no token), and onboard a park in one command"
+2026-09-17,d15297e7ed9a055a9ca6e1321a0be5c74a609f12,f320d98609324597fa215a455c38cea617c21964,command-cv: the 2.23 px label result does NOT generalise - the held-out set is selection-biased
+2026-09-17,b7df564b8f9112cd499869a6d20e6a4c8c60250f,7ec181704d0642845980364739d91e8d48560fb4,docs: LINEAGE + progress log for the 09-17 Command CV MiLB session
+2026-09-17,a309eb27a3b3cc1bddcef8aba6c08fff43bffb8a,5f4f53a0d84a902d7664d2be335ffa1c005af88b,"command-cv: harvest labels park-wide; a release-vs-plate time origin made 21/24 ""kept"" all wrong"
+2026-09-17,9a61a33a13f460c5f1e1a65816b4eef88ea55e77,e85d0b8d9cd9b3694917a56653755a9eeaa6913b,command-cv: cadence-adaptive differencing unlocks the first behind-the-pitcher park (0 -> 13 clips)
+2026-09-17,6daee49479a1116a9b6589feaf0fdbeb6f34ad8d,d792838544f8a93ea443be754f1af0dd0ccccfea,command-cv: frame-differencing lags the ball by HALF A FRAME - a 4.7 px systematic bias in every label AND in the ground truth checking them
+2026-09-17,4825466dcae1445a85ce7407e2f46bd7e2dd9ed5,522b2b92eae32be757815fcbe9dcb90a6fa88f07,command-cv: kill the validation bias (5 -> 13 verified clips) and the along-track clock lag
+2026-09-17,46b83c90cfbb0457f452c7d0e29bc1e838ee4dbb,b3a9f6283016c093a9f6ca3f659ea7f68c9fb455,"command-cv: two-stage pose fit, and the pose turns out to be the best junk-track filter"
+2026-09-17,3e297ea05ed63a5baf377d478043ad24c50da0ae,55bfba1929d1b29ceee1caddc3bd46e7a4c1e6e7,"command-cv: freeing the pinned camera depth is safe, but Cy is only weakly determined"
+2026-09-17,39aa459c395b8360144232a0e070aed6788f5674,bdbe8240e35a311f2fce1d36dc55c69b996d2563,command-cv: a park pose from ball tracks alone traces the ball at 2px from a WRONG camera
+2026-09-17,1f52e6dbe188aac2d5c5bd46b7acad3058ea9ef4,f654e116f7bd246b15488b9d007d72f03433a5e0,"command-cv: ICP loop halves A+ label error, 8.60 -> 4.48 px, held out against verified tracks"
+2026-09-15,e371895a8ea96b48036d7b40f97e44ac83cb85e5,1c0c5d6cf66dacf1eaabb10f98968b74c84b9985,"command-cv: why ch_1 fails is NOT settled - contrast is suggestive, not sufficient"
+2026-09-15,c3e565fed4a3f8cf2cbe0a32f480013459af9a13,1a4e5770017bcec5a2cc95d9f50d2eac5588ba54,command-cv: ch_1 answered - the MLB-trained detector does not generalise to Greensboro
+2026-09-15,92ba36e21884bdd2ada49b5c4b5d8009e8dbee56,2b71c7bc6cccc4f6e3d153c0bd756223ad5ed82a,"command-cv: the batch hit-rate is invalid - 3 of 4 checked ""flights"" are junk"
+2026-09-15,3912dfa28ced90a574f808cc75a61eb397d42f00,2df122221eca02d15057ce0a3e74962dc136649a,"command-cv: training set is MLB-only, and the scale theory is retracted"
+2026-09-15,2662aef9fe011ea6d7371d3da14780201659acb4,d5a401ea097676ebdc8dda0f45119707c0be537b,command-cv: reorder the progress log newest-first (my insert put 21/22 mid-table)
+2026-09-14,fbffb84e16b7306caa5210a4f04a9889fbd7603a,ed33d0c6b2825e2a7ea593f3ecbcce8249b21dc9,"command-cv: pitch = first flight in the clip, and ch_1's zero result is a scale problem"
+2026-09-14,bd3923e5c601275ce1623715ff2aa83702483303,5be15badbd5193cb2374ba26516779556294fc4f,"command-cv: running progress log, so the track record is one file not twelve commits"
+2026-09-14,6c484072a491ba41bc10cf789dfd11ddb66db0c7,1be409ddeeb576088e5da1d31a096fe7bfa35cac,"command-cv: retract the ""camera pan"" diagnosis - it was a second baseball, and the camera is static"
+2026-09-13,fa65ee69444d742d230cd3540389c3f6c8239b1f,9ae1c003e88974aefc5aadb984b0e8aa077dc87c,"command-cv: A+ RESOLVED - the detector does track the pitch, a crowd false positive outranks it"
+2026-09-13,9c32450eaf4f4807f141c9e5c6b98270c2c8ed4d,5173a2f14801e1c267d8d0544634dd41f614fefe,"command-cv: the real gate passes - a camera from our own detections, no box in the fit"
+2026-09-13,55af2d6870438f68d0cf581b47dc0c848f80164a,a2783c29f233decce9223743b8d76934e298cbdb,"command-cv: A+ stage 1 - it sees baseballs, but three ways of finding the pitch were all invalid"
+2026-09-13,3feec26d2eaa73fb01f27c341fe05312ce1545d1,e29a03c8c52658a5809286e38cf36ed434542ef5,"command-cv: the top-K tracker does not work yet - validation red twice, and why"
+2026-09-13,29ab97cf4437b22a3cb803fd01a17ca5ca382bd5,5cc66914bb7995f4eb254c8c7f4fd9c6e2d76899,command-cv: the detector gate was reading frames with no ball in them
+2026-09-12,fbd5ff59103ed34b6e8ba3784b56bbc676437495,51c0fa01b95dcfaea1c8f4425df2e6c4ea9898d0,command-cv: normalise the device string before torch gets it
+2026-09-12,bd48fa0f09b6e523fa2dcfc2720d007f9cc72eda,c9080b56bfa0327bf2330bb7fd9f2beb20d8fab3,"command-cv: dataset builder takes one game per --labels/--clips, splits by GAME"
+2026-09-12,ba5bfd2771b2aeb47aa8fa9ecdf2a94c2529fa4b,08c2b3a933698de8a50276f0dbebcadaccd9ed71,"command-cv: the blind zone render, and it holds"
+2026-09-12,b67ad67357376c36dd99eb002c1d4a5f13301d80,7a503c62ae705b1b621a55dc46512bb61e289838,"command-cv: --resume, so a watchdog kill costs one epoch not the run"
+2026-09-12,b2c9a885b4d017bca2918fbabe420755edcfd9ff,c2bff4216e5213096ab9435a167644f63b1a35dd,"command-cv: the detector gate failed, and the metric hid why"
+2026-09-12,a714cb8b6b980769181c80cb408fe3ef8dac4827,1fca6813c187a30a69e7ab6e77b412d95f04d670,"command-cv: report best-of-top-K, because top-1 turned a ranking problem into a blindness problem"
+2026-09-12,a4855859c2b99634a00d260a581cbe9aee0ef64c,a61e48ff273b4662a5c93014de443079a57953f0,command-cv: stream the motion stack (it OOM-killed a concurrent training run)
+2026-09-12,8d890ef9fffe478391f88b5bcf48a999cd5d4469,4344989d519a5a85eb6dbf6c5b85c8b386adffec,"command-cv: A+ sample size is a game, not a pitcher"
+2026-09-12,6b321dddba33a8989e624a8501d95943b6bee418,73f6727906522abc551a68257911a8b991e8bb27,command-cv: gitignore ultralytics runs/
+2026-09-12,56b3c8dead0820efd03dc5cd9b06ac28702ef446,680030d6974858ad9e2310d15d8a0bf9ba4686ea,"command-cv: step 2c -- the drawn zone box can be dropped, and A+ is unblocked"
+2026-09-12,4964439244e33c97c9642a90a9ed237b43221f14,a6a52565d19a752a015af43ef71b0348c3c10cdc,"command-cv: the cheap detector gate, before the camera solve"
+2026-09-12,43ba1b7dd299d66092a09af5d8bdda85a3efdb63,1929e62ee3bffd2558fb52843c4d11e15d813cd7,"command-cv: the zone graphic IS in our MLB clips, correcting Sep 11"
+2026-09-12,33be30725e821eb86f717fc23ce76a5ebe7f2cc0,0af1b10defacc266be07eecd927ff1f76588d4df,"command-cv: look at WHAT the detector fires on, not just how far off it is"
+2026-09-12,2f1e4e7b87a0b9bd4b7df01c0d37eadb46670275,1a887b480b80b4442c43526d3314f16ce5041b57,"command-cv: the zone graphic is at all five parks, not just Camden"
+2026-09-12,2cb5a9e56d71517f5809bb495bf1d8848fdef5b8,3376035c652281cf2968dbdab7256ca5577d6a7a,"command-cv: game-scoped puller, and their video is our video with the box burned in"
+2026-09-12,1c9123bca0eb53e6448db48933378f8e1e76d921,72f22ba383e9f9d9aabd7e59945ee853874ab2b2,"command-cv: MLB clips need no token, and gate the failed ball alignments"
+2026-09-12,17262a5680e7e3cba8ef57c1337fcf8346eadb37,604cd3bfce6a09011892f0f4c8e7c3e742960ca6,command-cv: turn the free ball labels into a YOLO dataset
+2026-09-12,0d02072467687132d3bf2dc2e5556906335ff5f0,d6f7f96a91071a417ca3889bca05b6a5e0dd8363,command-cv: sweep the other four parks for the zone graphic
+2026-09-12,0cecdd7f5bf8d064626885db6b8d46603fe0bb9e,b007c8e1447bee40b1d41fde8619ff05b7f8a247,"command-cv: --no-amp, and the honest note that resume overrides it"
+2026-09-12,026be33deec2bd4c1934fe4991a5c90c1c6c1e4a,c322ed3830fc474f305ee240fbe5facbcce83763,"command-cv: epochs worked - top-1 error 167 px to 44 px, and the ranking diagnosis is now obsolete"
+2026-09-12,007dd1efc891377f19e163e256f6f7d6b00f5b36,c16c60be36c2eda916b2d4121a6811c8590edc60,"command-cv: ball detector training script, with an honest note on its own metric"
+2026-09-11,a699bef27099ac5b52c56d61b966c198bec0d20e,c4b2738448a5d8a630400fdff4aa009792bf327b,"command-cv: step 2b -- find the ball with no detector, and get free labels"
+2026-09-11,5b9b9f5b83d2b0debe629c255be7f87d0a758ede,72b1de8b78117876f2ad276f18a92099ac4c9bde,command-cv: step 2a -- our pinhole solve reproduces OpenCommand's poses
+2026-09-11,390216fe29639b321545b513a2d1f12be76e03f2,1b2dbc5d20b3b6cd501aeba8e56cb4b904f01c10,command-cv: step 1 -- the A+ camera holds still while the ball is in the air
+2026-09-11,1e4eeb1bd4136043edb2b4f86bcd836e0a7b77a3,107f1027d3f4a832ec6fbd69d84915b69c693b11,command-cv: step 1 audit -- 12 of 55 labels came from the wrong video
+2026-09-11,16de88e7c16c90a6eaad5e1bb5d3e64a87adc4b1,7d34da7b14100e9f90731bbfe6afe2fe2c16e701,command-cv: ingest refuses an ambiguous clip name instead of guessing
+2026-09-10,46217ab5706eecb2579fb48ffee0e7105d6fb2e0,f5371d04bea853cef217c452232f971f48b7fefb,command-cv: step 0 -- the 9-param trajectory now rides on every manifest row
+2026-09-01,b531bcade44cb7ee0dd3f5cc37b79fec8f5160f0,9f74d929534991734b01ba8499a56a5422ee22a9,"command-cv: OpenCommand at v1.2.0, and the per-park accuracy they never ran"
+2026-07-09,bd99bc95fa936988ecb90fd2aeda2e5fa139debe,d9527f4446ab5f948a689bf6c58436493fa9d976,command-cv: lock plate_x sign (RHB HBP anchor) + document two-model/two-plane framework
+2026-07-08,bf3de12c2146a17d664beded046b583c130042b1,c6f6c573b535c9fd9a151834f48a56d43b8411af,command-cv: hands-off TIGHTEN — fast-model auto-detect + RANSAC calibration + runner
+2026-07-08,a379f3319fe5e6f73151341577261977c02cb5a1,14c2181cd4d482fda382dd117c034c12e27409e9,command-cv: TIGHTEN done — hands-off RANSAC calibration hits 3.9in LOO
+2026-07-08,1274ccf53ece6da88dd05c182aeb3cd63914a293,7ed5b9908920ec4895d4352f442715e5f09286db,command-cv: SCALE tooling — season command board + annotated-video renderer
+2026-07-06,ddd6e12ebcafe29832e12e24861d781345927915,5f266880ff2f4aed01460fa41d0b56d64921a3f4,command-cv: ball-at-rest catch detector + LOO validation (work-laptop/GPU)
+2026-07-06,26c1bc565bdd3f1b5d9ed72764cbd42814d62c4f,e8e55a748cadfe1ca8aeeb9cc2a74f8778c821e0,command-cv: document detector + validated calibration + the TIGHTEN chain
+2026-07-06,04510fd4b114bf156d24f12297752295bdb8defe,e0808412ca09c30a7747b0b788328bd69c20b800,"command-cv: auto glove setup/catch detector (setup SOLVED, catch WIP)"
+2026-07-05,68e5252280dee8159a897d2ee1492c34579fd8bc,87250f25697771237d4fe644aadba524f5bc3799,command-cv: per-game affine pixel->inches calibration + LOO validation
+2026-07-05,174bd4f47aa8512de6f9fa273c83eb7b426e11bb,7143c98ac554d0bc8cb06b84d9c6777effa31b7c,command-cv: document bootstrap annotation set + Model-A ground-truth contract
+2026-07-03,ee05b0c3d7f1789344c058230866e99128267f61,7648fac7172dc7b4b0ec4b25a78203c24a341b99,command-cv: calibration-training plan + measurement-reference backlog note
+2026-07-03,a4333bb7bfae48cbf7a9a7865264f81e60a5f06e,7f2a02d2629fe3a2f90aacff1c56e472eaceb5cc,command-cv: pin analytics(video) schema + split API/CDN auth (LIVE-verified)
+2026-07-03,4d7cf82b6db3c98acce7cb3a8317d1208edc524b,69aa0aa2aa5831ee2c0bc5507c7b4898b00bfe90,command-cv: distilled MLB Stats API reference (CV-relevant endpoints + auth)
+2026-07-03,222127979e02c70489f8247ad32099f862cd4854,fb477f241c4386c8922a331e7f57e0ff4570b5ce,command-cv: reviewloop fixes (pull_pitcher_clips) — 4 of the verified findings
+2026-07-03,1928094dc0b1977a515deba2050f755d5fd4491d,f8c324d68fb275481757bc0d3cfe11a101b97169,command-cv: annotate.html fps override (default 60) — API clips are 60fps not 30
+2026-07-03,05f80b10af202bc08b6fc71990559294a2de16dd,db6906d8927a52277bf81b8324e50fc268637a55,command-cv: pitcher-scoped training-set puller (season clips + ground-truth manifest)
+2026-07-02,daa1be64d894c5a8e8df6b29ff0d51c11171014e,7244e0d4a9a9d734adc5c453926363a57d1b1bee,command-cv: browser annotator + Mark Contact + video automation scaffold
+2026-06-29,df8ba17bf7931edc694fd04e340a4b1592860b94,14afc76718aaf90c07db13dadf9369668a6f6d8f,command-cv: Method B (glove-size-scaled setup->catch miss) for side-angle clips
+2026-06-29,ad81727041f8f225eec553843d9d11a4691ad309,dd300b1395ebf454d414f6751a2389fc16b238b0,command-cv: document the annotate->train->apply click-tool workflow
+2026-06-29,a9f5f4c9828f96da748e0e8f82e1df704f5cd485,9144013b8adb861f6d27dc55f4e534fbb0228785,command-cv: add reticle-on-frame overlay (recreates 2nd reference image)
+2026-06-29,9587dd2add59f137c7eda4149124c638df3b0750,5f15d5f821c9174074982c2478483cf3c04a36c0,add command-cv: computer-vision miss-distance / command tracker (PoC)
+2026-06-29,6da5bbe41480d29325b6f9bd245e37bbdb57f950,59f97f60db29caed92e4937c36f3873af27844a5,command-cv: fix .gitignore (no inline comments) + untrack derived data/
+2026-06-29,6c3a0256dba7847bc102a5c837df1eb8b72af446,8b064b19cd92f7c50d2a32ed654371d526434f55,command-cv: simpler annotate clicks (left edge -> right edge of mitt)
+2026-06-29,66cb3482f6edbfbb4024cb65f2857334c867ad91,0a90df5db0722ab87414bc099858ad8ab77c52b8,command-cv: contact_sheet.py to pick setup/catch frames per clip
+2026-06-29,4209399d97f515d1fdd362ffdaf5d05b02078e69,5706a6f3a1295210fc7576738ae807153c5cedff,command-cv: provided-video path (decode -> annotate -> report) + clip tools
+2026-06-29,3c51870860d6b190c17a68b5ec5681b74adec33f,db9b53975ae5ab6ab229cd74562c142f9a660f91,command-cv: annotate->train->apply loop (click tool + YOLO dataset + batch)

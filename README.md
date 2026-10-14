@@ -1,5 +1,12 @@
 # Command CV — Miss-Distance / Command Tracker
 
+> **Repo:** `github.com/BridgerBSB/command-cv` (since 2026-10-14; before that a folder in
+> `bsb-resources`). Read `LINEAGE.md` first. Commit IDs cited before 2026-10-14 are
+> `bsb-resources` IDs: `docs/sha-map-from-bsb-resources.csv` translates them. Running log:
+> `docs/PROGRESS-LOG.md`. Governing rules live in `bsb-resources/.claude/rules/`
+> (index-and-time-origins, long-jobs-on-this-laptop, metric-must-separate-failure-modes,
+> probe-capability-before-accepting-a-blocker).
+
 Quantify pitcher **command** by measuring how far a pitch missed the catcher's
 intended target — recreating the LinkedIn tool by Lucas Baquero. Turns "intent
 into measurable data" instead of the eye test.
