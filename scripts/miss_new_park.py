@@ -152,7 +152,7 @@ def detect_with_ladder(g, a):
     for step in range(LADDER_STEPS + 1):
         if not have("detect_tracks_%d_v4.csv" % g):
             sh(["scripts/detect_ball_tracks.py", "--dir", a.dir, "--game", str(g), "--weights",
-                a.weights, "--device", "0", "--tag", "_v4"] + flags)
+                a.weights, "--device", "auto", "--tag", "_v4"] + flags)
         if lo is None or hi is None:
             break                                # the default window: a trial, no park window yet
         open(wp, "w").write(" ".join(flags))

@@ -155,7 +155,9 @@ def main():
     ap.add_argument("--batch", type=int, default=16,
                     help="frames per predict call; 16 fits a 4 GB card at 1280")
     ap.add_argument("--limit", type=int, default=0)
-    ap.add_argument("--device", default="0")
+    ap.add_argument("--device", default="0",
+                    help="'auto' = '0' when torch sees a GPU (CUDA, or ROCm on the AMD laptop), "
+                         "else 'cpu'. The Hostinger VPS has no GPU (2026-10-14)")
     ap.add_argument("--two-pass", action="store_true",
                     help="admit SHORT chains that end inside the consensus window pass 1 "
                          "defined. For tight-camera parks where the ball is separable for "
@@ -182,6 +184,10 @@ def main():
                     help="let a chain skip up to N frames to a candidate its own constant-velocity "
                          "flight predicts (0 = off). Per park, from docs/miss_park_registry.csv")
     a = ap.parse_args()
+    if a.device == "auto":
+        import torch
+        a.device = "0" if torch.cuda.is_available() else "cpu"
+        print("device: %s" % a.device, flush=True)
     global BRIDGE
     BRIDGE = a.bridge
     if BRIDGE:
