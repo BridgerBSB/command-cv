@@ -45,8 +45,13 @@ def _glove_track(clip_path: str, model, step: int = 3, conf: float = 0.25,
 
     half=True runs the detector in FP16 on the GPU: 0.018 vs 0.041 s/frame on the AMD
     laptop, box centres a median 0.19 px / max 0.50 px from FP32 over 60 frames
-    (2026-10-11). Ultralytics ignores it on CPU. Batching frames was tried and is SLOWER
-    on this GPU (batch 16: 0.051 s/frame), so frames go one at a time.
+    (2026-10-11). Batching frames was tried and is SLOWER on this GPU (batch 16: 0.051
+    s/frame), so frames go one at a time.
+
+    ON CPU IT IS FORCED OFF. Ultralytics does NOT ignore `quantize=16` on CPU (the old note
+    said it did - true of `half`, not of 8.4's rename): on the 2-core Hostinger VPS the
+    OpenCommand glove model (yolo11x, 57M params) took 7.62 s/frame with it vs 1.36 s/frame
+    in FP32 (2026-10-14).
 
     stop(track, frame) -> bool is asked after every sampled frame; True ends the read there.
     The track up to that frame is exactly what a full read would have produced (sequential
@@ -64,6 +69,9 @@ def _glove_track(clip_path: str, model, step: int = 3, conf: float = 0.25,
     kw = {"classes": glove_cls} if glove_cls else {}
     # ultralytics 8.4 renamed half -> quantize=16 (same compute; `half` still works but logs a
     # deprecation warning on EVERY frame, ~70k lines per game). Older versions only know `half`.
+    if half:
+        import torch
+        half = torch.cuda.is_available()          # FP16 only on a GPU (CUDA or ROCm); see docstring
     if half:
         try:
             from ultralytics.cfg import DEFAULT_CFG_DICT
