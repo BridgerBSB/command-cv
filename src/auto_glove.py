@@ -147,6 +147,47 @@ def _select_setup(track, n, radius, max_gap_frames, min_setup_len):
     return None, setup_run, after
 
 
+SETUP_END_WINDOW_FR = 60    # the set-up hold must still be going in the last ~1 s (60 fps) before the ball
+
+
+def _select_setup_anchored(track, anchor, radius, max_gap_frames, min_setup_len,
+                           end_window=SETUP_END_WINDOW_FR, min_lead=0):
+    """Release-anchored SET-UP: (fail_reason or None, setup_run).
+
+    `anchor` = the first frame the pitched ball is seen in flight (a detect_tracks chain's
+    first frame, so already after release). The set-up is the LONGEST glove hold that is
+    still going within `end_window` frames before it. Points after the anchor are dropped
+    before the runs are built, so the catch and the post-catch hold can never be picked.
+
+    Why not the longest hold in the first 65% (_select_setup): Zac's target review
+    (2026-10-15, 117 charted targets) found 27 from the WRONG MOMENT. Timed against the ball,
+    7 of 25 sat at or after the ball's first frame (the catch) and 11 sat 130+ frames before
+    it (an earlier hold, e.g. while signs are given); 82 of 86 correct ones sat 40-130 before.
+
+    Why not the LAST hold before the ball (tried first, 2026-10-16): on correct pitches the
+    catcher holds the target, then drops the glove 20-40 frames before the ball is seen, and
+    the drop breaks into short "holds" of its own (rid 8: target f33-147, then f150-159 and
+    f162-186 each ~45 px lower). The last hold picked the drop on 4 of the first 7 correct
+    targets, by a median 77 px. The real hold ends 17-41 frames before the ball on those 7.
+
+    min_lead > 0 also refuses a hold that STARTS fewer than min_lead frames before the ball:
+    when the broadcast cuts to the pitching view at the delivery, the only hold is the glove
+    during the flight, and there is no set-up to read (rids 26/29/30/33/34, all graded
+    wrong-moment, holds starting 9-31 frames before the ball).
+    """
+    pre = [p for p in track if p[0] <= anchor]
+    if len(pre) < 6:
+        return f"only {len(pre)} glove frames before the ball", None
+    cands = [r for r in _stable_runs(pre, radius, max_gap_frames)
+             if len(r) >= min_setup_len and r[-1][0] >= anchor - end_window]
+    if not cands:
+        return f"no hold within {end_window} frames before the ball", None
+    best = max(cands, key=len)
+    if anchor - best[0][0] < min_lead:
+        return f"set-up hold starts only {anchor - best[0][0]} frames before the ball", None
+    return None, best
+
+
 def _setup_settled(track, fi, n, radius, max_gap_frames, min_setup_len):
     """True once no glove detection after frame `fi` can change _select_setup's verdict or
     set-up. The miss chain reads only those, and the rest of a clip (the catch, the
@@ -176,7 +217,7 @@ def _setup_settled(track, fi, n, radius, max_gap_frames, min_setup_len):
 
 def detect_setup_catch(clip_path: str, model, radius: float = 22.0,
                        max_gap_frames: int = 8, min_setup_len: int = 4,
-                       setup_only: bool = False):
+                       setup_only: bool = False, anchor_frame: int | None = None):
     """Return dict(setup=(x,y,frame), catch=(x,y,frame), ok=bool, reason=str).
 
     ok=False when the trajectory is too sparse/ambiguous to trust — caller drops
@@ -185,7 +226,14 @@ def detect_setup_catch(clip_path: str, model, radius: float = 22.0,
     setup_only=True stops reading the clip once the set-up is settled (_setup_settled) and
     returns catch=None: same ok and set-up as a full read, fewer frames. For callers that
     read only ok + setup (stabilize_park, command_miss); the catch scripts keep the default.
+
+    anchor_frame (sequential frame index, the ball's first frame in flight) switches the
+    set-up to the release-anchored rule (_select_setup_anchored). None = the longest-hold
+    rule, unchanged. With setup_only, the read stops at the anchor.
     """
+    if anchor_frame is not None:
+        return _detect_setup_anchored(clip_path, model, int(anchor_frame), radius,
+                                      max_gap_frames, min_setup_len, setup_only)
     stop, last_read = None, [0]
     if setup_only:
         def stop(track, fi):
@@ -231,3 +279,34 @@ def detect_setup_catch(clip_path: str, model, radius: float = 22.0,
             "setup": (sx, sy, sframe), "catch": (cx, cy, cframe),
             "flight": flight_idx is not None, "n_catch": n_catch,
             "disp": disp, "confident": bool(conf)}
+
+
+def anchored_setup_point(run):
+    """(x, y, frame) of a release-anchored hold: the median spot over the hold, at the hold's
+    LAST frame, i.e. the glove just before the pitch. The longest-hold rule reports the middle
+    frame, which on a long hold can be while signs are still being given (round 1, rid 52:
+    one spot f0-162, shown at f81, graded wrong-moment)."""
+    return (float(np.median([p[1] for p in run])), float(np.median([p[2] for p in run])),
+            int(run[-1][0]))
+
+
+def _detect_setup_anchored(clip_path, model, anchor, radius, max_gap_frames, min_setup_len,
+                           setup_only):
+    """detect_setup_catch with the release-anchored set-up. Set-up only: the catch half is the
+    experimental motion read above and is not ported to this rule."""
+    if not setup_only:
+        raise ValueError("anchor_frame needs setup_only=True (the catch half is not ported)")
+    last_read = [0]
+
+    def stop(track, fi):
+        last_read[0] = fi
+        return fi >= anchor          # nothing after the anchor can change the anchored pick
+
+    track, n = _glove_track(clip_path, model, stop=stop)
+    reason, setup_run = _select_setup_anchored(track, anchor, radius, max_gap_frames,
+                                               min_setup_len)
+    if reason:
+        return {"ok": False, "reason": reason}
+    sx, sy, sframe = anchored_setup_point(setup_run)
+    return {"ok": True, "reason": "ok (setup only, release-anchored)", "setup": (sx, sy, sframe),
+            "catch": None, "frames_read": last_read[0] + 1, "n_frames": n}
