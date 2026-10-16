@@ -148,10 +148,11 @@ def _select_setup(track, n, radius, max_gap_frames, min_setup_len):
 
 
 SETUP_END_WINDOW_FR = 60    # the set-up hold must still be going in the last ~1 s (60 fps) before the ball
+SETUP_MIN_LEAD_FR = 30      # ...and must have started >= 0.5 s before it (else: no set-up visible)
 
 
 def _select_setup_anchored(track, anchor, radius, max_gap_frames, min_setup_len,
-                           end_window=SETUP_END_WINDOW_FR, min_lead=0):
+                           end_window=SETUP_END_WINDOW_FR, min_lead=SETUP_MIN_LEAD_FR):
     """Release-anchored SET-UP: (fail_reason or None, setup_run).
 
     `anchor` = the first frame the pitched ball is seen in flight (a detect_tracks chain's
@@ -170,10 +171,17 @@ def _select_setup_anchored(track, anchor, radius, max_gap_frames, min_setup_len,
     f162-186 each ~45 px lower). The last hold picked the drop on 4 of the first 7 correct
     targets, by a median 77 px. The real hold ends 17-41 frames before the ball on those 7.
 
-    min_lead > 0 also refuses a hold that STARTS fewer than min_lead frames before the ball:
-    when the broadcast cuts to the pitching view at the delivery, the only hold is the glove
-    during the flight, and there is no set-up to read (rids 26/29/30/33/34, all graded
-    wrong-moment, holds starting 9-31 frames before the ball).
+    min_lead refuses a hold that STARTS fewer than min_lead frames before the ball: when the
+    broadcast cuts to the pitching view at the delivery, the only hold is the glove during the
+    flight, and there is no set-up to read (rids 26/29/30/33/34, all graded wrong-moment, holds
+    starting 9-31 frames before the ball). Fixed at 30 before any charted wrong-moment item was
+    in the test.
+
+    scripts/setup_rule_test.py, 2026-10-16, on the 162 items not used to design it: 74 of 80
+    good targets stay within 5 px (the same with min_lead 0); of 27 charted wrong-moment
+    targets 16 move > 10 px and 5 get no target (18 / 1 with min_lead 0); 6 stay. End window
+    40 / 90 instead of 60: good stay 60 / 77, wrong-moment moved 20 / 13 - a tradeoff, not a
+    flip. Whether the MOVED spots are right is round 2 (scripts/target_review_r2.py).
     """
     pre = [p for p in track if p[0] <= anchor]
     if len(pre) < 6:

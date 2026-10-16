@@ -6,8 +6,11 @@ checked a replacement against those answers on saved glove tracks. Passing that 
 the new rule MOVES the wrong ones and LEAVES the good ones; it cannot say the new spots are
 right, and the rule was designed while looking at round-1 items. This sheet answers both:
 
-  r1_wrong_time  round-1 wrong-moment items the new rule re-picked (moved > MOVE_PX)
-  r1_ok_moved    round-1 OK items the new rule moved (a regression check; ideally none)
+  r1_changed     round-1 items the new rule re-picked: wrong-moment / wrong-spot moved
+                 > MOVE_PX, OK moved > KEEP_PX (a regression check). r1_verdict in pick.csv.
+  r1_same_spot   round-1 wrong-moment items the new rule left on the SAME spot. Now shown at
+                 the hold's last frame: an OK here means the spot was right all along and
+                 only the frame shown was early (round 1, rid 52).
   fresh          pitches round 1 never sampled, from the same PASS-game pool. Their
                  wrong-rate is the honest rate for the new rule.
 
@@ -48,7 +51,7 @@ GLOVE = os.path.join(ROOT, "models", "od", "YOLO", "glove_tracking", "model_weig
 KEEP_PX, MOVE_PX = 5.0, 10.0          # setup_rule_test.py's marks
 # The setup_rule_test.py variant whose settings equal src.auto_glove's defaults. The live pick
 # below uses those defaults; the per-item assert proves the two agree.
-RULE = "primary"
+RULE = "+ lead 30"
 
 
 def anchors(game):
@@ -106,8 +109,10 @@ def main():
 
     rt = pd.read_csv(RULE_TEST)
     px = rt[RULE + "_px"]
-    old = pd.concat([rt[(rt.verdict == "wrong_time") & (px > MOVE_PX)].assign(stratum="r1_wrong_time"),
-                     rt[(rt.verdict == "ok") & (px > KEEP_PX)].assign(stratum="r1_ok_moved")])
+    bad = rt.verdict.isin(["wrong_time", "wrong"])
+    old = pd.concat([rt[(bad & (px > MOVE_PX)) | ((rt.verdict == "ok") & (px > KEEP_PX))
+                        ].assign(stratum="r1_changed"),
+                     rt[(rt.verdict == "wrong_time") & (px <= KEEP_PX)].assign(stratum="r1_same_spot")])
     print("round-1 items re-graded: %s" % old.stratum.value_counts().to_dict())
 
     frozen = os.path.join(OUT, "pick.csv")
@@ -117,7 +122,8 @@ def main():
     else:
         seen = set(pd.read_csv(os.path.join(ROOT, "output", "target_review", "pick.csv")).stem)
         fresh = pool[~pool.stem.isin(seen)].sample(a.n_fresh, random_state=a.seed)
-        pick = pd.concat([old[["game", "stem", "stratum", "rid"]].rename(columns={"game": "game_pk", "rid": "r1_rid"}),
+        pick = pd.concat([old[["game", "stem", "stratum", "rid", "verdict"]].rename(
+                              columns={"game": "game_pk", "rid": "r1_rid", "verdict": "r1_verdict"}),
                           fresh[["game_pk", "stem"]].assign(stratum="fresh")], ignore_index=True)
         pick = pick.sample(frac=1, random_state=a.seed).reset_index(drop=True)
         pick["rid"] = range(1, len(pick) + 1)
@@ -129,7 +135,7 @@ def main():
     from ultralytics import YOLO
     model = YOLO(GLOVE)
     anc = {g: anchors(g) for g in pick.game_pk.unique()}
-    want = {(r.r1_rid): r for r in rt.itertuples()} if "r1_rid" in pick else {}
+    want = rt.set_index("rid")         # .loc, not itertuples: "+ lead 30_x" is not an identifier
     items, skipped, keyrows = [], {}, []
     recs = pick.to_dict("records")
     with ThreadPoolExecutor(3) as ex:                 # downloads run ahead; the GPU stays serial
@@ -156,8 +162,8 @@ def main():
                     continue
                 x, y, f = r["setup"]
                 if not pd.isna(it.get("r1_rid", np.nan)):          # same pick the saved-track test made?
-                    t = want[int(it["r1_rid"])]
-                    d = float(np.hypot(x - getattr(t, RULE + "_x"), y - getattr(t, RULE + "_y")))
+                    t = want.loc[int(it["r1_rid"])]
+                    d = float(np.hypot(x - t[RULE + "_x"], y - t[RULE + "_y"]))
                     assert d <= 1.0, "rid %d: live pick %.1f px from the test's" % (it["rid"], d)
                 crop, x0, y0 = crop_ring(clip, int(f), x, y)
                 if crop is None:

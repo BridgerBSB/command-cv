@@ -47,6 +47,7 @@ KEEP_PX, MOVE_PX = 5.0, 10.0
 # "+ lead 30" added 2026-10-16 after rids 26-34 (all implausible) and BEFORE any plausible
 # wrong-moment item was dumped: no target when the hold starts < 30 frames before the ball.
 VARIANTS = [("primary", 60, 0), ("window 40", 40, 0), ("window 90", 90, 0), ("+ lead 30", 60, 30)]
+DEFAULT_VARIANT = "+ lead 30"   # = src.auto_glove defaults (60, 30) since 2026-10-16
 DESIGN_RIDS = set(range(1, 18)) | {26}     # the 18 tracks on disk at the first run
 
 
