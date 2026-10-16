@@ -1,0 +1,672 @@
+[
+ {
+  "rid": 1,
+  "rings": "A=B",
+  "verdict": "both"
+ },
+ {
+  "rid": 2,
+  "rings": "A,B",
+  "verdict": "a"
+ },
+ {
+  "rid": 3,
+  "rings": "A,B",
+  "verdict": "neither"
+ },
+ {
+  "rid": 4,
+  "rings": "A=B",
+  "verdict": "both"
+ },
+ {
+  "rid": 5,
+  "rings": "A=B",
+  "verdict": "both"
+ },
+ {
+  "rid": 6,
+  "rings": "A=B",
+  "verdict": "both"
+ },
+ {
+  "rid": 7,
+  "rings": "A,B",
+  "verdict": "b"
+ },
+ {
+  "rid": 8,
+  "rings": "A=B",
+  "verdict": "both"
+ },
+ {
+  "rid": 9,
+  "rings": "A,B",
+  "verdict": "b"
+ },
+ {
+  "rid": 10,
+  "rings": "A=B",
+  "verdict": "both"
+ },
+ {
+  "rid": 11,
+  "rings": "A,B",
+  "verdict": "a"
+ },
+ {
+  "rid": 12,
+  "rings": "A=B",
+  "verdict": "both"
+ },
+ {
+  "rid": 13,
+  "rings": "A,B",
+  "verdict": "b"
+ },
+ {
+  "rid": 14,
+  "rings": "A,B",
+  "verdict": "a"
+ },
+ {
+  "rid": 15,
+  "rings": "A=B",
+  "verdict": "both"
+ },
+ {
+  "rid": 16,
+  "rings": "A=B",
+  "verdict": "both"
+ },
+ {
+  "rid": 17,
+  "rings": "A=B",
+  "verdict": "both"
+ },
+ {
+  "rid": 18,
+  "rings": "A,B",
+  "verdict": "b"
+ },
+ {
+  "rid": 19,
+  "rings": "A=B",
+  "verdict": "both"
+ },
+ {
+  "rid": 20,
+  "rings": "A,B",
+  "verdict": "a"
+ },
+ {
+  "rid": 21,
+  "rings": "A,B",
+  "verdict": "b"
+ },
+ {
+  "rid": 22,
+  "rings": "A",
+  "verdict": "neither"
+ },
+ {
+  "rid": 23,
+  "rings": "A=B",
+  "verdict": "both"
+ },
+ {
+  "rid": 24,
+  "rings": "A,B",
+  "verdict": "a"
+ },
+ {
+  "rid": 26,
+  "rings": "A,B",
+  "verdict": "a"
+ },
+ {
+  "rid": 27,
+  "rings": "A,B",
+  "verdict": "a"
+ },
+ {
+  "rid": 28,
+  "rings": "A,B",
+  "verdict": "neither"
+ },
+ {
+  "rid": 30,
+  "rings": "A,B",
+  "verdict": "a"
+ },
+ {
+  "rid": 31,
+  "rings": "A,B",
+  "verdict": "b"
+ },
+ {
+  "rid": 32,
+  "rings": "A=B",
+  "verdict": "both"
+ },
+ {
+  "rid": 33,
+  "rings": "A=B",
+  "verdict": "both"
+ },
+ {
+  "rid": 34,
+  "rings": "A=B",
+  "verdict": "both"
+ },
+ {
+  "rid": 35,
+  "rings": "A=B",
+  "verdict": "both"
+ },
+ {
+  "rid": 36,
+  "rings": "A,B",
+  "verdict": "neither"
+ },
+ {
+  "rid": 37,
+  "rings": "A,B",
+  "verdict": "a"
+ },
+ {
+  "rid": 38,
+  "rings": "A,B",
+  "verdict": "b"
+ },
+ {
+  "rid": 39,
+  "rings": "A=B",
+  "verdict": "both"
+ },
+ {
+  "rid": 40,
+  "rings": "A=B",
+  "verdict": "both"
+ },
+ {
+  "rid": 41,
+  "rings": "A,B",
+  "verdict": "both"
+ },
+ {
+  "rid": 42,
+  "rings": "A=B",
+  "verdict": "both"
+ },
+ {
+  "rid": 43,
+  "rings": "A=B",
+  "verdict": "both"
+ },
+ {
+  "rid": 44,
+  "rings": "A,B",
+  "verdict": "a"
+ },
+ {
+  "rid": 45,
+  "rings": "A=B",
+  "verdict": "both"
+ },
+ {
+  "rid": 46,
+  "rings": "A,B",
+  "verdict": "a"
+ },
+ {
+  "rid": 47,
+  "rings": "A=B",
+  "verdict": "both"
+ },
+ {
+  "rid": 48,
+  "rings": "A,B",
+  "verdict": "b"
+ },
+ {
+  "rid": 49,
+  "rings": "A,B",
+  "verdict": "a"
+ },
+ {
+  "rid": 50,
+  "rings": "A=B",
+  "verdict": "both"
+ },
+ {
+  "rid": 51,
+  "rings": "A=B",
+  "verdict": "both"
+ },
+ {
+  "rid": 52,
+  "rings": "A=B",
+  "verdict": "both"
+ },
+ {
+  "rid": 53,
+  "rings": "A=B",
+  "verdict": "both"
+ },
+ {
+  "rid": 54,
+  "rings": "A,B",
+  "verdict": "b"
+ },
+ {
+  "rid": 55,
+  "rings": "A=B",
+  "verdict": "both"
+ },
+ {
+  "rid": 56,
+  "rings": "A,B",
+  "verdict": "a"
+ },
+ {
+  "rid": 57,
+  "rings": "A=B",
+  "verdict": "both"
+ },
+ {
+  "rid": 58,
+  "rings": "A,B",
+  "verdict": "a"
+ },
+ {
+  "rid": 59,
+  "rings": "A=B",
+  "verdict": "neither"
+ },
+ {
+  "rid": 60,
+  "rings": "A=B",
+  "verdict": "both"
+ },
+ {
+  "rid": 61,
+  "rings": "A=B",
+  "verdict": "both"
+ },
+ {
+  "rid": 62,
+  "rings": "A=B",
+  "verdict": "both"
+ },
+ {
+  "rid": 63,
+  "rings": "A=B",
+  "verdict": "both"
+ },
+ {
+  "rid": 64,
+  "rings": "A=B",
+  "verdict": "both"
+ },
+ {
+  "rid": 65,
+  "rings": "A,B",
+  "verdict": "unclear"
+ },
+ {
+  "rid": 66,
+  "rings": "A=B",
+  "verdict": "both"
+ },
+ {
+  "rid": 68,
+  "rings": "A=B",
+  "verdict": "both"
+ },
+ {
+  "rid": 69,
+  "rings": "A=B",
+  "verdict": "both"
+ },
+ {
+  "rid": 70,
+  "rings": "A=B",
+  "verdict": "both"
+ },
+ {
+  "rid": 71,
+  "rings": "A=B",
+  "verdict": "both"
+ },
+ {
+  "rid": 72,
+  "rings": "A,B",
+  "verdict": "unclear"
+ },
+ {
+  "rid": 73,
+  "rings": "A=B",
+  "verdict": "both"
+ },
+ {
+  "rid": 74,
+  "rings": "A,B",
+  "verdict": "a"
+ },
+ {
+  "rid": 75,
+  "rings": "A,B",
+  "verdict": "a"
+ },
+ {
+  "rid": 76,
+  "rings": "A,B",
+  "verdict": "neither"
+ },
+ {
+  "rid": 77,
+  "rings": "A=B",
+  "verdict": "both"
+ },
+ {
+  "rid": 78,
+  "rings": "A,B",
+  "verdict": "b"
+ },
+ {
+  "rid": 80,
+  "rings": "A=B",
+  "verdict": "both"
+ },
+ {
+  "rid": 81,
+  "rings": "A=B",
+  "verdict": "both"
+ },
+ {
+  "rid": 82,
+  "rings": "A=B",
+  "verdict": "both"
+ },
+ {
+  "rid": 84,
+  "rings": "A=B",
+  "verdict": "both"
+ },
+ {
+  "rid": 85,
+  "rings": "A=B",
+  "verdict": "both"
+ },
+ {
+  "rid": 86,
+  "rings": "A=B",
+  "verdict": "both"
+ },
+ {
+  "rid": 87,
+  "rings": "A=B",
+  "verdict": "neither"
+ },
+ {
+  "rid": 88,
+  "rings": "A=B",
+  "verdict": "both"
+ },
+ {
+  "rid": 89,
+  "rings": "A=B",
+  "verdict": "both"
+ },
+ {
+  "rid": 90,
+  "rings": "A=B",
+  "verdict": "both"
+ },
+ {
+  "rid": 91,
+  "rings": "A,B",
+  "verdict": "a"
+ },
+ {
+  "rid": 92,
+  "rings": "A,B",
+  "verdict": "a"
+ },
+ {
+  "rid": 93,
+  "rings": "A=B",
+  "verdict": "both"
+ },
+ {
+  "rid": 94,
+  "rings": "A,B",
+  "verdict": "b"
+ },
+ {
+  "rid": 95,
+  "rings": "A,B",
+  "verdict": "a"
+ },
+ {
+  "rid": 96,
+  "rings": "A=B",
+  "verdict": "both"
+ },
+ {
+  "rid": 97,
+  "rings": "A=B",
+  "verdict": "both"
+ },
+ {
+  "rid": 98,
+  "rings": "A,B",
+  "verdict": "a"
+ },
+ {
+  "rid": 99,
+  "rings": "A=B",
+  "verdict": "both"
+ },
+ {
+  "rid": 100,
+  "rings": "A=B",
+  "verdict": "both"
+ },
+ {
+  "rid": 101,
+  "rings": "A,B",
+  "verdict": "a"
+ },
+ {
+  "rid": 102,
+  "rings": "A=B",
+  "verdict": "both"
+ },
+ {
+  "rid": 103,
+  "rings": "A,B",
+  "verdict": "b"
+ },
+ {
+  "rid": 104,
+  "rings": "A=B",
+  "verdict": "both"
+ },
+ {
+  "rid": 105,
+  "rings": "A,B",
+  "verdict": "b"
+ },
+ {
+  "rid": 106,
+  "rings": "A,B",
+  "verdict": "a"
+ },
+ {
+  "rid": 107,
+  "rings": "A=B",
+  "verdict": "both"
+ },
+ {
+  "rid": 108,
+  "rings": "A=B",
+  "verdict": "both"
+ },
+ {
+  "rid": 109,
+  "rings": "A,B",
+  "verdict": "b"
+ },
+ {
+  "rid": 110,
+  "rings": "A,B",
+  "verdict": "a"
+ },
+ {
+  "rid": 111,
+  "rings": "A=B",
+  "verdict": "both"
+ },
+ {
+  "rid": 112,
+  "rings": "A=B",
+  "verdict": "both"
+ },
+ {
+  "rid": 113,
+  "rings": "A=B",
+  "verdict": "both"
+ },
+ {
+  "rid": 114,
+  "rings": "A,B",
+  "verdict": "a"
+ },
+ {
+  "rid": 115,
+  "rings": "A,B",
+  "verdict": "neither"
+ },
+ {
+  "rid": 118,
+  "rings": "A=B",
+  "verdict": "both"
+ },
+ {
+  "rid": 119,
+  "rings": "A=B",
+  "verdict": "both"
+ },
+ {
+  "rid": 120,
+  "rings": "A,B",
+  "verdict": "a"
+ },
+ {
+  "rid": 121,
+  "rings": "A=B",
+  "verdict": "both"
+ },
+ {
+  "rid": 122,
+  "rings": "A=B",
+  "verdict": "both"
+ },
+ {
+  "rid": 123,
+  "rings": "A=B",
+  "verdict": "both"
+ },
+ {
+  "rid": 124,
+  "rings": "A,B",
+  "verdict": "b"
+ },
+ {
+  "rid": 125,
+  "rings": "A,B",
+  "verdict": "b"
+ },
+ {
+  "rid": 126,
+  "rings": "A=B",
+  "verdict": "both"
+ },
+ {
+  "rid": 127,
+  "rings": "A=B",
+  "verdict": "both"
+ },
+ {
+  "rid": 128,
+  "rings": "A=B",
+  "verdict": "both"
+ },
+ {
+  "rid": 129,
+  "rings": "A=B",
+  "verdict": "both"
+ },
+ {
+  "rid": 130,
+  "rings": "A=B",
+  "verdict": "both"
+ },
+ {
+  "rid": 131,
+  "rings": "A,B",
+  "verdict": "a"
+ },
+ {
+  "rid": 132,
+  "rings": "A,B",
+  "verdict": "b"
+ },
+ {
+  "rid": 133,
+  "rings": "A=B",
+  "verdict": "both"
+ },
+ {
+  "rid": 134,
+  "rings": "A=B",
+  "verdict": "both"
+ },
+ {
+  "rid": 135,
+  "rings": "A=B",
+  "verdict": "both"
+ },
+ {
+  "rid": 136,
+  "rings": "A=B",
+  "verdict": "both"
+ },
+ {
+  "rid": 137,
+  "rings": "A=B",
+  "verdict": "both"
+ },
+ {
+  "rid": 138,
+  "rings": "A=B",
+  "verdict": "both"
+ },
+ {
+  "rid": 139,
+  "rings": "A=B",
+  "verdict": "both"
+ },
+ {
+  "rid": 140,
+  "rings": "A=B",
+  "verdict": "both"
+ },
+ {
+  "rid": 141,
+  "rings": "A=B",
+  "verdict": "both"
+ }
+]

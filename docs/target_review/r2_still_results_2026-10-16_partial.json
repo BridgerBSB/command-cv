@@ -1,0 +1,1220 @@
+[
+ {
+  "rid": 1,
+  "game": 822162,
+  "stem": "pull_822162_0183",
+  "frame": 132,
+  "tx": 803.25,
+  "ty": 330.75,
+  "verdict": "wrong",
+  "fx": 810.7,
+  "fy": 347.1
+ },
+ {
+  "rid": 2,
+  "game": 817521,
+  "stem": "pull_817521_0086",
+  "frame": 210,
+  "tx": 735,
+  "ty": 424,
+  "verdict": "wrong_time"
+ },
+ {
+  "rid": 3,
+  "game": 817480,
+  "stem": "pull_817480_0150",
+  "frame": 147,
+  "tx": 718.25,
+  "ty": 562.5,
+  "verdict": "unclear"
+ },
+ {
+  "rid": 4,
+  "game": 817516,
+  "stem": "pull_817516_0003",
+  "frame": 156,
+  "tx": 772,
+  "ty": 378.62,
+  "verdict": "ok"
+ },
+ {
+  "rid": 5,
+  "game": 816448,
+  "stem": "pull_816448_0235",
+  "frame": 120,
+  "tx": 823,
+  "ty": 324.75,
+  "verdict": "ok"
+ },
+ {
+  "rid": 6,
+  "game": 817477,
+  "stem": "pull_817477_0009",
+  "frame": 153,
+  "tx": 823,
+  "ty": 374.75,
+  "verdict": "ok"
+ },
+ {
+  "rid": 7,
+  "game": 817490,
+  "stem": "pull_817490_0000",
+  "frame": 216,
+  "tx": 852,
+  "ty": 469.38,
+  "verdict": "wrong_time"
+ },
+ {
+  "rid": 8,
+  "game": 817407,
+  "stem": "pull_817407_0182",
+  "frame": 165,
+  "tx": 820,
+  "ty": 333.5,
+  "verdict": "ok"
+ },
+ {
+  "rid": 9,
+  "game": 814858,
+  "stem": "pull_814858_0108",
+  "frame": 192,
+  "tx": 781,
+  "ty": 430,
+  "verdict": "wrong_time"
+ },
+ {
+  "rid": 10,
+  "game": 817518,
+  "stem": "pull_817518_0051",
+  "frame": 165,
+  "tx": 955,
+  "ty": 337.75,
+  "verdict": ""
+ },
+ {
+  "rid": 11,
+  "game": 815364,
+  "stem": "pull_815364_0221",
+  "frame": 162,
+  "tx": 840,
+  "ty": 532.5,
+  "verdict": "wrong_time"
+ },
+ {
+  "rid": 12,
+  "game": 814858,
+  "stem": "pull_814858_0303",
+  "frame": 168,
+  "tx": 758,
+  "ty": 448,
+  "verdict": ""
+ },
+ {
+  "rid": 13,
+  "game": 826785,
+  "stem": "pull_826785_0272",
+  "frame": 147,
+  "tx": 631,
+  "ty": 316.25,
+  "verdict": ""
+ },
+ {
+  "rid": 14,
+  "game": 814844,
+  "stem": "pull_814844_0177",
+  "frame": 162,
+  "tx": 797,
+  "ty": 437.25,
+  "verdict": ""
+ },
+ {
+  "rid": 15,
+  "game": 814839,
+  "stem": "pull_814839_0173",
+  "frame": 141,
+  "tx": 828,
+  "ty": 403.5,
+  "verdict": ""
+ },
+ {
+  "rid": 16,
+  "game": 817081,
+  "stem": "pull_817081_0074",
+  "frame": 156,
+  "tx": 776,
+  "ty": 411.62,
+  "verdict": ""
+ },
+ {
+  "rid": 17,
+  "game": 815159,
+  "stem": "pull_815159_0028",
+  "frame": 153,
+  "tx": 765,
+  "ty": 370.5,
+  "verdict": ""
+ },
+ {
+  "rid": 18,
+  "game": 817471,
+  "stem": "pull_817471_0049",
+  "frame": 153,
+  "tx": 816,
+  "ty": 362,
+  "verdict": ""
+ },
+ {
+  "rid": 19,
+  "game": 826867,
+  "stem": "pull_826867_0309",
+  "frame": 177,
+  "tx": 857,
+  "ty": 345,
+  "verdict": ""
+ },
+ {
+  "rid": 20,
+  "game": 827179,
+  "stem": "pull_827179_0093",
+  "frame": 204,
+  "tx": 850,
+  "ty": 465,
+  "verdict": ""
+ },
+ {
+  "rid": 21,
+  "game": 822162,
+  "stem": "pull_822162_0046",
+  "frame": 129,
+  "tx": 840.25,
+  "ty": 365.5,
+  "verdict": ""
+ },
+ {
+  "rid": 22,
+  "game": 814858,
+  "stem": "pull_814858_0031",
+  "frame": 171,
+  "tx": 1266,
+  "ty": 378.62,
+  "verdict": ""
+ },
+ {
+  "rid": 23,
+  "game": 817490,
+  "stem": "pull_817490_0297",
+  "frame": 159,
+  "tx": 839,
+  "ty": 394.5,
+  "verdict": ""
+ },
+ {
+  "rid": 24,
+  "game": 815047,
+  "stem": "pull_815047_0045",
+  "frame": 204,
+  "tx": 710,
+  "ty": 366.5,
+  "verdict": ""
+ },
+ {
+  "rid": 26,
+  "game": 817414,
+  "stem": "pull_817414_0120",
+  "frame": 201,
+  "tx": 942.5,
+  "ty": 406,
+  "verdict": ""
+ },
+ {
+  "rid": 27,
+  "game": 817414,
+  "stem": "pull_817414_0214",
+  "frame": 204,
+  "tx": 829,
+  "ty": 419.5,
+  "verdict": ""
+ },
+ {
+  "rid": 28,
+  "game": 817480,
+  "stem": "pull_817480_0152",
+  "frame": 156,
+  "tx": 757.5,
+  "ty": 555,
+  "verdict": ""
+ },
+ {
+  "rid": 30,
+  "game": 815005,
+  "stem": "pull_815005_0079",
+  "frame": 198,
+  "tx": 641.5,
+  "ty": 384.38,
+  "verdict": ""
+ },
+ {
+  "rid": 31,
+  "game": 814853,
+  "stem": "pull_814853_0207",
+  "frame": 180,
+  "tx": 819.75,
+  "ty": 471.25,
+  "verdict": ""
+ },
+ {
+  "rid": 32,
+  "game": 822507,
+  "stem": "pull_822507_0259",
+  "frame": 159,
+  "tx": 795,
+  "ty": 351.5,
+  "verdict": ""
+ },
+ {
+  "rid": 33,
+  "game": 822478,
+  "stem": "pull_822478_0189",
+  "frame": 165,
+  "tx": 787,
+  "ty": 359.5,
+  "verdict": ""
+ },
+ {
+  "rid": 34,
+  "game": 822491,
+  "stem": "pull_822491_0252",
+  "frame": 156,
+  "tx": 755,
+  "ty": 370,
+  "verdict": ""
+ },
+ {
+  "rid": 35,
+  "game": 827182,
+  "stem": "pull_827182_0090",
+  "frame": 165,
+  "tx": 768,
+  "ty": 365,
+  "verdict": ""
+ },
+ {
+  "rid": 36,
+  "game": 827097,
+  "stem": "pull_827097_0174",
+  "frame": 156,
+  "tx": 575.75,
+  "ty": 325.5,
+  "verdict": ""
+ },
+ {
+  "rid": 37,
+  "game": 815047,
+  "stem": "pull_815047_0084",
+  "frame": 207,
+  "tx": 718.5,
+  "ty": 365,
+  "verdict": ""
+ },
+ {
+  "rid": 38,
+  "game": 815216,
+  "stem": "pull_815216_0257",
+  "frame": 189,
+  "tx": 802.5,
+  "ty": 439.5,
+  "verdict": ""
+ },
+ {
+  "rid": 39,
+  "game": 817487,
+  "stem": "pull_817487_0041",
+  "frame": 162,
+  "tx": 743,
+  "ty": 457.5,
+  "verdict": ""
+ },
+ {
+  "rid": 40,
+  "game": 826786,
+  "stem": "pull_826786_0331",
+  "frame": 153,
+  "tx": 645,
+  "ty": 328.5,
+  "verdict": ""
+ },
+ {
+  "rid": 41,
+  "game": 815358,
+  "stem": "pull_815358_0122",
+  "frame": 150,
+  "tx": 886,
+  "ty": 400,
+  "verdict": ""
+ },
+ {
+  "rid": 42,
+  "game": 814853,
+  "stem": "pull_814853_0131",
+  "frame": 147,
+  "tx": 799.75,
+  "ty": 444.5,
+  "verdict": ""
+ },
+ {
+  "rid": 43,
+  "game": 817414,
+  "stem": "pull_817414_0055",
+  "frame": 171,
+  "tx": 777.5,
+  "ty": 333.5,
+  "verdict": ""
+ },
+ {
+  "rid": 44,
+  "game": 814840,
+  "stem": "pull_814840_0018",
+  "frame": 204,
+  "tx": 829,
+  "ty": 531,
+  "verdict": ""
+ },
+ {
+  "rid": 45,
+  "game": 814941,
+  "stem": "pull_814941_0092",
+  "frame": 153,
+  "tx": 653,
+  "ty": 344,
+  "verdict": ""
+ },
+ {
+  "rid": 46,
+  "game": 821780,
+  "stem": "pull_821780_0152",
+  "frame": 156,
+  "tx": 728,
+  "ty": 330,
+  "verdict": ""
+ },
+ {
+  "rid": 47,
+  "game": 817505,
+  "stem": "pull_817505_0047",
+  "frame": 162,
+  "tx": 846.5,
+  "ty": 376.75,
+  "verdict": ""
+ },
+ {
+  "rid": 48,
+  "game": 817509,
+  "stem": "pull_817509_0212",
+  "frame": 159,
+  "tx": 832,
+  "ty": 363.5,
+  "verdict": ""
+ },
+ {
+  "rid": 49,
+  "game": 827180,
+  "stem": "pull_827180_0258",
+  "frame": 153,
+  "tx": 756.5,
+  "ty": 327.5,
+  "verdict": ""
+ },
+ {
+  "rid": 50,
+  "game": 827182,
+  "stem": "pull_827182_0088",
+  "frame": 150,
+  "tx": 753,
+  "ty": 337,
+  "verdict": ""
+ },
+ {
+  "rid": 51,
+  "game": 817524,
+  "stem": "pull_817524_0189",
+  "frame": 165,
+  "tx": 746.5,
+  "ty": 406,
+  "verdict": ""
+ },
+ {
+  "rid": 52,
+  "game": 817520,
+  "stem": "pull_817520_0268",
+  "frame": 168,
+  "tx": 734.5,
+  "ty": 311.5,
+  "verdict": ""
+ },
+ {
+  "rid": 53,
+  "game": 815159,
+  "stem": "pull_815159_0220",
+  "frame": 156,
+  "tx": 754,
+  "ty": 349.25,
+  "verdict": ""
+ },
+ {
+  "rid": 54,
+  "game": 815364,
+  "stem": "pull_815364_0229",
+  "frame": 174,
+  "tx": 881,
+  "ty": 512,
+  "verdict": ""
+ },
+ {
+  "rid": 55,
+  "game": 817504,
+  "stem": "pull_817504_0136",
+  "frame": 165,
+  "tx": 856,
+  "ty": 330.5,
+  "verdict": ""
+ },
+ {
+  "rid": 56,
+  "game": 815380,
+  "stem": "pull_815380_0188",
+  "frame": 120,
+  "tx": 895.5,
+  "ty": 405,
+  "verdict": ""
+ },
+ {
+  "rid": 57,
+  "game": 826786,
+  "stem": "pull_826786_0373",
+  "frame": 159,
+  "tx": 655,
+  "ty": 245.75,
+  "verdict": ""
+ },
+ {
+  "rid": 58,
+  "game": 827097,
+  "stem": "pull_827097_0274",
+  "frame": 147,
+  "tx": 585,
+  "ty": 325.5,
+  "verdict": ""
+ },
+ {
+  "rid": 59,
+  "game": 822257,
+  "stem": "pull_822257_0163",
+  "frame": 249,
+  "tx": 878,
+  "ty": 381.62,
+  "verdict": ""
+ },
+ {
+  "rid": 60,
+  "game": 817085,
+  "stem": "pull_817085_0349",
+  "frame": 171,
+  "tx": 710.5,
+  "ty": 370.5,
+  "verdict": ""
+ },
+ {
+  "rid": 61,
+  "game": 814867,
+  "stem": "pull_814867_0042",
+  "frame": 171,
+  "tx": 810,
+  "ty": 444.5,
+  "verdict": ""
+ },
+ {
+  "rid": 62,
+  "game": 814824,
+  "stem": "pull_814824_0117",
+  "frame": 165,
+  "tx": 755,
+  "ty": 446.5,
+  "verdict": ""
+ },
+ {
+  "rid": 63,
+  "game": 817225,
+  "stem": "pull_817225_0036",
+  "frame": 174,
+  "tx": 703.5,
+  "ty": 292.5,
+  "verdict": ""
+ },
+ {
+  "rid": 64,
+  "game": 815267,
+  "stem": "pull_815267_0152",
+  "frame": 153,
+  "tx": 726,
+  "ty": 319,
+  "verdict": ""
+ },
+ {
+  "rid": 65,
+  "game": 817520,
+  "stem": "pull_817520_0161",
+  "frame": 195,
+  "tx": 753,
+  "ty": 348.75,
+  "verdict": ""
+ },
+ {
+  "rid": 66,
+  "game": 817516,
+  "stem": "pull_817516_0238",
+  "frame": 168,
+  "tx": 765.5,
+  "ty": 379.5,
+  "verdict": ""
+ },
+ {
+  "rid": 68,
+  "game": 815005,
+  "stem": "pull_815005_0174",
+  "frame": 153,
+  "tx": 629,
+  "ty": 304.88,
+  "verdict": ""
+ },
+ {
+  "rid": 69,
+  "game": 822469,
+  "stem": "pull_822469_0122",
+  "frame": 162,
+  "tx": 808,
+  "ty": 359,
+  "verdict": ""
+ },
+ {
+  "rid": 70,
+  "game": 821784,
+  "stem": "pull_821784_0173",
+  "frame": 165,
+  "tx": 718.5,
+  "ty": 365,
+  "verdict": ""
+ },
+ {
+  "rid": 71,
+  "game": 814871,
+  "stem": "pull_814871_0173",
+  "frame": 171,
+  "tx": 870.5,
+  "ty": 524,
+  "verdict": ""
+ },
+ {
+  "rid": 72,
+  "game": 815448,
+  "stem": "pull_815448_0221",
+  "frame": 207,
+  "tx": 836.75,
+  "ty": 390.5,
+  "verdict": ""
+ },
+ {
+  "rid": 73,
+  "game": 821780,
+  "stem": "pull_821780_0244",
+  "frame": 162,
+  "tx": 715,
+  "ty": 381,
+  "verdict": ""
+ },
+ {
+  "rid": 74,
+  "game": 817585,
+  "stem": "pull_817585_0159",
+  "frame": 132,
+  "tx": 598.5,
+  "ty": 381.5,
+  "verdict": ""
+ },
+ {
+  "rid": 75,
+  "game": 817519,
+  "stem": "pull_817519_0197",
+  "frame": 204,
+  "tx": 846,
+  "ty": 465,
+  "verdict": ""
+ },
+ {
+  "rid": 76,
+  "game": 814860,
+  "stem": "pull_814860_0161",
+  "frame": 153,
+  "tx": 758,
+  "ty": 458,
+  "verdict": ""
+ },
+ {
+  "rid": 77,
+  "game": 814833,
+  "stem": "pull_814833_0229",
+  "frame": 159,
+  "tx": 826,
+  "ty": 402.5,
+  "verdict": ""
+ },
+ {
+  "rid": 78,
+  "game": 817497,
+  "stem": "pull_817497_0098",
+  "frame": 174,
+  "tx": 778,
+  "ty": 379.25,
+  "verdict": ""
+ },
+ {
+  "rid": 80,
+  "game": 815448,
+  "stem": "pull_815448_0259",
+  "frame": 180,
+  "tx": 819.75,
+  "ty": 300.75,
+  "verdict": ""
+ },
+ {
+  "rid": 81,
+  "game": 815218,
+  "stem": "pull_815218_0134",
+  "frame": 147,
+  "tx": 811,
+  "ty": 310.5,
+  "verdict": ""
+ },
+ {
+  "rid": 82,
+  "game": 814843,
+  "stem": "pull_814843_0311",
+  "frame": 168,
+  "tx": 760.5,
+  "ty": 379.5,
+  "verdict": ""
+ },
+ {
+  "rid": 84,
+  "game": 814778,
+  "stem": "pull_814778_0152",
+  "frame": 156,
+  "tx": 825,
+  "ty": 400,
+  "verdict": ""
+ },
+ {
+  "rid": 85,
+  "game": 826867,
+  "stem": "pull_826867_0243",
+  "frame": 171,
+  "tx": 854.5,
+  "ty": 357.75,
+  "verdict": ""
+ },
+ {
+  "rid": 86,
+  "game": 817584,
+  "stem": "pull_817584_0175",
+  "frame": 156,
+  "tx": 597.75,
+  "ty": 353,
+  "verdict": ""
+ },
+ {
+  "rid": 87,
+  "game": 817516,
+  "stem": "pull_817516_0256",
+  "frame": 126,
+  "tx": 104.25,
+  "ty": 690.75,
+  "verdict": ""
+ },
+ {
+  "rid": 88,
+  "game": 822156,
+  "stem": "pull_822156_0030",
+  "frame": 162,
+  "tx": 738,
+  "ty": 428,
+  "verdict": ""
+ },
+ {
+  "rid": 89,
+  "game": 814847,
+  "stem": "pull_814847_0100",
+  "frame": 159,
+  "tx": 861.25,
+  "ty": 407.75,
+  "verdict": ""
+ },
+ {
+  "rid": 90,
+  "game": 826786,
+  "stem": "pull_826786_0217",
+  "frame": 156,
+  "tx": 638.5,
+  "ty": 326,
+  "verdict": ""
+ },
+ {
+  "rid": 91,
+  "game": 822436,
+  "stem": "pull_822436_0061",
+  "frame": 144,
+  "tx": 213,
+  "ty": 522,
+  "verdict": ""
+ },
+ {
+  "rid": 92,
+  "game": 827182,
+  "stem": "pull_827182_0176",
+  "frame": 177,
+  "tx": 763.25,
+  "ty": 372.75,
+  "verdict": ""
+ },
+ {
+  "rid": 93,
+  "game": 817474,
+  "stem": "pull_817474_0044",
+  "frame": 162,
+  "tx": 791.5,
+  "ty": 390,
+  "verdict": ""
+ },
+ {
+  "rid": 94,
+  "game": 814944,
+  "stem": "pull_814944_0070",
+  "frame": 210,
+  "tx": 818,
+  "ty": 387,
+  "verdict": ""
+ },
+ {
+  "rid": 95,
+  "game": 815050,
+  "stem": "pull_815050_0167",
+  "frame": 201,
+  "tx": 724,
+  "ty": 382.88,
+  "verdict": ""
+ },
+ {
+  "rid": 96,
+  "game": 817360,
+  "stem": "pull_817360_0306",
+  "frame": 132,
+  "tx": 621,
+  "ty": 522,
+  "verdict": ""
+ },
+ {
+  "rid": 97,
+  "game": 814839,
+  "stem": "pull_814839_0114",
+  "frame": 141,
+  "tx": 727.5,
+  "ty": 387.25,
+  "verdict": ""
+ },
+ {
+  "rid": 98,
+  "game": 814861,
+  "stem": "pull_814861_0087",
+  "frame": 180,
+  "tx": 818.5,
+  "ty": 385,
+  "verdict": ""
+ },
+ {
+  "rid": 99,
+  "game": 817280,
+  "stem": "pull_817280_0034",
+  "frame": 165,
+  "tx": 902,
+  "ty": 385,
+  "verdict": ""
+ },
+ {
+  "rid": 100,
+  "game": 817495,
+  "stem": "pull_817495_0176",
+  "frame": 153,
+  "tx": 761,
+  "ty": 427.75,
+  "verdict": ""
+ },
+ {
+  "rid": 101,
+  "game": 815204,
+  "stem": "pull_815204_0211",
+  "frame": 201,
+  "tx": 819,
+  "ty": 420.5,
+  "verdict": ""
+ },
+ {
+  "rid": 102,
+  "game": 815161,
+  "stem": "pull_815161_0021",
+  "frame": 126,
+  "tx": 751.25,
+  "ty": 332.38,
+  "verdict": "wrong_time"
+ },
+ {
+  "rid": 103,
+  "game": 827559,
+  "stem": "pull_827559_0024",
+  "frame": 204,
+  "tx": 663,
+  "ty": 353.5,
+  "verdict": "wrong_time"
+ },
+ {
+  "rid": 104,
+  "game": 817256,
+  "stem": "pull_817256_0022",
+  "frame": 180,
+  "tx": 692,
+  "ty": 224.38,
+  "verdict": "wrong_time"
+ },
+ {
+  "rid": 105,
+  "game": 816448,
+  "stem": "pull_816448_0035",
+  "frame": 168,
+  "tx": 893.25,
+  "ty": 391.25,
+  "verdict": "wrong_time"
+ },
+ {
+  "rid": 106,
+  "game": 814854,
+  "stem": "pull_814854_0003",
+  "frame": 213,
+  "tx": 776.75,
+  "ty": 516,
+  "verdict": "wrong_time"
+ },
+ {
+  "rid": 107,
+  "game": 815004,
+  "stem": "pull_815004_0288",
+  "frame": 150,
+  "tx": 638,
+  "ty": 343.5,
+  "verdict": "wrong_time"
+ },
+ {
+  "rid": 108,
+  "game": 817526,
+  "stem": "pull_817526_0055",
+  "frame": 159,
+  "tx": 809,
+  "ty": 339.75,
+  "verdict": "wrong",
+  "fx": 806,
+  "fy": 356.9
+ },
+ {
+  "rid": 109,
+  "game": 822517,
+  "stem": "pull_822517_0327",
+  "frame": 210,
+  "tx": 793,
+  "ty": 339.62,
+  "verdict": "wrong_time"
+ },
+ {
+  "rid": 110,
+  "game": 814832,
+  "stem": "pull_814832_0249",
+  "frame": 201,
+  "tx": 826.5,
+  "ty": 509.75,
+  "verdict": "wrong_time"
+ },
+ {
+  "rid": 111,
+  "game": 814863,
+  "stem": "pull_814863_0014",
+  "frame": 165,
+  "tx": 790.25,
+  "ty": 429.75,
+  "verdict": "wrong_time"
+ },
+ {
+  "rid": 112,
+  "game": 817488,
+  "stem": "pull_817488_0011",
+  "frame": 162,
+  "tx": 795,
+  "ty": 407,
+  "verdict": "wrong_time"
+ },
+ {
+  "rid": 113,
+  "game": 817590,
+  "stem": "pull_817590_0180",
+  "frame": 165,
+  "tx": 694,
+  "ty": 290.25,
+  "verdict": "wrong_time"
+ },
+ {
+  "rid": 114,
+  "game": 822148,
+  "stem": "pull_822148_0316",
+  "frame": 168,
+  "tx": 781,
+  "ty": 278.25,
+  "verdict": "wrong_time"
+ },
+ {
+  "rid": 115,
+  "game": 816445,
+  "stem": "pull_816445_0232",
+  "frame": 171,
+  "tx": 244.25,
+  "ty": 349,
+  "verdict": "wrong_time"
+ },
+ {
+  "rid": 118,
+  "game": 822496,
+  "stem": "pull_822496_0287",
+  "frame": 195,
+  "tx": 762,
+  "ty": 354.38,
+  "verdict": "wrong_time"
+ },
+ {
+  "rid": 119,
+  "game": 815204,
+  "stem": "pull_815204_0123",
+  "frame": 162,
+  "tx": 790.5,
+  "ty": 357.12,
+  "verdict": "wrong_time"
+ },
+ {
+  "rid": 120,
+  "game": 822503,
+  "stem": "pull_822503_0307",
+  "frame": 189,
+  "tx": 758,
+  "ty": 316.5,
+  "verdict": "wrong_time"
+ },
+ {
+  "rid": 121,
+  "game": 814832,
+  "stem": "pull_814832_0148",
+  "frame": 153,
+  "tx": 779.5,
+  "ty": 408.25,
+  "verdict": "wrong_time"
+ },
+ {
+  "rid": 122,
+  "game": 815358,
+  "stem": "pull_815358_0185",
+  "frame": 144,
+  "tx": 794.5,
+  "ty": 357.5,
+  "verdict": "wrong",
+  "fx": 787.7,
+  "fy": 372.2
+ },
+ {
+  "rid": 123,
+  "game": 822474,
+  "stem": "pull_822474_0160",
+  "frame": 156,
+  "tx": 778,
+  "ty": 338.5,
+  "verdict": "wrong",
+  "fx": 776.4,
+  "fy": 358.6
+ },
+ {
+  "rid": 124,
+  "game": 822472,
+  "stem": "pull_822472_0062",
+  "frame": 153,
+  "tx": 797,
+  "ty": 383.38,
+  "verdict": "wrong_time"
+ },
+ {
+  "rid": 125,
+  "game": 827097,
+  "stem": "pull_827097_0090",
+  "frame": 168,
+  "tx": 597.5,
+  "ty": 256.75,
+  "verdict": "wrong_time"
+ },
+ {
+  "rid": 126,
+  "game": 817516,
+  "stem": "pull_817516_0249",
+  "frame": 159,
+  "tx": 771.5,
+  "ty": 383.5,
+  "verdict": "wrong",
+  "fx": 766.2,
+  "fy": 399.7
+ },
+ {
+  "rid": 127,
+  "game": 814870,
+  "stem": "pull_814870_0090",
+  "frame": 162,
+  "tx": 815.5,
+  "ty": 408.5,
+  "verdict": "wrong_time"
+ },
+ {
+  "rid": 128,
+  "game": 817529,
+  "stem": "pull_817529_0046",
+  "frame": 165,
+  "tx": 755.5,
+  "ty": 297.75,
+  "verdict": "wrong",
+  "fx": 753,
+  "fy": 310.9
+ },
+ {
+  "rid": 129,
+  "game": 814849,
+  "stem": "pull_814849_0044",
+  "frame": 159,
+  "tx": 738.5,
+  "ty": 449.5,
+  "verdict": "wrong_time"
+ },
+ {
+  "rid": 130,
+  "game": 817491,
+  "stem": "pull_817491_0102",
+  "frame": 159,
+  "tx": 841.5,
+  "ty": 348.5,
+  "verdict": "wrong_time"
+ },
+ {
+  "rid": 131,
+  "game": 814944,
+  "stem": "pull_814944_0014",
+  "frame": 201,
+  "tx": 796.5,
+  "ty": 397.25,
+  "verdict": "wrong_time"
+ },
+ {
+  "rid": 132,
+  "game": 821785,
+  "stem": "pull_821785_0172",
+  "frame": 204,
+  "tx": 707,
+  "ty": 473,
+  "verdict": "wrong_time"
+ },
+ {
+  "rid": 133,
+  "game": 826785,
+  "stem": "pull_826785_0230",
+  "frame": 159,
+  "tx": 627,
+  "ty": 324.75,
+  "verdict": "wrong_time"
+ },
+ {
+  "rid": 134,
+  "game": 822475,
+  "stem": "pull_822475_0179",
+  "frame": 135,
+  "tx": 793,
+  "ty": 367.25,
+  "verdict": "ok"
+ },
+ {
+  "rid": 135,
+  "game": 814857,
+  "stem": "pull_814857_0117",
+  "frame": 171,
+  "tx": 789,
+  "ty": 461,
+  "verdict": "wrong_time"
+ },
+ {
+  "rid": 136,
+  "game": 815003,
+  "stem": "pull_815003_0187",
+  "frame": 156,
+  "tx": 632.5,
+  "ty": 301.75,
+  "verdict": "wrong_time"
+ },
+ {
+  "rid": 137,
+  "game": 822484,
+  "stem": "pull_822484_0097",
+  "frame": 180,
+  "tx": 771.5,
+  "ty": 377.88,
+  "verdict": "wrong_time"
+ },
+ {
+  "rid": 138,
+  "game": 821785,
+  "stem": "pull_821785_0038",
+  "frame": 150,
+  "tx": 712,
+  "ty": 415,
+  "verdict": "wrong_time"
+ },
+ {
+  "rid": 139,
+  "game": 827179,
+  "stem": "pull_827179_0085",
+  "frame": 162,
+  "tx": 807,
+  "ty": 372.25,
+  "verdict": "wrong_time"
+ },
+ {
+  "rid": 140,
+  "game": 814782,
+  "stem": "pull_814782_0157",
+  "frame": 153,
+  "tx": 838,
+  "ty": 360.5,
+  "verdict": "wrong_time"
+ },
+ {
+  "rid": 141,
+  "game": 814821,
+  "stem": "pull_814821_0291",
+  "frame": 159,
+  "tx": 806,
+  "ty": 375.25,
+  "verdict": "wrong_time"
+ }
+]
