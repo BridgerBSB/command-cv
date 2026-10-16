@@ -7,6 +7,33 @@
 
 ---
 
+## 2026-10-15 - A quarter of CHARTED set-up targets come from the wrong moment; the 0.47 gate is a coin flip at the margin
+
+**What changed:** three findings that change what is true about the season numbers, plus compute.
+**Idea shift:**
+  - WAS: a target that passes the plausibility screen is the catcher's set-up.
+  - NOW: Zac's blind review (scripts/target_review.py, 172/180 answered): plausible targets are wrong
+    26% of the time (30/117, CI 19-34%) - 27 WRONG MOMENT (catcher not set yet / another pitch), 3 wrong
+    spot (~15 px). The screen itself is right (0/47 rejected targets were OK). Wrong-moment targets sit
+    low (22 vs 29 in) and their frames scatter (IQR 45-162 vs 84-120).
+  - WAS: 0.47 in held-out gate separates good cameras from bad.
+  - NOW: near-miss FAILs pass 13-49% of resamples (session 4c bootstrap) - the gate is a coin flip
+    between 0.47 and ~0.75. Charts keep 0.47; the gate gets tested inside the miss-vs-BB% model
+    (strict / 0.75 / per-pitch-error weighted). Do NOT rerun near misses to "rescue" them - a rerun is a reroll.
+  - Asheville (2807) failures were the DETECT WINDOW (opened after the ball, f177-186; the ladder moved it
+    later), not the camera fit start. Window 175-260 (`b1557ce`); 822469 passed 0.36 at it.
+**Deprecated / still wired:**
+  - STILL-WIRED  src/auto_glove.py:32 SETUP_CUTOFF_FRAC + "longest low-motion run" set-up rule (the
+    wrong-moment source). Proposed fix, not built: the hold that ends just before the ball's release.
+  - STILL-WIRED  scripts/miss_season.py:79 GATE_BOK_IN = 0.47 (kept on purpose until the BB% test).
+**Compute:** CPU VPS is ~23x slower on detection and hours/game on the yolo11x glove model - not a
+season-run home. Hostinger RTX 4090 box: same answers as the laptop (median miss 12.71 both; per-pitch
+0.06 in), detect 1.7 min. `scripts/gpu_box/` rebuilds it in one command; it bills while it EXISTS.
+Fixes found on the way: `--device auto` (073f745), glove FP16 only on GPU (a157965).
+**Active truth now:** charts = 0.47 gate + plausibility screen, with ~1 in 4 targets from the wrong moment.
+**Next:** build + test the release-anchored set-up (must move the 27 wrong-moment items, leave the 87 OK);
+pull the 25 Asheville GPU reruns home (`gpu_box/pull_box.py --apply`), then destroy the GPU box.
+
 ## 2026-10-14 - Command CV is its own repo: BridgerBSB/command-cv (personal GitHub)
 
 **What changed:** Command CV moved out of `bsb-resources` (work GitHub `zbridger_astros`, branch
