@@ -127,14 +127,14 @@ header{position:sticky;top:0;background:var(--navy);color:#fff;padding:10px 16px
 header b{color:var(--orange)} button{font:inherit;padding:6px 12px;border-radius:6px;border:1px solid #ccd;background:#fff;cursor:pointer}
 main{padding:16px;display:grid;gap:16px;grid-template-columns:repeat(auto-fill,minmax(min(100%,520px),1fr))}
 .card{background:var(--card);border-radius:10px;box-shadow:0 1px 3px #0002;padding:10px}
-.card.ok{outline:3px solid var(--ok)}.card.wrong{outline:3px solid var(--bad)}.card.unclear{outline:3px solid #999}
+.card.ok{outline:3px solid var(--ok)}.card.wrong{outline:3px solid var(--bad)}.card.unclear{outline:3px solid #999}.card.wrong_time{outline:3px solid #b8860b}
 .imgw{position:relative;cursor:crosshair}.imgw img{width:100%;display:block;border-radius:6px}
 .fix{position:absolute;width:14px;height:14px;margin:-7px 0 0 -7px;border:3px solid var(--bad);border-radius:50%;pointer-events:none}
 .row{display:flex;gap:8px;margin-top:8px;align-items:center;flex-wrap:wrap}.lab{color:var(--mut);font-size:12px;flex:1}
 </style></head><body>
 <header><span>Target review: is the <b>orange ring</b> on the catcher's glove where he SET UP?</span>
 <span id="cnt"></span><button id="dl">Download results</button>
-<span style="font-size:12px;opacity:.8">Right = <b>OK</b> &middot; wrong = click the real glove &middot; saves as you go</span></header>
+<span style="font-size:12px;opacity:.8"><b>OK</b> = ring on the set-up glove &middot; ring on the wrong thing = click the catcher&#39;s glove &middot; <b>Wrong moment</b> = not set up yet / wrong pitch &middot; saves as you go</span></header>
 <main id="m"></main>
 <script>
 const ITEMS = __ITEMS__;
@@ -153,7 +153,7 @@ for (const it of ITEMS){
   const c = document.createElement("div"); c.id = "c" + it.rid; c.className = "card";
   c.innerHTML = '<div class="imgw"><img loading="lazy" src="' + it.img + '"><div class="fix" style="display:none"></div></div>' +
     '<div class="row"><span class="lab">#' + it.rid + ' &middot; ' + it.label + '</span>' +
-    '<button data-v="ok">OK</button><button data-v="unclear">Can\\'t tell</button><button data-v="clear">Undo</button></div>';
+    '<button data-v="ok">OK</button><button data-v="wrong_time">Wrong moment</button><button data-v="unclear">Can\\'t tell</button><button data-v="clear">Undo</button></div>';
   c.querySelector(".imgw").addEventListener("click", e => { const b = e.currentTarget.getBoundingClientRect();
     R[it.rid] = {verdict: "wrong", fx: +(it.x0 + (e.clientX - b.left) / b.width * it.w).toFixed(1),
                  fy: +(it.y0 + (e.clientY - b.top) / b.height * it.h).toFixed(1)}; save(); });
@@ -186,6 +186,15 @@ def main():
                       impl.sample(min(a.n_implaus, len(impl)), random_state=a.seed).assign(stratum="implausible")])
     pick = pick.sample(frac=1, random_state=a.seed).reset_index(drop=True)       # blind: shuffle strata
     pick["rid"] = range(1, len(pick) + 1)
+    # FROZEN SAMPLE. The pool grows as the season run passes games, so re-sampling with the same seed
+    # draws DIFFERENT pitches under the same rid - and the page's saved answers are keyed by rid
+    # (2026-10-15: 177 of 180 key rows pointed at another pitch). The first run's pick is the sample.
+    frozen = os.path.join(a.out, "pick.csv")
+    if os.path.exists(frozen):
+        f = pd.read_csv(frozen)[["rid", "stratum", "game_pk", "stem"]]
+        pick = f.merge(c.drop(columns=["plaus"]), on=["game_pk", "stem"], how="left")
+        assert pick.cf_url.notna().all(), "a frozen pitch left the pool (its game no longer PASS?)"
+        print("frozen sample reused: %d items" % len(pick))
     img_dir = os.path.join(a.out, "img")
     os.makedirs(img_dir, exist_ok=True)
     with ThreadPoolExecutor(a.threads) as ex:
@@ -194,9 +203,10 @@ def main():
     print("rendered %d of %d (%d clip(s) failed to fetch or decode)" % (len(items), len(pick), len(pick) - len(items)))
     for k, v in sorted(FAILS.items(), key=lambda kv: -kv[1]):
         print("   %3d x %s" % (v, k))
-    pick[pick.rid.isin([i["rid"] for i in items])][
-        ["rid", "stratum", "game_pk", "stem", "frame", "x", "y", "plaus", "pitch_type", "venue", "date"]
-    ].to_csv(os.path.join(a.out, "key.csv"), index=False)
+    if not os.path.exists(frozen):
+        pick[["rid", "stratum", "game_pk", "stem"]].to_csv(frozen, index=False)
+    pick[pick.rid.isin([i["rid"] for i in items])][["rid", "stratum", "game_pk", "stem", "frame", "x", "y"]
+                                                    ].to_csv(os.path.join(a.out, "key.csv"), index=False)
     open(os.path.join(a.out, "index.html"), "w", encoding="utf-8").write(PAGE.replace("__ITEMS__", json.dumps(items)))
     print("-> %s" % os.path.join(a.out, "index.html"))
     if os.path.isdir(os.path.dirname(DESK)):
