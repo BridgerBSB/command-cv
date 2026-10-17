@@ -57,6 +57,13 @@ from stabilize_park import MIN_INLIERS, apply, zoom  # noqa: E402
 OUT = os.path.join(ROOT, "output")
 GLOVE = os.path.join(ROOT, "models", "od", "YOLO", "glove_tracking", "model_weights", "glove_tracking.pt")
 STEP, PPI = OC_STEP, OC_FIXED_PPI      # setup_rule_oc_test.py, 2026-10-17 (module docstring)
+MIN_FREE_GB = 20.0                     # never start a download under this; a game is ~1-2 GB of clips
+# B_minus_A must not move. 1e-6 in, not 0: the box (Linux) wrote half the old files, and the same
+# computation on this laptop differs in the 8th decimal (11 games, 1e-9 to 2e-7 in, 2026-10-17).
+BA_TOL_IN = 1e-6
+LOG_COLS = ["game_pk", "clips", "targets_old", "targets_new", "shared", "moved_med_in", "moved_gt_5in",
+            "bok_gap_old", "bok_gap_new", "plaus_old", "plaus_new", "glove_min", "skipped", "error",
+            "dl_ok", "dl_n", "dl_min", "run_min", "freed_gb", "free_gb_after", "finished_ct"]
 
 
 def p(name, g):
@@ -121,7 +128,7 @@ def retarget(g, model):
     old, new = pd.read_csv(p("command_miss_%d_bo.csv", g)), pd.read_csv(p("command_miss_%d_bo_oc.csv", g))
     both = old[old.target_src == "auto"].merge(new[new.target_src == "auto"], on="stem", suffixes=("_o", "_n"))
     dba = (both.B_minus_A_in_o - both.B_minus_A_in_n).abs().max() if len(both) else 0.0
-    assert not (dba > 1e-9), "game %d: B_minus_A moved by %.3g in - camera or ball changed" % (g, dba)
+    assert not (dba > BA_TOL_IN), "game %d: B_minus_A moved by %.3g in - camera or ball changed" % (g, dba)
     go, gn = MS.grade(g, "_bo"), MS.grade(g, "_bo_oc")
     moved = np.hypot(both.target_x_in_o - both.target_x_in_n, both.target_z_in_o - both.target_z_in_n)
     row = dict(game_pk=g, clips=len(man), targets_old=int((old.target_src == "auto").sum()),
@@ -147,20 +154,38 @@ def main():
     model = YOLO(GLOVE)
     log = os.path.join(OUT, "retarget_season_w%d.csv" % a.worker)
     jobs = [dict(game_pk=g, csv=os.path.join(MS.CVPULL, "cvpull_%d.csv" % g)) for g in games]
-    with ThreadPoolExecutor(1) as ex:                  # the next game downloads while this one runs
-        for job, dl in zip(jobs, ex.map(MS.fetch, jobs)):
+    # ONE game ahead, never more. 2026-10-17: ex.map() submitted every game at once, the single
+    # download thread ran ~30 games ahead of the GPU per worker, and 162 GB of clips filled the disk
+    # to 0 in about an hour. Under MIN_FREE_GB nothing is downloaded and the shard stops.
+    with ThreadPoolExecutor(1) as ex:
+        nxt = ex.submit(MS.fetch, jobs[0]) if jobs and MS.free_gb() >= MIN_FREE_GB else None
+        for i, job in enumerate(jobs):
             g = job["game_pk"]
+            if nxt is None:
+                print("STOP: %.1f GB free, under the %.0f GB floor; %d game(s) left for the next run"
+                      % (MS.free_gb(), MIN_FREE_GB, len(jobs) - i), flush=True)
+                break
+            try:
+                dl, dl_err = nxt.result(), None
+            except Exception as e:                     # noqa: BLE001 - a failed download skips one game
+                dl, dl_err = (0, 0, 0.0), "download: " + " ".join(str(e).split())[-200:]
+            nxt = (ex.submit(MS.fetch, jobs[i + 1])
+                   if i + 1 < len(jobs) and MS.free_gb() >= MIN_FREE_GB + 2 else None)
             t0 = time.time()
             try:
+                if dl_err:
+                    raise RuntimeError(dl_err)
                 row = retarget(g, model)
             except Exception as e:                     # noqa: BLE001 - one bad game never stops the shard
-                row = dict(game_pk=g, error=str(e)[:300])
+                row = dict(game_pk=g, error=" ".join(str(e).split())[-300:])
             finally:
                 freed = MS.delete_clips(g)
             row.update(dl_ok=dl[0], dl_n=dl[1], dl_min=round(dl[2], 1), run_min=round((time.time() - t0) / 60, 1),
-                       freed_gb=round(freed, 2), finished_ct=MS.now_ct())
-            pd.DataFrame([row]).to_csv(log, mode="a", header=not os.path.exists(log), index=False)
-            print("  %d  %s" % (g, "  ".join("%s=%s" % (k, row[k]) for k in row if k != "game_pk")), flush=True)
+                       freed_gb=round(freed, 2), free_gb_after=round(MS.free_gb(), 1), finished_ct=MS.now_ct())
+            pd.DataFrame([row]).reindex(columns=LOG_COLS).to_csv(log, mode="a", header=not os.path.exists(log),
+                                                               index=False)
+            print("  %d  %s" % (g, "  ".join("%s=%s" % (k, row[k]) for k in LOG_COLS if k in row and k != "game_pk")),
+                  flush=True)
 
 
 if __name__ == "__main__":
