@@ -141,6 +141,11 @@ def main():
     ap.add_argument("--max-hops", type=int, default=30,
                     help="stop chaining past this many composed hops (error accumulates)")
     ap.add_argument("--tag", default="", help="suffix on the stab2 outputs")
+    ap.add_argument("--setup-rule", choices=("opencommand", "hold"), default="opencommand",
+                    help="opencommand (default since 2026-10-17, src.auto_glove."
+                         "select_setup_opencommand: 108 of 131 graded right in Zac's clip review vs "
+                         "97 for the hold) or hold (the longest-hold rule every game before then ran "
+                         "with). Each rule has its own set-up cache: setups_<g>_oc.csv / setups_<g>.csv")
     ap.add_argument("--no-setups", action="store_true",
                     help="LABELS-ONLY parks: skip the glove set-up pass (~4 s/clip since aadd50cc0; "
                          "was ~30 min per 120 clips) and write no targets file. Track points map through "
@@ -165,7 +170,8 @@ def main():
     print("overlay mask boxes:", boxes)
 
     # SET-UPS, cached
-    cache = os.path.join(ROOT, "output", "setups_%d.csv" % a.game)
+    # one cache per rule, or a rerun under the other rule would silently reuse these set-ups
+    cache = os.path.join(ROOT, "output", "setups_%d%s.csv" % (a.game, "_oc" if a.setup_rule == "opencommand" else ""))
     setups = {}
     if os.path.exists(cache):
         c = pd.read_csv(cache)
@@ -177,12 +183,20 @@ def main():
         print("--no-setups: glove pass skipped, no targets file will be written")
     if todo:
         from ultralytics import YOLO
-        from src.auto_glove import detect_setup_catch
+        from src.auto_glove import OC_FIXED_PPI, OC_STEP, detect_setup_catch, detect_setup_opencommand
         mitt = YOLO(os.path.join(ROOT, a.mitt_weights))
+        # OpenCommand's window is timed off release; the ball's first tracked frame stands in for
+        # it (as in the graded review), the game's median start for a clip with no track
+        first = trk.groupby("stem").frame.min()
+        med_first = float(first.median())
         for i, s in enumerate(todo, 1):
-            # setup_only: stops reading once the set-up is settled; identical set-ups on 40/40
-            # Sugar Land clips at 66% of the frames (scripts/check_glove_setup_only.py).
-            r = detect_setup_catch(os.path.join(d, s + ".mp4"), mitt, setup_only=True)
+            if a.setup_rule == "opencommand":
+                r = detect_setup_opencommand(os.path.join(d, s + ".mp4"), mitt,
+                                             int(first.get(s, med_first)), OC_FIXED_PPI, step=OC_STEP)
+            else:
+                # setup_only: stops reading once the set-up is settled; identical set-ups on 40/40
+                # Sugar Land clips at 66% of the frames (scripts/check_glove_setup_only.py).
+                r = detect_setup_catch(os.path.join(d, s + ".mp4"), mitt, setup_only=True)
             if r.get("ok"):
                 setups[s] = r["setup"]
             if i % 20 == 0:

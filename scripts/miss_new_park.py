@@ -52,7 +52,7 @@ V4 = "data/yolo_ball_runs/milb4_v4/weights/best.pt"
 # same game is silently reused: the Ogando pilot ran 822515 & co. on one pitcher's clips, and
 # a full-game run would have kept its tracks, its held-out half (make_holdout_split refuses to
 # redo one) and its set-up reference. miss_season.py moves these aside; a hand run refuses.
-STEP_OUTPUTS = ["detect_tracks_{g}_v4.csv", "dets_{g}_v4.csv", "setups_{g}.csv",
+STEP_OUTPUTS = ["detect_tracks_{g}_v4.csv", "dets_{g}_v4.csv", "setups_{g}.csv", "setups_{g}_oc.csv",
                 "targets_{g}_stab2c.csv", "detect_tracks_{g}_v4stab2c.csv",
                 "stab2_clips_{g}c.csv", "stab2_H_{g}c.csv", "holdout_{g}.csv",
                 "seeds_{g}_v4fit.csv", "park_pose_{g}_ballonly.npz", "park_pose_{g}_ref.png",

@@ -27,7 +27,8 @@ EACH ITEM
   * Pause and click the glove to mark the true spot (x, y and the frame) when neither ring
     is right. Marks are scored offline, so a later rule can be checked without a new sheet.
 
-PORTING OPENCOMMAND'S RULE - their step-2 teleport cleaning comes first (oc_clean_teleports;
+PORTING OPENCOMMAND'S RULE (now src.auto_glove.select_setup_opencommand) - their step-2 teleport
+cleaning comes first (clean_teleports;
 without it "highest glove" picks the pitcher's glove), then three differences, all stated:
   * release: we do not have their release_s. The ball's first frame in flight (the
     detect_tracks chain start, the same anchor our rule uses) stands in for it, which is a
@@ -62,7 +63,8 @@ import pandas as pd
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, ROOT)
 sys.path.insert(0, os.path.join(ROOT, "scripts"))
-from src.auto_glove import _glove_track, _select_setup_anchored, anchored_setup_point  # noqa: E402
+from src.auto_glove import (_glove_track, _select_setup_anchored, anchored_setup_point,  # noqa: E402
+                            select_setup_opencommand, OC_WINDOW_S)
 import target_review as r1  # noqa: E402  (candidates(): the pool with each pitch's clip URL)
 import target_review_r2 as r2  # noqa: E402  (anchors(), fetch(), GLOVE: one copy of each)
 
@@ -78,9 +80,6 @@ MARGIN = 110                    # px kept around both rings when they are far ap
 SAME_PX = 10.0                  # rings closer than this are drawn as one (A=B); half a ring radius
 # auto_glove.detect_setup_catch's defaults, which round 2's live pick used
 RADIUS, MAX_GAP, MIN_LEN = 22.0, 8, 4
-# opencommand target_inference.py + solve_glove_locations.py constants, verbatim
-OC_WINDOW_S, OC_END_S, OC_LATE_IN_PER_S = 2.0, 0.3, 15.0
-OC_MAX_STEP_IN_S, OC_MAX_JUMP_IN = 150.0, 20.0
 PRE_S, POST_S, MAX_S = 0.4, 0.3, 6.0   # clip shown: from PRE_S before the earliest pick to POST_S past the ball
 
 
@@ -93,53 +92,10 @@ def px_per_inch(game):
     return abs(float(np.polyfit(c.target_z_in, c.target_py, 1)[0]))
 
 
-def oc_clean_teleports(track, fps, ppi):
-    """OpenCommand solve_glove_locations.clean_teleports, in px: keep the largest set of
-    detections the glove could physically have reached from one another (150 in/s, at most
-    20 in per step), the anchor moving only on an accepted point; ties to the earliest seed.
-
-    Not optional for a fair port. Our track is the highest-confidence glove per frame, and on
-    the first test clip (rid 2) that was the PITCHER'S glove at f122 - higher in the frame than
-    the catcher's, so "highest glove" picked it, 415 px from the catcher."""
-    if len(track) < 2:
-        return list(track)
-    fr = [p[0] for p in track]
-    speed, jump = OC_MAX_STEP_IN_S * ppi, OC_MAX_JUMP_IN * ppi
-
-    def reach(seed, forward, keep):
-        af, ax, ay = fr[seed], track[seed][1], track[seed][2]
-        keep[seed] = True
-        for i in (range(seed + 1, len(fr)) if forward else range(seed - 1, -1, -1)):
-            lim = min(speed * abs(fr[i] - af) / fps, jump)
-            if (track[i][1] - ax) ** 2 + (track[i][2] - ay) ** 2 > lim ** 2:
-                continue
-            keep[i] = True
-            af, ax, ay = fr[i], track[i][1], track[i][2]
-
-    best, todo = np.zeros(len(fr), bool), set(range(len(fr)))
-    while todo:
-        keep = np.zeros(len(fr), bool)
-        s = min(todo)
-        reach(s, True, keep)
-        reach(s, False, keep)
-        if keep.sum() > best.sum():
-            best = keep
-        todo -= set(np.flatnonzero(keep).tolist())
-    return [track[i] for i in np.flatnonzero(best)]
-
-
 def oc_pick(track1, anchor, fps, ppi):
-    """OpenCommand v1.1 select_target on our every-frame track, in pixels. None = 'no target'."""
-    if not ppi:
-        return None
-    lo, hi = anchor - OC_WINDOW_S * fps, anchor - OC_END_S * fps
-    win = [p for p in oc_clean_teleports(track1, fps, ppi) if lo <= p[0] <= hi]
-    if not win:
-        return None
-    f = np.array([p[0] for p in win], float)
-    z_in = -np.array([p[2] for p in win]) / ppi          # image y grows DOWN; height is -y
-    i = int(np.argmax(z_in - OC_LATE_IN_PER_S * (f.max() - f) / fps))
-    return float(win[i][1]), float(win[i][2]), int(win[i][0])
+    """OpenCommand's pick (src.auto_glove.select_setup_opencommand, the one copy), or None."""
+    reason, setup = select_setup_opencommand(track1, anchor, fps, ppi)
+    return None if reason else setup
 
 
 def crop_box(points, w, h):

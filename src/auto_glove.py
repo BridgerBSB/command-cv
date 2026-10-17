@@ -298,6 +298,99 @@ def anchored_setup_point(run):
             int(run[-1][0]))
 
 
+# OpenCommand's set-up rule (tomdoyo/open-command, read 2026-10-16 at d96ed0a): constants verbatim
+# from src/target_inference.py + src/solve_glove_locations.py.
+OC_WINDOW_S, OC_END_S, OC_LATE_IN_PER_S = 2.0, 0.3, 15.0
+OC_MAX_STEP_IN_S, OC_MAX_JUMP_IN = 150.0, 20.0
+# Our track is read to this long past the ball's first frame before teleports are cleaned. They
+# clean over the whole clip; 0.3 s is what Zac's 2026-10-16 clip review was graded on, and the
+# largest consistent set can depend on points outside the window, so this is part of the rule.
+OC_READ_PAST_S = 0.3
+# Production settings (scripts/setup_rule_oc_test.py vs the 2026-10-16 grades): ONE px-per-inch for
+# every park = the median of the graded games' command_miss slopes (2.82-5.92), and every 3rd frame.
+# Each moved <= 5 of 134 picks and left 108 graded right; the fixed scale needs no camera, so a new
+# game's set-ups can be picked before its camera exists (stabilize_park runs first).
+OC_FIXED_PPI, OC_STEP = 3.96, 3
+
+
+def clean_teleports(track, fps, ppi):
+    """OpenCommand clean_teleports, in px: the largest set of detections the glove could have
+    physically reached from one another (150 in/s, at most 20 in per step), the anchor moving only
+    on an accepted point, ties to the earliest seed. ppi = px per inch converts their inch limits.
+
+    Required before select_setup_opencommand: our track is the highest-confidence glove per frame,
+    and on the first review clip (rid 2) that was the PITCHER'S glove at f122 - higher in the frame
+    than the catcher's, so "highest glove" took it, 415 px from the catcher."""
+    if len(track) < 2:
+        return list(track)
+    fr = [p[0] for p in track]
+    speed, jump = OC_MAX_STEP_IN_S * ppi, OC_MAX_JUMP_IN * ppi
+
+    def reach(seed, forward, keep):
+        af, ax, ay = fr[seed], track[seed][1], track[seed][2]
+        keep[seed] = True
+        for i in (range(seed + 1, len(fr)) if forward else range(seed - 1, -1, -1)):
+            lim = min(speed * abs(fr[i] - af) / fps, jump)
+            if (track[i][1] - ax) ** 2 + (track[i][2] - ay) ** 2 > lim ** 2:
+                continue
+            keep[i] = True
+            af, ax, ay = fr[i], track[i][1], track[i][2]
+
+    best, todo = np.zeros(len(fr), bool), set(range(len(fr)))
+    while todo:
+        keep = np.zeros(len(fr), bool)
+        s = min(todo)
+        reach(s, True, keep)
+        reach(s, False, keep)
+        if keep.sum() > best.sum():
+            best = keep
+        todo -= set(np.flatnonzero(keep).tolist())
+    return [track[i] for i in np.flatnonzero(best)]
+
+
+def select_setup_opencommand(track, anchor, fps, ppi):
+    """OpenCommand v1.1 select_target on a glove track: (fail_reason or None, (x, y, frame)).
+
+    After clean_teleports, the HIGHEST glove in [release - 2.0 s, release - 0.3 s], discounted 15 in
+    per second before the window's last detection, so a late target beats an earlier, higher one.
+    The spot is that one detection, not a median.
+
+    Ported, with the differences stated: `anchor` (the ball's first frame in flight, a few frames
+    after release) stands in for their release_s, so the window sits that much later; heights and
+    the discount are inches via `ppi` (px per inch) where they use world inches.
+
+    Zac's clip review, 2026-10-16 (134 pitches, docs/target_review/): right on 108 of 132 graded vs
+    97 for the release-anchored hold (_select_setup_anchored). Where the two differ, it wins 27-16;
+    its wins are a target shown HIGH and early that the hold rule misses by ~23 in (the catcher
+    shows the glove, then drops it, and the drop is the longest hold); the hold rule's wins are ~4 in."""
+    if not ppi:
+        return "no px-per-inch scale", None
+    lo, hi = anchor - OC_WINDOW_S * fps, anchor - OC_END_S * fps
+    win = [p for p in clean_teleports(track, fps, ppi) if lo <= p[0] <= hi]
+    if not win:
+        return "no glove in the window", None
+    f = np.array([p[0] for p in win], float)
+    z_in = -np.array([p[2] for p in win]) / ppi           # image y grows DOWN; height is -y
+    i = int(np.argmax(z_in - OC_LATE_IN_PER_S * (f.max() - f) / fps))
+    return None, (float(win[i][1]), float(win[i][2]), int(win[i][0]))
+
+
+def detect_setup_opencommand(clip_path: str, model, anchor_frame: int, ppi: float, step: int = 1):
+    """detect_setup_catch's set-up-only contract with OpenCommand's rule. Reads the clip to
+    OC_READ_PAST_S past the anchor (sequentially, from 0). step=1 is what was graded."""
+    import cv2
+    cap = cv2.VideoCapture(clip_path)
+    fps = float(cap.get(cv2.CAP_PROP_FPS)) or 60.0
+    cap.release()
+    end = int(anchor_frame) + int(round(OC_READ_PAST_S * fps))
+    track, n = _glove_track(clip_path, model, step=step, stop=lambda tr, fi: fi >= end)
+    reason, setup = select_setup_opencommand(track, int(anchor_frame), fps, ppi)
+    if reason:
+        return {"ok": False, "reason": reason}
+    return {"ok": True, "reason": "ok (setup only, opencommand)", "setup": setup, "catch": None,
+            "n_frames": n}
+
+
 def _detect_setup_anchored(clip_path, model, anchor, radius, max_gap_frames, min_setup_len,
                            setup_only):
     """detect_setup_catch with the release-anchored set-up. Set-up only: the catch half is the
